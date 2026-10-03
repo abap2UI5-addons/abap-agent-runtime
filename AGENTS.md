@@ -26,7 +26,8 @@ documentation; keep it in step with every change.
 | `src/03/` | ABAP Standard entry: `z2ui5_cl_agent_http` (`if_http_extension`) + ICF node `/sap/bc/z2ui5_agent` (SICF) |
 | `src/04/` | ABAP Cloud entry: `z2ui5_cl_agent_http_cloud` (`if_http_service_extension`) |
 | `.github/abaplint/` | `abap_cloud.jsonc` (excludes 03), `abap_702.jsonc` (excludes 04, downport) |
-| `.github/workflows/` | `ABAP_STANDARD`, `ABAP_CLOUD`, `ABAP_702`, `check-abap2UI5`, `publish-branches` |
+| `.github/workflows/` | `ABAP_STANDARD`, `ABAP_CLOUD`, `ABAP_702`, `ABAP_UNIT`, `check-abap2UI5`, `publish-branches` |
+| `.github/scripts/unit.mjs` | `npm run unit` - the ABAP Unit tests on abap2UI5's transpiled runtime, in `.unit/` (git-ignored); `ABAP_UNIT` runs it |
 | `abaplint.jsonc` | ABAP Standard 7.50, the strict rule set (excludes 04) |
 | `abap2ui5lint.jsonc` | the abap2UI5 linter (UI5 1.71 floor, `chain-house-layout`) |
 
@@ -93,18 +94,20 @@ documentation; keep it in step with every change.
 ```
 npm ci
 npm run lint && npm run lint:cloud && npm run check:abap2ui5
+npm run unit        # ABAP Unit, transpiled - minutes on the first run
 ```
 
 `ABAP_702` (CI): headless-frontend cloned into `src/zz_headless_frontend`,
 `npm run downport`, `npx abaplint .github/abaplint/abap_702.jsonc` - on a copy,
-never commit. Unit tests: transpiled runtime of abap2UI5 (README,
-"Development"); `ltcl_session` / `ltcl_mcp` are `RISK LEVEL DANGEROUS` (they
-write the addon's tables and restore them in `teardown`), the parser and
-snapshot tests are `HARMLESS`.
+never commit. Unit tests (`ABAP_UNIT`, `npm run unit`): transpiled runtime of
+abap2UI5 (README, "Development"), every risk level; `ltcl_session` /
+`ltcl_mcp` are `RISK LEVEL DANGEROUS` (they write the addon's tables and
+restore them in `teardown`), the parser and snapshot tests are `HARMLESS`.
 
 **Temporary:** until headless-frontend merges the session API (`resume`,
 `get_state`, `get_layers`, `get_actions`, `set_json`, `close_layer`), `abaplint.jsonc`,
-`abap_cloud.jsonc` and `ABAP_702.yaml` resolve it from its branch
+`abap_cloud.jsonc`, `ABAP_702.yaml`, `ABAP_UNIT.yaml` and
+`.github/scripts/unit.mjs` resolve it from its branch
 `claude/abap2ui5-project-brainstorm-nt7ifs`; switch them to `main` then.
 Local runs can pre-fill `.abaplint-deps/` (git-ignored) - abaplint uses a
 dependency folder that exists instead of cloning.

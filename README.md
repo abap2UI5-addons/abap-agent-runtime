@@ -310,15 +310,25 @@ npm ci
 npm run lint            # abaplint, ABAP Standard 7.50, the strict rule set
 npm run lint:cloud      # ABAP Cloud
 npm run check:abap2ui5  # the abap2UI5 linter on the apps (package 02)
+npm run unit            # the ABAP Unit tests on abap2UI5's transpiled runtime
 ```
 
 The ABAP_702 workflow downports `src/` - together with headless-frontend,
 cloned into `src/zz_headless_frontend` - and lints the result as 7.02 (CI only,
-never commit downported source). The unit tests run on the transpiled runtime
-abap2UI5 uses for its own suite: in a throwaway clone of abap2UI5, copy
-headless-frontend's `src/` and this repository's `src/01` and `src/02` in as
-extra packages, `npm ci && npm run downport && npm run auto_transpile`, and run
-the `Z2UI5_CL_AGENT*` tests from `node/output`. See [AGENTS.md](AGENTS.md).
+never commit downported source).
+
+**Unit tests.** `npm run unit` runs the `Z2UI5_CL_AGENT*` tests - all of them,
+the `DANGEROUS` ones included - on the transpiled runtime abap2UI5 uses for its
+own suite (SQLite behind the database statements); `UNIT_FILTER=ltcl_session
+npm run unit` runs only those whose `OBJECT: class->method` contains the
+text. `.github/scripts/unit.mjs` is the whole recipe, and the `ABAP_UNIT`
+workflow runs the same script on every push and pull request: checkouts of
+abap2UI5 `main` and headless-frontend in `.unit/` (git-ignored; cloned on the
+first run, refreshed on every later one), `npm ci` in abap2UI5,
+headless-frontend's `src/` and this repository's `src/01` and `src/02` copied
+in as extra packages, `npm run downport && npm run auto_transpile`, then the
+generated tests - each one printed, exit code 1 on any failure or when none
+ran. The first run takes a few minutes. See [AGENTS.md](AGENTS.md).
 
 ## License
 

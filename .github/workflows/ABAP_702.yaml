@@ -1,0 +1,34 @@
+name: ABAP_702
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ABAP_702-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ABAP_702:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+    - run: npm ci
+    # the simulator this addon runs on is modern ABAP too: downported with it.
+    # TEMPORARY branch - see AGENTS.md, "Gates"
+    - name: Add headless-frontend to the downport
+      run: |
+        git clone --depth 1 -b claude/abap2ui5-project-brainstorm-nt7ifs https://github.com/abap2UI5/headless-frontend /tmp/headless-frontend
+        mkdir -p src/zz_headless_frontend
+        cp /tmp/headless-frontend/src/* src/zz_headless_frontend/
+    # rewrites src/ in place - CI only, the downported source is never committed
+    - run: npm run downport
+    - run: npx abaplint .github/abaplint/abap_702.jsonc

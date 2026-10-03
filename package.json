@@ -1,0 +1,39 @@
+{
+  "name": "abap2ui5-agent",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Every abap2UI5 app is agent-operable - an ABAP-native MCP endpoint that lets AI agents read and operate abap2UI5 apps as the real SAP user.",
+  "scripts": {
+    "lint": "abaplint ./abaplint.jsonc",
+    "lint:cloud": "abaplint .github/abaplint/abap_cloud.jsonc",
+    "lint:702": "abaplint .github/abaplint/abap_702.jsonc",
+    "check:abap2ui5": "abap2ui5lint",
+    "fmt:chains": "abap2ui5lint --fix",
+    "syfixes": "find src -type f -name '*.abap' -exec sed -i -e 's/ RAISE EXCEPTION TYPE cx_sy_itab_line_not_found/ ASSERT 1 = 0/g' {} +",
+    "downport": "abaplint --fix .github/abaplint/abap_702.jsonc && npm run syfixes",
+    "check": "npm run lint && npm run lint:cloud && npm run check:abap2ui5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abap2UI5-addons/agent.git"
+  },
+  "keywords": [
+    "abap",
+    "abap2ui5",
+    "mcp",
+    "agent",
+    "ai"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/abap2UI5-addons/agent/issues"
+  },
+  "homepage": "https://github.com/abap2UI5-addons/agent#readme",
+  "devDependencies": {
+    "@abap2ui5/linter": "^0.8.5",
+    "@abaplint/cli": "^2.120.64"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

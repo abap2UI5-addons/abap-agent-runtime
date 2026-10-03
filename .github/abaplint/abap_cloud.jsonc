@@ -1,0 +1,55 @@
+{
+  // ABAP Cloud language version. Package 03 (the ABAP Standard entry class,
+  // if_http_extension, and its ICF node) is not part of this target - it
+  // ships on the generated `standard` branch only.
+  "global": {
+    "files": "/../../src/**/*.*",
+    "exclude": ["/src/03/"]
+  },
+  "dependencies": [
+    {
+      "url": "https://github.com/abapedia/steampunk-2305-api-intersect-702",
+      "folder": "/../../.abaplint-deps/steampunk",
+      "files": "/src/**/*.*"
+    },
+    {
+      "url": "https://github.com/abap2UI5/abap2UI5",
+      "folder": "/../../.abaplint-deps/abap2UI5",
+      "files": "/src/**/*.*"
+    },
+    {
+      // TEMPORARY - see abaplint.jsonc
+      "url": "https://github.com/abap2UI5/headless-frontend",
+      "branch": "claude/abap2ui5-project-brainstorm-nt7ifs",
+      "folder": "/../../.abaplint-deps/headless-frontend",
+      "files": "/src/**/*.*"
+    },
+    {
+      // if_http_service_extension and the request/response interfaces of
+      // the cloud HTTP framework are not in the 702 intersection above
+      "url": "https://github.com/open-abap/open-abap-core",
+      "folder": "/../../.abaplint-deps/open-abap-core",
+      "files": "/src/http/if_{http_service_extension,web_http_request,web_http_response}.intf.abap"
+    }
+  ],
+  "syntax": {
+    "version": "Cloud",
+    "errorNamespace": "."
+  },
+  "rules": {
+    "downport": true,
+    "begin_end_names": true,
+    "check_ddic": true,
+    "check_include": true,
+    "check_syntax": true,
+    "global_class": true,
+    "definitions_top": false,
+    "implement_methods": true,
+    "method_implemented_twice": true,
+    "parser_error": true,
+    "superclass_final": true,
+    "unknown_types": true,
+    "xml_bom": true,
+    "xml_consistency": true
+  }
+}

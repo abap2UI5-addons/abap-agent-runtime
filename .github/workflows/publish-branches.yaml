@@ -1,0 +1,56 @@
+name: publish-branches
+
+# abapGit always pulls a whole repository, and the two HTTP entry classes
+# cannot both activate on one system: if_http_extension (package 03) does
+# not exist in ABAP Cloud, if_http_service_extension (package 04) not on
+# ABAP Standard 7.50 and older. So every push to main regenerates two
+# branches:
+#   standard - main without package 04 (ABAP Standard, on-premise)
+#   cloud    - main without package 03 (ABAP Cloud: BTP ABAP environment,
+#              S/4HANA Cloud Public Edition)
+# Install from one of them - README.md, "Install". Never commit to them.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-branches
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - branch: standard
+            remove: src/04
+            config: ./abaplint.jsonc
+          - branch: cloud
+            remove: src/03
+            config: .github/abaplint/abap_cloud.jsonc
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+    - run: npm ci
+    # the branch must activate on its target - lint it there first
+    - name: Lint the target
+      run: npx abaplint ${{ matrix.config }}
+    - name: Remove the other entry package
+      run: git rm -r -q ${{ matrix.remove }}
+    - name: Commit and push
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git commit -q -m "generate ${{ matrix.branch }} from ${GITHUB_SHA}"
+        git push --force origin HEAD:${{ matrix.branch }}

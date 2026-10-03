@@ -1,0 +1,118 @@
+{
+  // ABAP Standard 7.50 with the strict rule set. Package 04 (the ABAP Cloud
+  // entry class, if_http_service_extension) is not part of this target - it
+  // ships on the generated `cloud` branch only (README, "Install").
+  "global": {
+    "files": "/src/**/*.*",
+    "exclude": ["/src/04/"]
+  },
+  "dependencies": [
+    {
+      "url": "https://github.com/abapedia/steampunk-2305-api-intersect-702",
+      "folder": "/.abaplint-deps/steampunk",
+      "files": "/src/**/*.*"
+    },
+    {
+      "url": "https://github.com/abap2UI5/abap2UI5",
+      "folder": "/.abaplint-deps/abap2UI5",
+      "files": "/src/**/*.*"
+    },
+    {
+      // the simulator this addon runs on (resume, get_state, get_layers,
+      // set_json, close_layer, ...)
+      "url": "https://github.com/abap2UI5/headless-frontend",
+      "folder": "/.abaplint-deps/headless-frontend",
+      "files": "/src/**/*.*"
+    },
+    {
+      // if_http_extension and the ICF interfaces it names are not in the
+      // 702 intersection above - package 03 implements it
+      "url": "https://github.com/open-abap/open-abap-core",
+      "folder": "/.abaplint-deps/open-abap-core",
+      "files": "/src/http/if_http_{extension,server,request,response,entity}.intf.abap"
+    }
+  ],
+  "syntax": {
+    "version": "v750",
+    "errorNamespace": "."
+  },
+  "rules": {
+    // --- correctness ---
+    "downport": true,
+    "begin_end_names": true,
+    "check_ddic": true,
+    "check_include": true,
+    "check_syntax": true,
+    "global_class": true,
+    "implement_methods": true,
+    "method_implemented_twice": true,
+    "parser_error": true,
+    "superclass_final": true,
+    "unknown_types": true,
+    "xml_consistency": true,
+    "xml_bom": true,
+    "unreachable_code": true,
+    "unused_variables": true,
+    "unused_types": true,
+    "unused_methods": true,
+    "identical_conditions": true,
+    "identical_contents": true,
+    "empty_statement": true,
+    "ambiguous_statement": true,
+    "obsolete_statement": true,
+    "commented_code": true,
+    "when_others_last": true,
+    "constructor_visibility_public": true,
+    "local_testclass_consistency": true,
+    "prefer_xsdbool": true,
+    "allowed_object_types": {
+      "allowed": ["CLAS", "DEVC", "INTF", "TABL", "SICF"]
+    },
+    // --- style ---
+    "exporting": true,
+    "omit_parameter_name": true,
+    "line_length": {
+      "length": 255
+    },
+    "definitions_top": true,
+    "contains_tab": true,
+    "whitespace_end": true,
+    "sequential_blank": {
+      "lines": 3
+    },
+    "max_one_statement": true,
+    "colon_missing_space": true,
+    "keyword_case": {
+      "style": "upper",
+      "ignoreExceptions": true,
+      "ignoreLowerClassImplmentationStatement": true,
+      "ignoreKeywords": []
+    },
+    "types_naming": {
+      "pattern": "^TY_"
+    },
+    "object_naming": {
+      "patternKind": "required",
+      "clas": "^Z2UI5_CL_AGENT",
+      "intf": "^Z2UI5_IF_AGENT",
+      "tabl": "^Z2UI5_T_AG_"
+    },
+    "functional_writing": true,
+    "no_chained_assignment": true,
+    "names_no_dash": true,
+    "preferred_compare_operator": true,
+    "use_line_exists": true,
+    "prefer_is_not": true,
+    "avoid_use": {
+      "define": true,
+      "endselect": true,
+      "execSQL": true,
+      "kernelCall": true,
+      "communication": true,
+      "statics": true,
+      "systemCall": true,
+      "defaultKey": true,
+      "break": true
+    }
+  }
+}

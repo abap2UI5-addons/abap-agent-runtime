@@ -1,0 +1,30 @@
+name: check-abap2UI5
+
+# The abap2UI5-specific lint, next to abaplint: the app classes (package 02) and the views they
+# build - controls, properties and aggregations against the UI5 1.71 floor,
+# bindings and events, the builder chain layout (chain-house-layout) and the
+# use of non-released abap2UI5 objects. Configuration: abap2ui5lint.jsonc.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-abap2UI5-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-abap2UI5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+    - run: npm ci
+    - run: npm run check:abap2ui5

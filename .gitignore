@@ -1,0 +1,4 @@
+node_modules/
+.abaplint-deps/
+*.log
+.unit/

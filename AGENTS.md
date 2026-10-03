@@ -39,7 +39,11 @@ documentation; keep it in step with every change.
   Change the reference first, or record a deviation in README ("What an agent
   sees") - never drift silently. The unit tests compare whole snapshots against
   the reference's output; regenerate their fixtures from the reference, do not
-  edit expected JSON by hand.
+  edit expected JSON by hand. **Parity base:** abap2UI5/mcp-server
+  `6bd3cc3` ("Agent snapshot: selection dialogs and message lists") -
+  `lib/snapshot.mjs`, `lib/viewxml.mjs` and the act part of
+  `lib/appclient.mjs` (the pick, row event `$parameters`); diff the reference
+  from there when porting its next change, and move this line with it.
 - **Agents never fire `confirm` / `forbidden` events**, and the addon's own
   apps (`z2ui5_cl_agent_app_*`) are never agent-operable
   (`z2ui5_cl_agent_settings=>check_app`). Do not add an override.

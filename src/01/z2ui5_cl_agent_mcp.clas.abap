@@ -600,7 +600,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       `{"name":"app_start","description":"Start an abap2UI5 app as your SAP user and get its screen as an AGENT SNAPSHOT (v1): ` &&
       `the fields you can fill (id, model path, label, kind, current value, editable, choice values), the actions you can fire ` &&
       `(event name and arguments of each button, link, row and value-help wire), the tables (columns, the first rows, ` &&
-      `selection), the messages (toast, message box, MessageStrip, field value states) and some static text - read from the ` &&
+      `selection), the messages (toast, message box, MessageStrip, field value states, message popover items) and some static text - read from the ` &&
       `abap2UI5 protocol itself, no browser. Continue with app_act using the snapshot's session. Optional values are applied ` &&
       `as pending edits right after the start.",` &&
       `"inputSchema":{"type":"object","properties":{"app":{"type":"string","description":"the app class to start (app_list ` &&
@@ -614,8 +614,11 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       `{"name":"app_act","description":"Operate a running app session: fill fields and fire one event, then get the next ` &&
       `agent snapshot. values { \"<field id | model path | name>\": value } (table cells as \"<table path or id>/<row>/<COLUMN>\", ` &&
       `e.g. \"/T_TAB/2/SELKZ\" to select a row) go out as the model delta of the roundtrip; event is an action's event name ` &&
-      `or its id (\"a3\"); row (0-based) fills the row-dependent arguments of a row action; args (positional, null = let ` &&
-      `the client fill it) supplies arguments the browser would compute. Without event the values stay pending, as typing ` &&
+      `or its id (\"a3\"); row (0-based) fills the row-dependent arguments of a row action (\"$row:FIELD\", ` &&
+      `\"$source:text\", and the row-valued event parameters such as ${$parameters>/listItem}.getBindingContext()...); ` &&
+      `on a SelectDialog/TableSelectDialog the confirm action is the pick: row selects that row as a click does (its ` &&
+      `selectionField, sent as the model delta) and fills selectedItem/selectedContexts arguments from it; args ` &&
+      `(positional, null = let the client fill it) supplies arguments the browser would compute. Without event the values stay pending, as typing ` &&
       `does in the browser. Strict: an event that is not among the snapshot's actions, a field that is not on the screen or ` &&
       `not editable, a choice outside its values is refused - the error names what is allowed - and nothing is sent. ` &&
       `Actions with policy \"confirm\" or \"forbidden\" are never fired by an agent; confirm answers with a URL that hands ` &&
@@ -625,7 +628,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       `<COLUMN>\": value }"},"event":{"type":"string","description":"the action to fire: its event name (e.g. \"SAVE\") or ` &&
       `its id (\"a3\")"},"args":{"type":"array","description":"event arguments, positional to the action's args; null where ` &&
       `the client fills the value in"},"row":{"type":"number","description":"for a row action: the row index (0-based) in ` &&
-      `its table"},` && lv_max_rows_kept && `},"required":["session"]}}` &&
+      `its table - for a selection dialog's confirm, the row to pick"},` && lv_max_rows_kept && `},"required":["session"]}}` &&
       `]}`.
 
   ENDMETHOD.

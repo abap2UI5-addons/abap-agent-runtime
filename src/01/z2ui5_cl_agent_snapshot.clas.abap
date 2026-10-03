@@ -96,7 +96,9 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       "! t_wire_arg: the descriptors behind them; frontend: POPUP / POPOVER for
       "! the two client-side closes; t_choice: the choices of a message box
       "! $action argument. policy is set by the session (allowed / confirm /
-      "! forbidden) and written only when it is not allowed.
+      "! forbidden) and written only when it is not allowed. pick: a selection
+      "! dialog's confirm (the pick of a row); row_template: the row template
+      "! aggregation the wire sits in (rowActionTemplate, ...).
       BEGIN OF ty_s_action,
         id          TYPE string,
         event       TYPE string,
@@ -114,8 +116,10 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         node        TYPE i,
         t_wire_arg  TYPE z2ui5_cl_agent_viewxml=>ty_t_arg,
         frontend    TYPE string,
-        has_choices TYPE abap_bool,
-        t_choice    TYPE string_table,
+        has_choices  TYPE abap_bool,
+        t_choice     TYPE string_table,
+        pick         TYPE abap_bool,
+        row_template TYPE string,
       END OF ty_s_action.
     TYPES ty_t_action TYPE STANDARD TABLE OF ty_s_action WITH EMPTY KEY.
 
@@ -154,6 +158,11 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
     TYPES ty_t_cellspec TYPE STANDARD TABLE OF ty_s_cellspec WITH EMPTY KEY.
 
     TYPES:
+      "! A table. The index for a row event's $parameters: node (the table
+      "! control), kind (m: sap.m, ui: sap.ui.table), dialog (a selection
+      "! dialog), template (the item template of sap.m) and t_cellnode (what
+      "! getCells( ) of a row counts: every cell of a ColumnListItem, the
+      "! visible columns' templates of a grid table row).
       BEGIN OF ty_s_table,
         id              TYPE string,
         path            TYPE string,
@@ -171,15 +180,24 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         model_key       TYPE string,
         doc             TYPE i,
         t_cellspec      TYPE ty_t_cellspec,
+        node            TYPE i,
+        kind            TYPE string,
+        dialog          TYPE abap_bool,
+        template        TYPE i,
+        t_cellnode      TYPE z2ui5_cl_agent_viewxml=>ty_t_int,
       END OF ty_s_table.
     TYPES ty_t_table TYPE STANDARD TABLE OF ty_s_table WITH EMPTY KEY.
 
     TYPES:
+      "! A message - subtitle and description only for the items of a
+      "! MessagePopover / MessageView.
       BEGIN OF ty_s_message,
-        type   TYPE string,
-        text   TYPE string,
-        source TYPE string,
-        field  TYPE string,
+        type        TYPE string,
+        text        TYPE string,
+        source      TYPE string,
+        field       TYPE string,
+        subtitle    TYPE string,
+        description TYPE string,
       END OF ty_s_message.
     TYPES ty_t_message TYPE STANDARD TABLE OF ty_s_message WITH EMPTY KEY.
 
@@ -257,6 +275,19 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE ty_s_val.
 
+    "! The value of a property of a control of a table's template (the item
+    "! template or a cell, by node), resolved in the given row; undefined
+    "! when it cannot be read - what get&lt;Prop&gt;( ) of a row event's item
+    "! answers.
+    METHODS template_value
+      IMPORTING
+        table_id      TYPE clike
+        node          TYPE i
+        prop          TYPE clike
+        row           TYPE i
+      RETURNING
+        VALUE(result) TYPE ty_s_val.
+
     "! A UI5 model path ("/T_TAB/0/NAME") as a path of the model tree
     "! (array indexes are 1-based there); empty when it cannot be reached.
     METHODS tree_path
@@ -281,6 +312,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CONSTANTS c_max_texts TYPE i VALUE 30.
     CONSTANTS c_max_unsupported TYPE i VALUE 30.
     CONSTANTS c_max_values TYPE i VALUE 100.
+    CONSTANTS c_max_item_messages TYPE i VALUE 50.
 
     TYPES:
       BEGIN OF ty_s_doc,
@@ -309,14 +341,16 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
     TYPES ty_t_label TYPE STANDARD TABLE OF ty_s_label WITH EMPTY KEY.
 
     TYPES:
-      "! The walk context. row_table: the table id inside a row template;
+      "! The walk context. row_table: the table id inside a row template
+      "! (row_template: which aggregation of the grid table it is);
       "! row: the tree path of the row data values resolve against (the
       "! editable probe of a cell), empty for none.
       BEGIN OF ty_s_ctx,
-        doc       TYPE i,
-        layer     TYPE string,
-        model_key TYPE string,
-        row_table TYPE string,
+        doc          TYPE i,
+        layer        TYPE string,
+        model_key    TYPE string,
+        row_table    TYPE string,
+        row_template TYPE string,
         row       TYPE string,
         label     TYPE i,
         t_where   TYPE string_table,
@@ -512,8 +546,9 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         ctx      TYPE ty_s_ctx
         name     TYPE string
         field    TYPE i      OPTIONAL
-        only     TYPE string OPTIONAL
-        override TYPE string OPTIONAL.
+        only     TYPE string    OPTIONAL
+        override TYPE string    OPTIONAL
+        pick     TYPE abap_bool OPTIONAL.
 
     METHODS action_label
       IMPORTING
@@ -534,13 +569,20 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         node TYPE z2ui5_cl_agent_viewxml=>ty_s_node
         ctx  TYPE ty_s_ctx.
 
-    METHODS table
+    METHODS message_list
       IMPORTING
         node TYPE z2ui5_cl_agent_viewxml=>ty_s_node
         ctx  TYPE ty_s_ctx
-        name TYPE string
-        agg  TYPE string
-        kind TYPE string.
+        name TYPE string.
+
+    METHODS table
+      IMPORTING
+        node   TYPE z2ui5_cl_agent_viewxml=>ty_s_node
+        ctx    TYPE ty_s_ctx
+        name   TYPE string
+        agg    TYPE string
+        kind   TYPE string
+        dialog TYPE abap_bool.
 
     METHODS walk_template
       IMPORTING
@@ -627,6 +669,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       EXPORTING
         agg           TYPE string
         kind          TYPE string
+        dialog        TYPE abap_bool
       RETURNING
         VALUE(result) TYPE abap_bool.
 
@@ -645,6 +688,13 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS message_type
       IMPORTING
         val           TYPE string
+      RETURNING
+        VALUE(result) TYPE string.
+
+    "! The source of the items of a sap.m message list, empty for any other control.
+    CLASS-METHODS message_source
+      IMPORTING
+        name          TYPE string
       RETURNING
         VALUE(result) TYPE string.
 
@@ -1435,6 +1485,7 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     DATA lv_found TYPE abap_bool.
     DATA lv_agg TYPE string.
     DATA lv_kind TYPE string.
+    DATA lv_dialog TYPE abap_bool.
 
     DATA(ls_node) = node( doc = ctx-doc
                           id  = id ).
@@ -1458,9 +1509,11 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     DATA(ls_c) = ctx.
     INSERT ls_node-local INTO TABLE ls_c-t_where.
 
-    " the title of the layer: Dialog / Popover / Page, or a DynamicPageTitle
+    " the title of the layer: Dialog / selection dialog / Popover / Page, or
+    " a DynamicPageTitle
     IF NOT line_exists( mt_title[ layer = ctx-layer ] ). "#EC CI_SORTSEQ
-      IF lv_name = `sap.m.Dialog` OR lv_name = `sap.m.Popover` OR lv_name = `sap.m.ResponsivePopover`
+      IF lv_name = `sap.m.Dialog` OR lv_name = `sap.m.SelectDialog` OR lv_name = `sap.m.TableSelectDialog`
+          OR lv_name = `sap.m.Popover` OR lv_name = `sap.m.ResponsivePopover`
           OR lv_name = `sap.m.Page` OR lv_name = `sap.m.semantic.FullscreenPage` OR lv_name = `sap.m.Shell`.
         z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_node
                                                 name  = `title`
@@ -1511,14 +1564,23 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    IF table_spec( EXPORTING name = lv_name
-                   IMPORTING agg  = lv_agg
-                             kind = lv_kind ) = abap_true AND ctx-row_table IS INITIAL.
-      table( node = ls_node
-             ctx  = ls_c
-             name = lv_name
-             agg  = lv_agg
-             kind = lv_kind ).
+    IF message_source( lv_name ) IS NOT INITIAL AND ctx-row_table IS INITIAL.
+      message_list( node = ls_node
+                    ctx  = ls_c
+                    name = lv_name ).
+      RETURN.
+    ENDIF.
+
+    IF table_spec( EXPORTING name   = lv_name
+                   IMPORTING agg    = lv_agg
+                             kind   = lv_kind
+                             dialog = lv_dialog ) = abap_true AND ctx-row_table IS INITIAL.
+      table( node   = ls_node
+             ctx    = ls_c
+             name   = lv_name
+             agg    = lv_agg
+             kind   = lv_kind
+             dialog = lv_dialog ).
       RETURN.
     ENDIF.
 
@@ -2043,19 +2105,21 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                        THEN z2ui5_cl_agent_viewxml=>val_to_json( ls_arg-val )
                        ELSE z2ui5_cl_agent_viewxml=>json_string( ls_arg-describe ) ) INTO TABLE lt_arg_json.
       ENDLOOP.
-      push_action( VALUE #( event      = ls_wire-event
-                            t_arg_json = lt_arg_json
-                            label      = lv_label
-                            control    = name
-                            trigger    = ls_attr-name
-                            enabled    = lv_enabled
-                            scope      = lv_scope
-                            table      = ctx-row_table
-                            layer      = ctx-layer
-                            model_key  = ctx-model_key
-                            doc        = ctx-doc
-                            node       = node-id
-                            t_wire_arg = ls_wire-t_arg ) ).
+      push_action( VALUE #( event        = ls_wire-event
+                            t_arg_json   = lt_arg_json
+                            label        = lv_label
+                            control      = name
+                            trigger      = ls_attr-name
+                            enabled      = lv_enabled
+                            scope        = lv_scope
+                            table        = ctx-row_table
+                            layer        = ctx-layer
+                            model_key    = ctx-model_key
+                            doc          = ctx-doc
+                            node         = node-id
+                            t_wire_arg   = ls_wire-t_arg
+                            pick         = pick
+                            row_template = ctx-row_template ) ).
     ENDLOOP.
 
   ENDMETHOD.
@@ -2177,6 +2241,150 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                                              len = 1000 )
                       target = lv_target ) INTO TABLE mt_mgr_msg.
     ENDDO.
+
+  ENDMETHOD.
+
+  METHOD message_list.
+
+    DATA lv_found TYPE abap_bool.
+    DATA lt_entry_item TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+    DATA lt_entry_row TYPE string_table.
+
+    " a MessagePopover or MessageView: every MessageItem is a message, open
+    " or not (a MessagePopover in dependents opens in the browser only - the
+    " messages are what the app shows there). Static items, or the template
+    " of a bound items resolved per row
+    DATA(lv_source) = message_source( name ).
+    DATA(lt_items) = VALUE z2ui5_cl_agent_viewxml=>ty_t_int( ).
+    LOOP AT item_controls( node = node
+                           ctx  = ctx
+                           agg  = `items` ) INTO DATA(lv_item).
+      DATA(lv_item_name) = z2ui5_cl_agent_viewxml=>control_name( node( doc = ctx-doc
+                                                                       id  = lv_item ) ).
+      IF lv_item_name = `sap.m.MessageItem` OR lv_item_name = `sap.m.MessagePopoverItem`.
+        INSERT lv_item INTO TABLE lt_items.
+      ENDIF.
+    ENDLOOP.
+
+    DATA(lv_items_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
+                                                                 name  = `items`
+                                                       IMPORTING found = lv_found ).
+    IF lv_found = abap_false.
+      LOOP AT lt_items INTO lv_item.
+        INSERT lv_item INTO TABLE lt_entry_item.
+        INSERT `` INTO TABLE lt_entry_row.
+      ENDLOOP.
+    ELSE.
+      DATA(lv_bpath) = ``.
+      DATA(lv_bmodel) = ``.
+      DATA(lv_brelative) = abap_false.
+      DATA(lv_has_bpath) = abap_false.
+      DATA(ls_bound) = z2ui5_cl_agent_viewxml=>parse_binding( lv_items_raw ).
+      IF ls_bound-kind = z2ui5_cl_agent_viewxml=>cs_binding-path.
+        lv_has_bpath = abap_true.
+        lv_bpath = ls_bound-path.
+        lv_bmodel = ls_bound-model.
+        lv_brelative = ls_bound-relative.
+      ELSE.
+        LOOP AT ls_bound-t_part INTO DATA(ls_part) WHERE is_path = abap_true. "#EC CI_SORTSEQ
+          lv_has_bpath = abap_true.
+          lv_bpath = ls_part-path.
+          lv_bmodel = ls_part-model.
+          lv_brelative = ls_part-relative.
+          EXIT.
+        ENDLOOP.
+      ENDIF.
+      IF lv_bpath IS INITIAL OR lv_bmodel IS NOT INITIAL OR lv_brelative = abap_true.
+        note( |{ node-local } bound to { COND #( WHEN lv_has_bpath = abap_true AND lv_bmodel IS NOT INITIAL
+                                                THEN |the named model '{ lv_bmodel }'|
+                                                ELSE `something other than a model table` ) } ({ ctx-layer }) - messages not described| ).
+      ELSE.
+        DATA(ls_rows) = model_get( model_key = ctx-model_key
+                                   path      = lv_bpath ).
+        DATA(lv_template) = VALUE i( lt_items[ 1 ] OPTIONAL ).
+        IF ls_rows-kind = z2ui5_cl_agent_viewxml=>cs_kind-array AND lv_template > 0.
+          DATA(lv_count) = CONV i( ls_rows-num ).
+          DO lv_count TIMES.
+            INSERT lv_template INTO TABLE lt_entry_item.
+            INSERT tree_path( model_key = ctx-model_key
+                              path      = |{ lv_bpath }/{ sy-index - 1 }| ) INTO TABLE lt_entry_row.
+          ENDDO.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    DATA(lv_messages) = 0.
+    LOOP AT lt_entry_item INTO lv_item.
+      DATA(lv_row) = lt_entry_row[ sy-tabix ].
+      DATA(ls_item) = node( doc = ctx-doc
+                            id  = lv_item ).
+      " the item's type; absent (or empty) is UI5's default, Error
+      DATA(lv_type_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_item
+                                                                  name  = `type`
+                                                        IMPORTING found = lv_found ).
+      DATA(lv_type_value) = COND string( WHEN lv_found = abap_false THEN `Error`
+                                         ELSE text_of_raw( raw = lv_type_raw
+                                                           ctx = ctx
+                                                           row = lv_row ) ).
+      DATA(lv_type) = message_type( lv_type_value ).
+      IF lv_type IS INITIAL.
+        lv_type = COND #( WHEN lv_type_value IS INITIAL THEN `error` ELSE `info` ).
+      ENDIF.
+      DATA(lv_title) = text_of( node = ls_item
+                                name = `title`
+                                ctx  = ctx
+                                row  = lv_row ).
+      DATA(lv_subtitle) = text_of( node = ls_item
+                                   name = `subtitle`
+                                   ctx  = ctx
+                                   row  = lv_row ).
+      DATA(lv_description) = text_of( node = ls_item
+                                      name = `description`
+                                      ctx  = ctx
+                                      row  = lv_row ).
+      IF lv_description IS NOT INITIAL AND bool( node    = ls_item
+                                                 name    = `markupDescription`
+                                                 ctx     = ctx
+                                                 row     = lv_row
+                                                 default = abap_false ) = abap_true.
+        lv_description = strip_tags( lv_description ).
+      ENDIF.
+      " clipped: whitespace collapsed - empty when there is nothing but blanks
+      DATA(lv_title_clip) = z2ui5_cl_agent_viewxml=>clip( val = lv_title
+                                                          len = 1000 ).
+      DATA(lv_subtitle_clip) = z2ui5_cl_agent_viewxml=>clip( val = lv_subtitle
+                                                             len = 1000 ).
+      DATA(lv_description_clip) = z2ui5_cl_agent_viewxml=>clip( val = lv_description
+                                                                len = 1000 ).
+      IF lv_title_clip IS INITIAL AND lv_subtitle_clip IS INITIAL AND lv_description_clip IS INITIAL.
+        CONTINUE.
+      ENDIF.
+      lv_messages = lv_messages + 1.
+      IF lv_messages > c_max_item_messages.
+        CONTINUE.
+      ENDIF.
+      INSERT VALUE #( type        = lv_type
+                      text        = lv_title_clip
+                      source      = lv_source
+                      subtitle    = lv_subtitle_clip
+                      description = lv_description_clip ) INTO TABLE mt_message.
+    ENDLOOP.
+    IF lv_messages > c_max_item_messages.
+      note( |{ node-local } ({ ctx-layer }): { lv_messages } messages, the first { c_max_item_messages } listed| ).
+    ENDIF.
+
+    wires( node = node
+           ctx  = ctx
+           name = name ).
+    " what else it aggregates (a headerButton) is on the screen like any control
+    LOOP AT node-t_child INTO DATA(lv_child).
+      DATA(ls_child) = node( doc = ctx-doc
+                             id  = lv_child ).
+      IF z2ui5_cl_agent_viewxml=>is_aggregation( ls_child ) = abap_true AND ls_child-local <> `items`.
+        walk( id  = lv_child
+              ctx = ctx ).
+      ENDIF.
+    ENDLOOP.
 
   ENDMETHOD.
 
@@ -2450,10 +2658,18 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDLOOP.
 
     " selection
-    IF kind = `m`.
-      DATA(lv_mode) = text_of( node = node
-                               name = `mode`
-                               ctx  = ctx ).
+    IF dialog = abap_true.
+      " a selection dialog always selects: one row (a pick confirms) or several
+      DATA(lv_mode) = COND string( WHEN bool( node    = node
+                                              name    = `multiSelect`
+                                              ctx     = ctx
+                                              default = abap_false ) = abap_true
+                                   THEN `Multi`
+                                   ELSE `Single` ).
+    ELSEIF kind = `m`.
+      lv_mode = text_of( node = node
+                         name = `mode`
+                         ctx  = ctx ).
     ELSE.
       z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                               name  = `selectionMode`
@@ -2547,17 +2763,31 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       INSERT ls_row INTO TABLE ls_table-t_row.
     ENDDO.
     ls_table-truncated = xsdbool( lv_row_count > lines( ls_table-t_row ) ).
+    " what the session needs to fill a row event's $parameters: the item
+    " template and its cells (getCells( )[n] counts every cell of a
+    " ColumnListItem; a grid table's row has the visible columns' templates)
+    ls_table-node = node-id.
+    ls_table-kind = kind.
+    ls_table-dialog = dialog.
+    ls_table-template = lv_template.
+    LOOP AT lt_cell INTO ls_cell.
+      IF ( kind = `m` AND ls_cell-prop IS INITIAL ) OR ( kind <> `m` AND ls_cell-visible = abap_true ).
+        INSERT ls_cell-node INTO TABLE ls_table-t_cellnode.
+      ENDIF.
+    ENDLOOP.
     INSERT ls_table INTO TABLE mt_table.
 
-    " the table's own events: a row event on the table is row scope
+    " the table's own events: a row event on the table is row scope, and so
+    " is a selection dialog's confirm - the pick of a row
     LOOP AT node-t_attr INTO DATA(ls_attr).
       IF z2ui5_cl_agent_viewxml=>has_wire( ls_attr-value ) = abap_false.
         CONTINUE.
       ENDIF.
+      DATA(lv_pick) = xsdbool( dialog = abap_true AND ls_attr-name = `confirm` ).
       DATA(ls_row_ctx) = ctx.
       IF ls_attr-name = `itemPress` OR ls_attr-name = `selectionChange` OR ls_attr-name = `rowSelectionChange`
           OR ls_attr-name = `cellClick` OR ls_attr-name = `rowPress` OR ls_attr-name = `delete`
-          OR ls_attr-name = `beforeOpenContextMenu`.
+          OR ls_attr-name = `beforeOpenContextMenu` OR lv_pick = abap_true.
         ls_row_ctx-row_table = lv_table_id.
       ENDIF.
       wires( node     = node
@@ -2565,7 +2795,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
              name     = name
              only     = ls_attr-name
              override = |{ z2ui5_cl_agent_viewxml=>clip( val = ls_table-label
-                                                         len = 60 ) }: { ls_attr-name }| ).
+                                                         len = 60 ) }: { ls_attr-name }|
+             pick     = lv_pick ).
     ENDLOOP.
 
     " everything but the template: toolbars, the columns' own controls, ...
@@ -2640,8 +2871,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       DATA(lv_local) = node( doc = ctx-doc
                              id  = lv_child )-local.
       IF lv_local = `rowActionTemplate` OR lv_local = `rowSettingsTemplate`.
+        DATA(ls_agg_ctx) = ls_tmpl_ctx.
+        ls_agg_ctx-row_template = lv_local.
         walk_template( id  = lv_child
-                       ctx = ls_tmpl_ctx ).
+                       ctx = ls_agg_ctx ).
       ENDIF.
     ENDLOOP.
 
@@ -2725,6 +2958,35 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     result = resolve( raw = lv_raw
                       ctx = ls_ctx
                       row = lv_row ).
+
+  ENDMETHOD.
+
+  METHOD template_value.
+
+    DATA lv_found TYPE abap_bool.
+
+    result-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined.
+    READ TABLE mt_table INTO DATA(ls_table) WITH KEY id = table_id. "#EC CI_SORTSEQ
+    IF sy-subrc <> 0 OR node = 0.
+      RETURN.
+    ENDIF.
+    DATA(lv_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = me->node( doc = ls_table-doc
+                                                                             id  = node )
+                                                           name  = prop
+                                                 IMPORTING found = lv_found ).
+    IF lv_found = abap_false.
+      RETURN.
+    ENDIF.
+    IF z2ui5_cl_agent_viewxml=>parse_binding( lv_raw )-kind = z2ui5_cl_agent_viewxml=>cs_binding-composite.
+      RETURN.
+    ENDIF.
+    DATA(ls_ctx) = VALUE ty_s_ctx( doc       = ls_table-doc
+                                   layer     = ls_table-layer
+                                   model_key = ls_table-model_key ).
+    result = resolve( raw = lv_raw
+                      ctx = ls_ctx
+                      row = tree_path( model_key = ls_table-model_key
+                                       path      = |{ ls_table-path }/{ row }| ) ).
 
   ENDMETHOD.
 
@@ -2964,6 +3226,12 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       WHEN `sap.m.Table` OR `sap.m.List` OR `sap.m.Tree` OR `sap.m.GridList` OR `sap.m.ListBase`.
         agg = `items`.
         kind = `m`.
+      WHEN `sap.m.SelectDialog` OR `sap.m.TableSelectDialog`.
+        " the selection dialogs: a list of rows to pick from; confirm is the
+        " pick (a row event), multiSelect the selection mode
+        agg = `items`.
+        kind = `m`.
+        dialog = abap_true.
       WHEN `sap.ui.table.Table` OR `sap.ui.table.TreeTable` OR `sap.ui.table.AnalyticalTable`.
         agg = `rows`.
         kind = `ui`.
@@ -3030,6 +3298,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                        WHEN `Warning`     THEN `warning`
                        WHEN `Success`     THEN `success`
                        WHEN `Information` THEN `info` ).
+
+  ENDMETHOD.
+
+  METHOD message_source.
+
+    result = SWITCH #( name
+                       WHEN `sap.m.MessagePopover` THEN `popover`
+                       WHEN `sap.m.MessageView`    THEN `messageview` ).
 
   ENDMETHOD.
 
@@ -3216,6 +3492,12 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                          |,"source":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-source ) }|.
       IF ls_message-field IS NOT INITIAL.
         lv_message = |{ lv_message },"field":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-field ) }|.
+      ENDIF.
+      IF ls_message-subtitle IS NOT INITIAL.
+        lv_message = |{ lv_message },"subtitle":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-subtitle ) }|.
+      ENDIF.
+      IF ls_message-description IS NOT INITIAL.
+        lv_message = |{ lv_message },"description":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-description ) }|.
       ENDIF.
       INSERT |{ lv_message }\}| INTO TABLE lt_item.
     ENDLOOP.

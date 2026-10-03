@@ -16,6 +16,19 @@ CLASS ltcl_snapshot DEFINITION FINAL
     METHODS popup_012    FOR TESTING.
     METHODS messages_467 FOR TESTING.
     METHODS pending      FOR TESTING.
+    METHODS select_623      FOR TESTING.
+    METHODS cgui_f4_06      FOR TESTING.
+    METHODS messages_452    FOR TESTING.
+    METHODS cgui_popover_07 FOR TESTING.
+    METHODS message_lists   FOR TESTING.
+    METHODS select_dialogs  FOR TESTING.
+
+    METHODS synthetic
+      IMPORTING
+        xml           TYPE string
+        model         TYPE string
+      RETURNING
+        VALUE(result) TYPE REF TO z2ui5_cl_agent_snapshot.
 
     METHODS field_by_label
       IMPORTING
@@ -65,6 +78,30 @@ CLASS ltcl_snapshot DEFINITION FINAL
       RETURNING
         VALUE(result) TYPE z2ui5_cl_agent_snapshot=>ty_s_input.
     METHODS expected_messages_467
+      RETURNING
+        VALUE(result) TYPE string.
+    METHODS input_select_623
+      RETURNING
+        VALUE(result) TYPE z2ui5_cl_agent_snapshot=>ty_s_input.
+    METHODS expected_select_623
+      RETURNING
+        VALUE(result) TYPE string.
+    METHODS input_cgui_f4_06
+      RETURNING
+        VALUE(result) TYPE z2ui5_cl_agent_snapshot=>ty_s_input.
+    METHODS expected_cgui_f4_06
+      RETURNING
+        VALUE(result) TYPE string.
+    METHODS input_messages_452
+      RETURNING
+        VALUE(result) TYPE z2ui5_cl_agent_snapshot=>ty_s_input.
+    METHODS expected_messages_452
+      RETURNING
+        VALUE(result) TYPE string.
+    METHODS input_cgui_popover_07
+      RETURNING
+        VALUE(result) TYPE z2ui5_cl_agent_snapshot=>ty_s_input.
+    METHODS expected_cgui_popover_07
       RETURNING
         VALUE(result) TYPE string.
 
@@ -252,6 +289,197 @@ CLASS ltcl_snapshot IMPLEMENTATION.
                                         act = lo_snap->mt_field[ 1 ]-value-str ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"pending":["/MESSAGE"]}`
                                          act = lo_snap->get_json( ) ).
+
+  ENDMETHOD.
+
+  METHOD select_623.
+
+    " a SelectDialog value help (samples-controls 623, after a search): its
+    " items are a table, confirm is the row pick, search a screen action
+    DATA(lo_snap) = z2ui5_cl_agent_snapshot=>create( input_select_623( ) ).
+    cl_abap_unit_assert=>assert_equals( exp = expected_select_623( )
+                                        act = lo_snap->get_json( ) ).
+
+    cl_abap_unit_assert=>assert_equals( exp = `popup`
+                                        act = lo_snap->mv_layer ).
+    cl_abap_unit_assert=>assert_equals( exp = `Products`
+                                        act = lo_snap->mv_title ).
+    DATA(ls_table) = lo_snap->mt_table[ 1 ].
+    cl_abap_unit_assert=>assert_equals( exp = `sap.m.SelectDialog`
+                                        act = ls_table-control ).
+    cl_abap_unit_assert=>assert_equals( exp = `Single`
+                                        act = ls_table-selection_mode ).
+    cl_abap_unit_assert=>assert_equals( exp = 2
+                                        act = ls_table-row_count ).
+    DATA(ls_confirm) = action_by_event( io_snap = lo_snap
+                                        event   = `VH_CONFIRM` ).
+    cl_abap_unit_assert=>assert_equals( exp = `row`
+                                        act = ls_confirm-scope ).
+    cl_abap_unit_assert=>assert_equals( exp = `t1`
+                                        act = ls_confirm-table ).
+    cl_abap_unit_assert=>assert_true( ls_confirm-pick ).
+    cl_abap_unit_assert=>assert_equals( exp = `Products: confirm`
+                                        act = ls_confirm-label ).
+    cl_abap_unit_assert=>assert_equals( exp = `screen`
+                                        act = action_by_event( io_snap = lo_snap
+                                                               event   = `VH_SEARCH` )-scope ).
+    " getTitle( ) of the picked item: the template's title in the row
+    cl_abap_unit_assert=>assert_equals( exp = `Notebook Professional 17`
+                                        act = lo_snap->template_value( table_id = `t1`
+                                                                       node     = ls_table-template
+                                                                       prop     = `title`
+                                                                       row      = 1 )-str ).
+
+  ENDMETHOD.
+
+  METHOD cgui_f4_06.
+
+    " a TableSelectDialog (abap-cloud-gui F4 through the popups addon):
+    " cells and column headers, ZZSELKZ the selection field, the rows of a
+    " data reference (/MR_TAB_POPUP/*)
+    DATA(lo_snap) = z2ui5_cl_agent_snapshot=>create( input_cgui_f4_06( ) ).
+    cl_abap_unit_assert=>assert_equals( exp = expected_cgui_f4_06( )
+                                        act = lo_snap->get_json( ) ).
+
+    DATA(ls_table) = lo_snap->mt_table[ 1 ].
+    cl_abap_unit_assert=>assert_equals( exp = `sap.m.TableSelectDialog`
+                                        act = ls_table-control ).
+    cl_abap_unit_assert=>assert_equals( exp = `/MR_TAB_POPUP/*`
+                                        act = ls_table-path ).
+    cl_abap_unit_assert=>assert_equals( exp = `ZZSELKZ`
+                                        act = ls_table-selection_field ).
+    cl_abap_unit_assert=>assert_equals( exp = 2
+                                        act = lines( ls_table-t_cellnode ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `Single Select`
+                                        act = lo_snap->mv_title ).
+    cl_abap_unit_assert=>assert_true( action_by_event( io_snap = lo_snap
+                                                       event   = `CONFIRM` )-pick ).
+
+  ENDMETHOD.
+
+  METHOD messages_452.
+
+    " MessageView items are messages (samples 452): type, title, subtitle,
+    " description - an empty subtitle is left out, nothing repeated as text
+    DATA(lo_snap) = z2ui5_cl_agent_snapshot=>create( input_messages_452( ) ).
+    cl_abap_unit_assert=>assert_equals( exp = expected_messages_452( )
+                                        act = lo_snap->get_json( ) ).
+
+    DATA(lv_view) = 0.
+    LOOP AT lo_snap->mt_message INTO DATA(ls_message) WHERE source = `messageview`. "#EC CI_SORTSEQ
+      lv_view = lv_view + 1.
+      cl_abap_unit_assert=>assert_true( xsdbool( strlen( ls_message-description ) <= 1000 ) ).
+    ENDLOOP.
+    cl_abap_unit_assert=>assert_equals( exp = 11
+                                        act = lv_view ).
+    ls_message = lo_snap->mt_message[ 2 ].
+    cl_abap_unit_assert=>assert_equals( exp = `Account 801 requires an assignment`
+                                        act = ls_message-text ).
+    cl_abap_unit_assert=>assert_equals( exp = `Role is invalid`
+                                        act = ls_message-subtitle ).
+    cl_abap_unit_assert=>assert_initial( lo_snap->mt_message[ 4 ]-subtitle ).
+
+  ENDMETHOD.
+
+  METHOD cgui_popover_07.
+
+    " a MessagePopover in dependents (abap-cloud-gui): the run's messages,
+    " while the popover itself opens in the browser only
+    DATA(lo_snap) = z2ui5_cl_agent_snapshot=>create( input_cgui_popover_07( ) ).
+    cl_abap_unit_assert=>assert_equals( exp = expected_cgui_popover_07( )
+                                        act = lo_snap->get_json( ) ).
+
+    cl_abap_unit_assert=>assert_equals( exp = `Number 42 is a warning`
+                                        act = lo_snap->mt_message[ source = `popover` ]-text ). "#EC CI_SORTSEQ
+    DATA(ls_focus) = action_by_event( io_snap = lo_snap
+                                      event   = `CGUI_MESSAGE_FOCUS` ).
+    cl_abap_unit_assert=>assert_equals( exp = `activeTitlePress`
+                                        act = ls_focus-trigger ).
+    cl_abap_unit_assert=>assert_equals( exp = `sap.m.MessagePopover`
+                                        act = ls_focus-control ).
+
+  ENDMETHOD.
+
+  METHOD synthetic.
+
+    result = z2ui5_cl_agent_snapshot=>create( VALUE #(
+        session  = `D1`
+        app      = `Z_T`
+        max_rows = 20
+        t_layer  = VALUE #( ( layer = `MAIN`
+                              xml   = |<mvc:View xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc"><Page title="T">{ xml }</Page></mvc:View>|
+                              model = model ) ) ) ).
+
+  ENDMETHOD.
+
+  METHOD message_lists.
+
+    " static items, UI5's default type Error, None as info, markup stripped,
+    " the 50-item cut, a list bound to a named model noted
+    DATA(lt_row) = VALUE string_table( ).
+    DO 52 TIMES.
+      INSERT |\{"T":"m{ sy-index - 1 }"\}| INTO TABLE lt_row.
+    ENDDO.
+    DATA(lo_snap) = synthetic(
+        xml   = `<MessagePopover><items><MessageItem title="no type"/><MessageItem type="None" title="none"/>` &&
+                `<MessageItem type="Success" title="ok" description="&lt;b&gt;bold&lt;/b&gt; text" markupDescription="true"/>` &&
+                `<MessageItem type="Warning"/></items></MessagePopover>` &&
+                `<MessageView items="{/T_M}"><MessageItem type="Information" title="{T}"/></MessageView>` &&
+                `<MessageView items="{message>/}"><MessageItem title="{message}"/></MessageView>`
+        model = |\{"T_M":[{ concat_lines_of( table = lt_row
+                                              sep   = `,` ) }]\}| ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"messages":[{"type":"error","text":"no type","source":"popover"},` &&
+                                               `{"type":"info","text":"none","source":"popover"},` &&
+                                               `{"type":"success","text":"ok","source":"popover","description":"bold text"},` &&
+                                               `{"type":"info","text":"m0","source":"messageview"},*`
+                                         act = lo_snap->get_json( ) ).
+    DATA(lv_view) = 0.
+    LOOP AT lo_snap->mt_message TRANSPORTING NO FIELDS WHERE source = `messageview`. "#EC CI_SORTSEQ
+      lv_view = lv_view + 1.
+    ENDLOOP.
+    cl_abap_unit_assert=>assert_equals( exp = 50
+                                        act = lv_view ).
+    cl_abap_unit_assert=>assert_true( xsdbool( line_exists( lo_snap->mt_unsupported[ table_line = `MessageView (main): 52 messages, the first 50 listed` ] ) ) ). "#EC CI_SORTSEQ
+    cl_abap_unit_assert=>assert_true( xsdbool( line_exists(
+        lo_snap->mt_unsupported[ table_line = `MessageView bound to the named model 'message' (main) - messages not described` ] ) ) ). "#EC CI_SORTSEQ
+
+  ENDMETHOD.
+
+  METHOD select_dialogs.
+
+    " multiSelect is Multi, a bound selected the selectionField, confirm a
+    " row action (the pick), cancel a screen action; on the page, the page
+    " titles the layer
+    DATA(lo_snap) = synthetic(
+        xml   = `<TableSelectDialog title="Pick" multiSelect="true" items="{/T}" ` &&
+                `confirm=".eB(['OK'], ${$parameters>/selectedContexts/0/sPath})" cancel=".eB(['NO'])">` &&
+                `<ColumnListItem selected="{SEL}"><cells><Text text="{A}"/><ObjectIdentifier title="{B}"/></cells></ColumnListItem>` &&
+                `<columns><Column><header><Text text="Col A"/></header></Column><Column><header><Text text="Col B"/></header></Column></columns>` &&
+                `</TableSelectDialog>`
+        model = `{"T":[{"A":"a1","B":"b1","SEL":false},{"A":"a2","B":"b2","SEL":true}]}` ).
+    DATA(ls_table) = lo_snap->mt_table[ 1 ].
+    cl_abap_unit_assert=>assert_equals( exp = `Multi`
+                                        act = ls_table-selection_mode ).
+    cl_abap_unit_assert=>assert_equals( exp = `SEL`
+                                        act = ls_table-selection_field ).
+    cl_abap_unit_assert=>assert_equals( exp = `Pick`
+                                        act = ls_table-label ).
+    cl_abap_unit_assert=>assert_equals( exp = VALUE string_table( ( `SEL` ) )
+                                        act = ls_table-t_editable ).
+    cl_abap_unit_assert=>assert_equals( exp = `Col A`
+                                        act = ls_table-t_column[ 1 ]-label ).
+    DATA(ls_ok) = action_by_event( io_snap = lo_snap
+                                   event   = `OK` ).
+    cl_abap_unit_assert=>assert_equals( exp = `row`
+                                        act = ls_ok-scope ).
+    cl_abap_unit_assert=>assert_equals( exp = `Pick: confirm`
+                                        act = ls_ok-label ).
+    cl_abap_unit_assert=>assert_true( ls_ok-pick ).
+    cl_abap_unit_assert=>assert_equals( exp = `screen`
+                                        act = action_by_event( io_snap = lo_snap
+                                                               event   = `NO` )-scope ).
+    cl_abap_unit_assert=>assert_equals( exp = `T`
+                                        act = lo_snap->mv_title ).
 
   ENDMETHOD.
 
@@ -629,6 +857,321 @@ CLASS ltcl_snapshot IMPLEMENTATION.
              `ip. Both render in the list below.","source":"strip"},{"type":"error","text":"Please enter a valid name","sour` &&
              `ce":"field","field":"f1"},{"type":"info","text":"Draft saved automatically","source":"model"}],"texts":[],"uns` &&
              `upported":["List bound to the named model 'message' (main) - rows not described"]}`.
+
+  ENDMETHOD.
+
+  METHOD input_select_623.
+
+    " select-623#3/rows20: select-623#3/rows20 - recorded by abap2UI5/mcp-server test/fixtures/agent
+    result-session = `52BACFFE4EA045F2BBB5CED8493CD147`.
+    result-app = `Z2UI5_CL_SMPC_APP_623`.
+    result-max_rows = 20.
+    result-t_layer = VALUE #( ( layer = `MAIN`
+                      xml   = `<mvc:View xmlns="sap.m" xmlns:l="sap.ui.layout" xmlns:mvc="sap.ui.core.mvc"><l:VerticalLayout class="sapUiCont` &&
+                              `entPadding" width="100%"><l:content><Label text="Product not editable" labelFor="InputNoEdit"/><Input id="Inpu` &&
+                              `tNoEdit" class="sapUiSmallMarginBottom" type="Text" placeholder="Product" enabled="true" editable="false"/><La` &&
+                              `bel text="Product not enabled" labelFor="InputDisabled"/><Input id="InputDisabled" class="sapUiSmallMarginBott` &&
+                              `om" type="Text" placeholder="Product" enabled="false"/><Label text="Product editable" labelFor="InputEdit"/><I` &&
+                              `nput id="InputEdit" class="sapUiSmallMarginBottom" type="Text" placeholder="Enter product" enabled="true" edit` &&
+                              `able="true"/><Label text="Product with Value Help" labelFor="InputValueHelp"/><Input id="InputValueHelp" class` &&
+                              `="sapUiSmallMarginBottom" type="Text" placeholder="Enter product" enabled="true" editable="true" showValueHelp` &&
+                              `="true" value="{/VALUE_HELP}" valueHelpRequest=".eB(['VALUE_HELP'])"/></l:content></l:VerticalLayout></mvc:Vie` &&
+                              `w>`
+                      model = `{"T_PRODUCTS":[{"NAME":"Notebook Basic 17","PICURL":"https://sdk.openui5.org/test-resources/sap/ui/documentati` &&
+                              `on/sdk/images/HT-1001.jpg","PRODUCTID":"HT-1001"},{"NAME":"Notebook Professional 17","PICURL":"https://sdk.ope` &&
+                              `nui5.org/test-resources/sap/ui/documentation/sdk/images/HT-1011.jpg","PRODUCTID":"HT-1011"}],"VALUE_HELP":""}` )
+                        ( layer = `POPUP`
+                      xml   = `<core:FragmentDefinition xmlns:core="sap.ui.core" xmlns="sap.m"><SelectDialog title="Products" items="{/T_PROD` &&
+                              `UCTS}" search=".eB(['VH_SEARCH'], ${$parameters&gt;/value})" confirm=".eB(['VH_CONFIRM'], ${$parameters&gt;/se` &&
+                              `lectedItem}.getTitle())" cancel=".eB(['VH_CANCEL'])"><items><StandardListItem icon="{PICURL}" iconDensityAware` &&
+                              `="false" iconInset="false" title="{NAME}" description="{PRODUCTID}"/></items></SelectDialog></core:FragmentDef` &&
+                              `inition>`
+                      model = `{"T_PRODUCTS":[{"NAME":"Notebook Basic 17","PICURL":"https://sdk.openui5.org/test-resources/sap/ui/documentati` &&
+                              `on/sdk/images/HT-1001.jpg","PRODUCTID":"HT-1001"},{"NAME":"Notebook Professional 17","PICURL":"https://sdk.ope` &&
+                              `nui5.org/test-resources/sap/ui/documentation/sdk/images/HT-1011.jpg","PRODUCTID":"HT-1011"}],"VALUE_HELP":""}` ) ).
+
+  ENDMETHOD.
+
+  METHOD expected_select_623.
+
+    result = `{"snapshotVersion":1,"session":"52BACFFE4EA045F2BBB5CED8493CD147","app":"Z2UI5_CL_SMPC_APP_623","title":"Produ` &&
+             `cts","layer":"popup","fields":[],"actions":[{"id":"a1","event":"VH_SEARCH","args":["$parameters:value"],"label` &&
+             `":"Products: search","control":"sap.m.SelectDialog","trigger":"search","enabled":true,"scope":"screen","layer"` &&
+             `:"popup"},{"id":"a2","event":"VH_CONFIRM","args":["$expr:${$parameters>/selectedItem}.getTitle()"],"label":"Pr` &&
+             `oducts: confirm","control":"sap.m.SelectDialog","trigger":"confirm","enabled":true,"scope":"row","table":"t1",` &&
+             `"layer":"popup"},{"id":"a3","event":"VH_CANCEL","args":[],"label":"Products: cancel","control":"sap.m.SelectDi` &&
+             `alog","trigger":"cancel","enabled":true,"scope":"screen","layer":"popup"}],"tables":[{"id":"t1","path":"/T_PRO` &&
+             `DUCTS","name":"T_PRODUCTS","label":"Products","control":"sap.m.SelectDialog","columns":[{"name":"PICURL","labe` &&
+             `l":"icon"},{"name":"NAME","label":"title"},{"name":"PRODUCTID","label":"description"}],"rowCount":2,"rows":[{"` &&
+             `PICURL":"https://sdk.openui5.org/test-resources/sap/ui/documentation/sdk/images/HT-1001.jpg","NAME":"Notebook ` &&
+             `Basic 17","PRODUCTID":"HT-1001"},{"PICURL":"https://sdk.openui5.org/test-resources/sap/ui/documentation/sdk/im` &&
+             `ages/HT-1011.jpg","NAME":"Notebook Professional 17","PRODUCTID":"HT-1011"}],"truncated":false,"selectionMode":` &&
+             `"Single","editableCells":[],"layer":"popup"}],"messages":[],"texts":[],"unsupported":[]}`.
+
+  ENDMETHOD.
+
+  METHOD input_cgui_f4_06.
+
+    " cgui-f4-06#3/rows2: cgui-f4-06#3/rows2 - recorded by abap2UI5/mcp-server test/fixtures/agent
+    result-session = `88A2ACD4D3444A23AAC5E25D0DD6A109`.
+    result-app = `Z2UI5_CL_POPUP_TO_SELECT`.
+    result-max_rows = 2.
+    result-t_layer = VALUE #( ( layer = `MAIN`
+                      xml   = `<mvc:View xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc" xmlns:z2ui5="z2ui5.cc" displayBlock="true" height="100%"><` &&
+                              `Page title="Dynamic Selection Screen" showNavButton="false" navButtonPress=".eB(['CGUI_BACK'])"><z2ui5:Storage` &&
+                              ` type="local" prefix="z2ui5_cgui_variants" key="Z2UI5_CL_CGUI_R2C_06" value="{/MV_CGUI_VARIANTS}" finished=".e` &&
+                              `B(['CGUI_VARIANTS_LOADED',false,false,false,true])"/><form:SimpleForm xmlns:form="sap.ui.layout.form" editable` &&
+                              `="true" layout="ResponsiveGridLayout" labelSpanXL="3" labelSpanL="3" labelSpanM="3" emptySpanXL="4" emptySpanL` &&
+                              `="4" emptySpanM="2" columnsXL="1" columnsL="1" columnsM="1" title="Mode"><Label text="" required="false"/><Rad` &&
+                              `ioButton text="Display material" groupName="MODE" selected="{/P_DISP}" editable="true"/><Label text="" require` &&
+                              `d="false"/><RadioButton text="Create material" groupName="MODE" selected="{/P_CREA}" editable="true" select=".` &&
+                              `eB(['MODE'])"/></form:SimpleForm><form:SimpleForm xmlns:form="sap.ui.layout.form" editable="true" layout="Resp` &&
+                              `onsiveGridLayout" labelSpanXL="3" labelSpanL="3" labelSpanM="3" emptySpanXL="4" emptySpanL="4" emptySpanM="2" ` &&
+                              `columnsXL="1" columnsL="1" columnsM="1" title="Material"><Label text="Material" required="false"/><Input value` &&
+                              `="{/P_MATNR}" required="false" editable="true" id="cgui_f_p_matnr" maxLength="18"/><Label text="Unit of measur` &&
+                              `e"/><HBox alignItems="Center"><Label text="P_UNIT" required="false" class="sapUiSmallMarginBegin sapUiTinyMarg` &&
+                              `inEnd"/><Input value="{/P_UNIT}" required="false" editable="true" id="cgui_f_p_unit" maxLength="3"/></HBox></f` &&
+                              `orm:SimpleForm><form:SimpleForm xmlns:form="sap.ui.layout.form" editable="true" layout="ResponsiveGridLayout" ` &&
+                              `labelSpanXL="3" labelSpanL="3" labelSpanM="3" emptySpanXL="4" emptySpanL="4" emptySpanM="2" columnsXL="1" colu` &&
+                              `mnsL="1" columnsM="1" title="Expert settings"><Label text="" required="false"/><CheckBox text="Expert settings` &&
+                              `" selected="{/P_EXPERT}" editable="true" id="cgui_f_p_expert" select=".eB(['EXPERT'])"/><Label text="Plant" re` &&
+                              `quired="false"/><Input value="{/P_PLANT}" required="false" editable="true" id="cgui_f_p_plant" maxLength="4" s` &&
+                              `howValueHelp="true" valueHelpRequest=".eB(['CGUI_VALUE_REQUEST'], 'P_PLANT')"/><Label text="Access token" requ` &&
+                              `ired="false"/><Input value="{/P_TOKEN}" required="false" editable="true" id="cgui_f_p_token" type="Password" m` &&
+                              `axLength="32"/><Label text="" required="false"/><Button text="Reset" icon="" enabled="true" press=".eB(['RESET` &&
+                              `'])"/></form:SimpleForm><footer><OverflowToolbar><Button text="Get Variant" icon="sap-icon://open-folder" pres` &&
+                              `s=".eB(['CGUI_VARIANT_GET'])"/><Button text="Save as Variant" icon="sap-icon://save" press=".eB(['CGUI_VARIANT` &&
+                              `_SAVE'])"/><Button text="Delete Variant" icon="sap-icon://delete" press=".eB(['CGUI_VARIANT_DELETE'])"/><Toolb` &&
+                              `arSpacer/><Button text="Execute" icon="sap-icon://begin" type="Emphasized" press=".eB(['CGUI_EXECUTE'])"/></Ov` &&
+                              `erflowToolbar></footer></Page></mvc:View>`
+                      model = `{"MV_CGUI_VARIANTS":"","P_CREA":false,"P_DISP":true,"P_EXPERT":true,"P_MATNR":"","P_NAME":"","P_PLANT":"","P_Q` &&
+                              `TY":0,"P_SOURCE":"ZR2C_06_DYNAMIC","P_TOKEN":"","P_UNIT":"PC"}` )
+                        ( layer = `POPUP`
+                      xml   = `<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core"><TableSelectDialog items="{path:'/MR_TAB_POPUP` &&
+                              `/*', sorter : { path : '', descending : false } }" cancel=".eB(['CANCEL'])" search=".eB(['SEARCH'], ${$paramet` &&
+                              `ers&gt;/value}, ${$parameters&gt;/clearButtonPressed})" confirm=".eB(['CONFIRM'], ${$parameters&gt;/selectedCo` &&
+                              `ntexts[0]/sPath})" growing="true" contentWidth="" contentHeight="" growingThreshold="" title="Single Select" m` &&
+                              `ultiSelect="false"><ColumnListItem vAlign="Top" selected="{ZZSELKZ}"><cells><Text text="{WERKS}"/><Text text="` &&
+                              `{NAME}"/></cells></ColumnListItem><columns><Column width="8rem"><header><Text text="WERKS"/></header></Column>` &&
+                              `<Column width="8rem"><header><Text text="NAME"/></header></Column></columns></TableSelectDialog></core:Fragmen` &&
+                              `tDefinition>`
+                      model = `{"MR_TAB_POPUP":{"*":[{"NAME":"Hamburg","WERKS":"1000","ZZSELKZ":false},{"NAME":"Walldorf","WERKS":"2000","ZZS` &&
+                              `ELKZ":false},{"NAME":"Berlin","WERKS":"3000","ZZSELKZ":false}]}}` ) ).
+
+  ENDMETHOD.
+
+  METHOD expected_cgui_f4_06.
+
+    result = `{"snapshotVersion":1,"session":"88A2ACD4D3444A23AAC5E25D0DD6A109","app":"Z2UI5_CL_POPUP_TO_SELECT","title":"Si` &&
+             `ngle Select","layer":"popup","fields":[],"actions":[{"id":"a1","event":"CANCEL","args":[],"label":"Single Sele` &&
+             `ct: cancel","control":"sap.m.TableSelectDialog","trigger":"cancel","enabled":true,"scope":"screen","layer":"po` &&
+             `pup"},{"id":"a2","event":"SEARCH","args":["$parameters:value","$parameters:clearButtonPressed"],"label":"Singl` &&
+             `e Select: search","control":"sap.m.TableSelectDialog","trigger":"search","enabled":true,"scope":"screen","laye` &&
+             `r":"popup"},{"id":"a3","event":"CONFIRM","args":["$parameters:selectedContexts[0]/sPath"],"label":"Single Sele` &&
+             `ct: confirm","control":"sap.m.TableSelectDialog","trigger":"confirm","enabled":true,"scope":"row","table":"t1"` &&
+             `,"layer":"popup"}],"tables":[{"id":"t1","path":"/MR_TAB_POPUP/*","name":"MR_TAB_POPUP-*","label":"Single Selec` &&
+             `t","control":"sap.m.TableSelectDialog","columns":[{"name":"WERKS","label":"WERKS"},{"name":"NAME","label":"NAM` &&
+             `E"}],"rowCount":3,"rows":[{"WERKS":"1000","NAME":"Hamburg","ZZSELKZ":false},{"WERKS":"2000","NAME":"Walldorf",` &&
+             `"ZZSELKZ":false}],"truncated":true,"selectionMode":"Single","editableCells":["ZZSELKZ"],"layer":"popup","selec` &&
+             `tionField":"ZZSELKZ"}],"messages":[],"texts":[],"unsupported":[]}`.
+
+  ENDMETHOD.
+
+  METHOD input_messages_452.
+
+    " messages-452#1/rows20: messages-452#1/rows20 - recorded by abap2UI5/mcp-server test/fixtures/agent
+    result-session = `908D30A986074441893595DDC602A526`.
+    result-app = `Z2UI5_CL_SMP_APP_452`.
+    result-max_rows = 20.
+    result-t_layer = VALUE #( ( layer = `MAIN`
+                      xml   = `<mvc:View displayBlock="true" height="100%" xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc"><Shell><Page title="abap` &&
+                              `2UI5 - Message - MessageView and MessagePopover" showNavButton="false" navButtonPress=".eB(['___ZZZ_NAL'])"><M` &&
+                              `essageStrip text="This free-style demo combines the sap.m message controls: one bound message table is rendere` &&
+                              `d three ways - as a full-page MessageView with grouped items, inside a dialog and as a MessagePopover. It is n` &&
+                              `ot a 1:1 demo kit rebuild (those live in the samples-controls repository) and stays within the UI5 1.71 contro` &&
+                              `l set." type="Information" showIcon="true" class="sapUiSmallMargin"/><MessageView items="{/T_MSG}" groupItems=` &&
+                              `"true"><MessageItem type="{TYPE}" title="{TITLE}" subtitle="{SUBTITLE}" description="{DESCRIPTION}" groupName=` &&
+                              `"{GROUP}"><Link text="Show more information" target="_blank" href="https://sap.com"/></MessageItem></MessageVi` &&
+                              `ew><footer><OverflowToolbar><Button press=".eB(['POPUP'])" text="5" icon="sap-icon://message-error" tooltip="S` &&
+                              `how the messages"/><ToolbarSpacer/><Button press=".eB(['POPOVER'])" text="Message Popover" id="messagePopoverB` &&
+                              `tn"/></OverflowToolbar></footer></Page></Shell></mvc:View>`
+                      model = `{"T_MSG":[{"DESCRIPTION":"First Error message description. Lorem ipsum dolor sit amet, consectetur adipisicing` &&
+                              ` elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostru` &&
+                              `d exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit` &&
+                              ` in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proiden` &&
+                              `t, sunt in culpa qui officia deserunt mollit anim id est laborum.","GROUP":"Purchase Order 450001","SUBTITLE":` &&
+                              `"Role is invalid","TITLE":"Account 801 requires an assignment","TYPE":"Error"},{"DESCRIPTION":"First Error mes` &&
+                              `sage description. Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt u` &&
+                              `t labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut al` &&
+                              `iquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu` &&
+                              ` fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mol` &&
+                              `lit anim id est laborum.","GROUP":"Purchase Order 450001","SUBTITLE":"Undefined task","TITLE":"Account 821 req` &&
+                              `uires a check","TYPE":"Warning"},{"DESCRIPTION":"First Error message description. Lorem ipsum dolor sit amet, ` &&
+                              `consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad mi` &&
+                              `nim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure` &&
+                              ` dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaeca` &&
+                              `t cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","GROUP":"Purchase Or` &&
+                              `der 450002","SUBTITLE":"","TITLE":"Enter a text with maximum 6 characters length","TYPE":"Warning"},{"DESCRIPT` &&
+                              `ION":"First Error message description. Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmo` &&
+                              `d tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullam` &&
+                              `co laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit ` &&
+                              `esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui` &&
+                              ` officia deserunt mollit anim id est laborum.","GROUP":"Purchase Order 450002","SUBTITLE":"","TITLE":"Enter a ` &&
+                              `text with maximum 8 characters length","TYPE":"Warning"},{"DESCRIPTION":"First Error message description. Lore` &&
+                              `m ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore mag` &&
+                              `na aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo co` &&
+                              `nsequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur` &&
+                              `. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laboru` &&
+                              `m.","GROUP":"Purchase Order 450002","SUBTITLE":"Role is invalid","TITLE":"Account 802 requires an assignment",` &&
+                              `"TYPE":"Error"},{"DESCRIPTION":"First Error message description. Lorem ipsum dolor sit amet, consectetur adipi` &&
+                              `sicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis ` &&
+                              `nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehe` &&
+                              `nderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non p` &&
+                              `roident, sunt in culpa qui officia deserunt mollit anim id est laborum.","GROUP":"Purchase Order 450002","SUBT` &&
+                              `ITLE":"Information type subtitle","TITLE":"Account 804 requires an assignment","TYPE":"Information"},{"DESCRIP` &&
+                              `TION":"First Error message description. Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusm` &&
+                              `od tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ulla` &&
+                              `mco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit` &&
+                              ` esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qu` &&
+                              `i officia deserunt mollit anim id est laborum.","GROUP":"General","SUBTITLE":"","TITLE":"Technical message wit` &&
+                              `hout object relation","TYPE":"Error"},{"DESCRIPTION":"First Error message description. Lorem ipsum dolor sit a` &&
+                              `met, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ` &&
+                              `ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute ` &&
+                              `irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint oc` &&
+                              `caecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","GROUP":"Genera` &&
+                              `l","SUBTITLE":"","TITLE":"Global System will be down on Sunday","TYPE":"Warning"},{"DESCRIPTION":"First Error ` &&
+                              `message description. Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididun` &&
+                              `t ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut` &&
+                              ` aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore` &&
+                              ` eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt ` &&
+                              `mollit anim id est laborum.","GROUP":"General","SUBTITLE":"","TITLE":"Global System will be down on Sunday","T` &&
+                              `YPE":"Error"},{"DESCRIPTION":"First Error message description. Lorem ipsum dolor sit amet, consectetur adipisi` &&
+                              `cing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis no` &&
+                              `strud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehend` &&
+                              `erit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non pro` &&
+                              `ident, sunt in culpa qui officia deserunt mollit anim id est laborum.","GROUP":"","SUBTITLE":"Ungrouped messag` &&
+                              `e","TITLE":"An Error","TYPE":"Error"},{"DESCRIPTION":"First Error message description. Lorem ipsum dolor sit a` &&
+                              `met, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ` &&
+                              `ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute ` &&
+                              `irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint oc` &&
+                              `caecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.","GROUP":"","SUB` &&
+                              `TITLE":"Ungrouped message","TITLE":"A Warning","TYPE":"Warning"}]}` ) ).
+
+  ENDMETHOD.
+
+  METHOD expected_messages_452.
+
+    result = `{"snapshotVersion":1,"session":"908D30A986074441893595DDC602A526","app":"Z2UI5_CL_SMP_APP_452","title":"abap2U` &&
+             `I5 - Message - MessageView and MessagePopover","layer":"main","fields":[],"actions":[{"id":"a1","event":"POPUP` &&
+             `","args":[],"label":"5","control":"sap.m.Button","trigger":"press","enabled":true,"scope":"screen","layer":"ma` &&
+             `in"},{"id":"a2","event":"POPOVER","args":[],"label":"Message Popover","control":"sap.m.Button","trigger":"pres` &&
+             `s","enabled":true,"scope":"screen","layer":"main"}],"tables":[],"messages":[{"type":"info","text":"This free-s` &&
+             `tyle demo combines the sap.m message controls: one bound message table is rendered three ways - as a full-page` &&
+             ` MessageView with grouped items, inside a dialog and as a MessagePopover. It is not a 1:1 demo kit rebuild (th` &&
+             `ose live in the samples-controls repository) and stays within the UI5 1.71 control set.","source":"strip"},{"t` &&
+             `ype":"error","text":"Account 801 requires an assignment","source":"messageview","subtitle":"Role is invalid","` &&
+             `description":"First Error message description. Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed d` &&
+             `o eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitati` &&
+             `on ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptat` &&
+             `e velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in c` &&
+             `ulpa qui officia deserunt mollit anim id est laborum."},{"type":"warning","text":"Account 821 requires a check` &&
+             `","source":"messageview","subtitle":"Undefined task","description":"First Error message description. Lorem ips` &&
+             `um dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna al` &&
+             `iqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequ` &&
+             `at. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Exc` &&
+             `epteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."},` &&
+             `{"type":"warning","text":"Enter a text with maximum 6 characters length","source":"messageview","description":` &&
+             `"First Error message description. Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tem` &&
+             `por incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco la` &&
+             `boris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse ` &&
+             `cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui offi` &&
+             `cia deserunt mollit anim id est laborum."},{"type":"warning","text":"Enter a text with maximum 8 characters le` &&
+             `ngth","source":"messageview","description":"First Error message description. Lorem ipsum dolor sit amet, conse` &&
+             `ctetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim v` &&
+             `eniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolo` &&
+             `r in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cup` &&
+             `idatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."},{"type":"error","text":"` &&
+             `Account 802 requires an assignment","source":"messageview","subtitle":"Role is invalid","description":"First E` &&
+             `rror message description. Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor inci` &&
+             `didunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris ni` &&
+             `si ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum d` &&
+             `olore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia dese` &&
+             `runt mollit anim id est laborum."},{"type":"info","text":"Account 804 requires an assignment","source":"messag` &&
+             `eview","subtitle":"Information type subtitle","description":"First Error message description. Lorem ipsum dolo` &&
+             `r sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. U` &&
+             `t enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Dui` &&
+             `s aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur ` &&
+             `sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."},{"type"` &&
+             `:"error","text":"Technical message without object relation","source":"messageview","description":"First Error ` &&
+             `message description. Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididun` &&
+             `t ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut` &&
+             ` aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore` &&
+             ` eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt ` &&
+             `mollit anim id est laborum."},{"type":"warning","text":"Global System will be down on Sunday","source":"messag` &&
+             `eview","description":"First Error message description. Lorem ipsum dolor sit amet, consectetur adipisicing eli` &&
+             `t, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud ex` &&
+             `ercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in ` &&
+             `voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, s` &&
+             `unt in culpa qui officia deserunt mollit anim id est laborum."},{"type":"error","text":"Global System will be ` &&
+             `down on Sunday","source":"messageview","description":"First Error message description. Lorem ipsum dolor sit a` &&
+             `met, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ` &&
+             `ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute ` &&
+             `irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint oc` &&
+             `caecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."},{"type":"error` &&
+             `","text":"An Error","source":"messageview","subtitle":"Ungrouped message","description":"First Error message d` &&
+             `escription. Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labo` &&
+             `re et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ` &&
+             `ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugia` &&
+             `t nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit an` &&
+             `im id est laborum."},{"type":"warning","text":"A Warning","source":"messageview","subtitle":"Ungrouped message` &&
+             `","description":"First Error message description. Lorem ipsum dolor sit amet, consectetur adipisicing elit, se` &&
+             `d do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercit` &&
+             `ation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in volup` &&
+             `tate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt i` &&
+             `n culpa qui officia deserunt mollit anim id est laborum."}],"texts":[],"unsupported":[]}`.
+
+  ENDMETHOD.
+
+  METHOD input_cgui_popover_07.
+
+    " cgui-popover-07#2/rows20: cgui-popover-07#2/rows20 - recorded by abap2UI5/mcp-server test/fixtures/agent
+    result-session = `1BAE966A76CC4CF8A5B8D79C696D3AC0`.
+    result-app = `Z2UI5_CL_CGUI_R2C_07`.
+    result-max_rows = 20.
+    result-t_layer = VALUE #( ( layer = `MAIN`
+                      xml   = `<mvc:View xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc" xmlns:z2ui5="z2ui5.cc" displayBlock="true" height="100%"><` &&
+                              `Page title="Z2UI5_CL_CGUI_R2C_07" showNavButton="true" navButtonPress=".eB(['CGUI_BACK'])"><z2ui5:Storage type` &&
+                              `="local" prefix="z2ui5_cgui_variants" key="Z2UI5_CL_CGUI_R2C_07" value="{/MV_CGUI_VARIANTS}" finished=".eB(['C` &&
+                              `GUI_VARIANTS_LOADED',false,false,false,true])"/><VBox class="sapUiSmallMargin"><HBox alignItems="Center"><Text` &&
+                              ` text="Last message:" renderWhitespace="true" wrapping="false" class="sapUiTinyMarginEnd"/><Text text="Number ` &&
+                              `42 processed" renderWhitespace="true" wrapping="false" class="sapUiTinyMarginEnd"/></HBox></VBox><footer><Over` &&
+                              `flowToolbar><Button id="cgui_messages" icon="sap-icon://message-warning" type="Default" text="1" tooltip="Mess` &&
+                              `ages" press=".eF('CONTROL_BY_ID', 'cgui_message_popover', '', 'toggleBy', 'cgui_messages')"/><ToolbarSpacer/><` &&
+                              `Button text="Back" icon="sap-icon://nav-back" type="Emphasized" press=".eB(['CGUI_BACK'])"/></OverflowToolbar>` &&
+                              `</footer><dependents><MessagePopover id="cgui_message_popover" placement="Top" activeTitlePress=".eB(['CGUI_ME` &&
+                              `SSAGE_FOCUS'], ${$parameters&gt;/item})"><items><MessageItem id="cgui_msg_1" type="Warning" title="Number 42 i` &&
+                              `s a warning" subtitle="" activeTitle="false"/></items></MessagePopover></dependents></Page></mvc:View>`
+                      model = `{"MV_CGUI_VARIANTS":"","P_NUM":42,"P_TYPE":"W"}` ) ).
+    result-t_custom = VALUE #( ( `["MESSAGE_TOAST","show","Number 42 processed"]` ) ( `["START_TIMER","CGUI_MESSAGES_OPEN","0","X"]` ) ).
+
+  ENDMETHOD.
+
+  METHOD expected_cgui_popover_07.
+
+    result = `{"snapshotVersion":1,"session":"1BAE966A76CC4CF8A5B8D79C696D3AC0","app":"Z2UI5_CL_CGUI_R2C_07","title":"Z2UI5_` &&
+             `CL_CGUI_R2C_07","layer":"main","fields":[],"actions":[{"id":"a1","event":"CGUI_BACK","args":[],"label":"Back",` &&
+             `"control":"sap.m.Page","trigger":"navButtonPress","enabled":true,"scope":"screen","layer":"main"},{"id":"a2","` &&
+             `event":"CGUI_VARIANTS_LOADED","args":[],"label":"finished","control":"z2ui5.cc.Storage","trigger":"finished","` &&
+             `enabled":true,"scope":"screen","layer":"main"},{"id":"a3","event":"CGUI_BACK","args":[],"label":"Back","contro` &&
+             `l":"sap.m.Button","trigger":"press","enabled":true,"scope":"screen","layer":"main"},{"id":"a4","event":"CGUI_M` &&
+             `ESSAGE_FOCUS","args":["$parameters:item"],"label":"activeTitlePress","control":"sap.m.MessagePopover","trigger` &&
+             `":"activeTitlePress","enabled":true,"scope":"screen","layer":"main"},{"id":"a5","event":"CGUI_MESSAGES_OPEN","` &&
+             `args":[],"label":"timer (0 ms)","control":"timer","trigger":"timer","enabled":true,"scope":"screen","layer":"m` &&
+             `ain"}],"tables":[],"messages":[{"type":"warning","text":"Number 42 is a warning","source":"popover"},{"type":"` &&
+             `info","text":"Number 42 processed","source":"toast"}],"texts":["Last message:","Number 42 processed"],"unsuppo` &&
+             `rted":["custom control z2ui5.cc.Storage (main: Page > Storage) - not described","frontend action CONTROL_BY_ID` &&
+             `(\"cgui_message_popover\", \"\", \"toggleBy\", \"cgui_messages\") on Button \"1\" (main) - runs in the browser` &&
+             ` only"]}`.
 
   ENDMETHOD.
 

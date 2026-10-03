@@ -1,3 +1,6 @@
+CLASS ltcl_args DEFINITION DEFERRED.
+CLASS z2ui5_cl_agent_session DEFINITION LOCAL FRIENDS ltcl_args.
+
 "! In-memory draft store, installed through the core's store seam
 "! (z2ui5_cl_ui5_srv_draft=&gt;set_instance) - the drafts of the sessions
 "! below never reach Z2UI5_T_01.
@@ -98,6 +101,9 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS structure_table     FOR TESTING.
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
+    METHODS pick_single         FOR TESTING.
+    METHODS pick_multi          FOR TESTING.
+    METHODS pick_refused        FOR TESTING.
 
     METHODS start
       RETURNING
@@ -570,6 +576,387 @@ CLASS ltcl_session IMPLEMENTATION.
                                          act = lv_args ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"NAME":"Gus"*`
                                          act = lv_args ).
+
+  ENDMETHOD.
+
+  METHOD pick_single.
+
+    " a SelectDialog value help: the pick selects the row (SELKZ), clears
+    " the previous selection, and fills the confirm's argument from the row
+    DATA(ls_start) = start( ).
+    DATA(ls_help) = mo_session->app_act( session = ls_start-session
+                                         event   = `DEST_HELP` ).
+    COMMIT WORK.
+    DATA(lo_snap) = ok( ls_help ).
+    cl_abap_unit_assert=>assert_equals( exp = `popup`
+                                        act = lo_snap->get_string( `/layer` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `Destinations`
+                                        act = lo_snap->get_string( `/title` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `sap.m.SelectDialog`
+                                        act = lo_snap->get_string( `/tables/1/control` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `Single`
+                                        act = lo_snap->get_string( `/tables/1/selectionMode` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `SELKZ`
+                                        act = lo_snap->get_string( `/tables/1/selectionField` ) ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"event":"DEST_PICKED","args":["$expr:${$parameters>/selectedItem}.getTitle()"]*"scope":"row","table":"t1"*`
+                                         act = ls_help-text ).
+
+    " a row ticked before: picking another one clears it
+    DATA(ls_typed) = mo_session->app_act( session = ls_help-session
+                                          values  = `{"t1/0/SELKZ":true}` ).
+    COMMIT WORK.
+    ok( ls_typed ).
+    DATA(ls_pick) = mo_session->app_act( session = ls_typed-session
+                                         event   = `DEST_PICKED`
+                                         row     = `2` ).
+    COMMIT WORK.
+    lo_snap = ok( ls_pick ).
+    cl_abap_unit_assert=>assert_equals( exp = `main`
+                                        act = lo_snap->get_string( `/layer` ) ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Destination ROM (Rome), 1 selected","source":"strip"*`
+                                         act = ls_pick-text ).
+    cl_abap_unit_assert=>assert_equals( exp = `ROM`
+                                        act = lo_snap->get_string( `/fields/2/value` ) ).
+
+    " without a ticked row the pick is enough
+    ls_help = mo_session->app_act( session = ls_pick-session
+                                   event   = `DEST_HELP` ).
+    COMMIT WORK.
+    ok( ls_help ).
+    ls_pick = mo_session->app_act( session = ls_help-session
+                                   event   = `DEST_PICKED`
+                                   row     = `1` ).
+    COMMIT WORK.
+    ok( ls_pick ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Destination PAR (Paris), 1 selected","source":"strip"*`
+                                         act = ls_pick-text ).
+
+  ENDMETHOD.
+
+  METHOD pick_multi.
+
+    " a TableSelectDialog for several rows: the pick adds its row to the
+    " ticked ones, the argument counts the selected contexts
+    DATA(ls_start) = start( ).
+    DATA(ls_help) = mo_session->app_act( session = ls_start-session
+                                         event   = `TAGS_HELP` ).
+    COMMIT WORK.
+    DATA(lo_snap) = ok( ls_help ).
+    cl_abap_unit_assert=>assert_equals( exp = `sap.m.TableSelectDialog`
+                                        act = lo_snap->get_string( `/tables/1/control` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `Multi`
+                                        act = lo_snap->get_string( `/tables/1/selectionMode` ) ).
+    DATA(ls_pick) = mo_session->app_act( session = ls_help-session
+                                         values  = `{"t1/0/SELKZ":true}`
+                                         event   = `TAGS_PICKED`
+                                         row     = `2` ).
+    COMMIT WORK.
+    ok( ls_pick ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"2 tag(s) picked: FAIR,TRAIN","source":"strip"*`
+                                         act = ls_pick-text ).
+
+    " without row a multi-select dialog confirms what is ticked - here nothing
+    ls_help = mo_session->app_act( session = ls_pick-session
+                                   event   = `TAGS_HELP` ).
+    COMMIT WORK.
+    ok( ls_help ).
+    DATA(ls_none) = mo_session->app_act( session = ls_help-session
+                                         values  = `{"t1/0/SELKZ":false,"t1/2/SELKZ":false}`
+                                         event   = `TAGS_PICKED` ).
+    COMMIT WORK.
+    ok( ls_none ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"0 tag(s) picked:","source":"strip"*`
+                                         act = ls_none-text ).
+
+  ENDMETHOD.
+
+  METHOD pick_refused.
+
+    " picking one row needs one; a row that does not exist is refused; a
+    " refused pick changes nothing
+    DATA(ls_start) = start( ).
+    DATA(ls_help) = mo_session->app_act( session = ls_start-session
+                                         event   = `DEST_HELP` ).
+    COMMIT WORK.
+    ok( ls_help ).
+    refused( is_result = mo_session->app_act( session = ls_help-session
+                                              event   = `DEST_PICKED` )
+             pattern   = `action a1 (DEST_PICKED) picks a row of table t1 (3 rows) - pass row (0-2)` ).
+    refused( is_result = mo_session->app_act( session = ls_help-session
+                                              event   = `DEST_PICKED`
+                                              row     = `3` )
+             pattern   = `table t1 has 3 row(s) - row 3 does not exist (rows are 0-based)` ).
+    refused( is_result = mo_session->app_act( session = ls_help-session
+                                              event   = `HELP_CANCEL`
+                                              row     = `1` )
+             pattern   = `row is for row actions - a2 (HELP_CANCEL) is a screen action; leave row out` ).
+    cl_abap_unit_assert=>assert_equals( exp = ls_help-text
+                                        act = mo_session->app_describe( ls_help-session )-text ).
+
+  ENDMETHOD.
+
+ENDCLASS.
+
+
+"! The pick and the arguments of row events on synthetic screens - the
+"! cases of the reference's test/appclient.test.mjs, without a backend:
+"! the snapshot is built from the view and the model, the pick and the
+"! argument filling run as app_act runs them, nothing is sent.
+CLASS ltcl_args DEFINITION FINAL
+  FOR TESTING RISK LEVEL HARMLESS DURATION SHORT.
+
+  PRIVATE SECTION.
+    DATA mo_cut TYPE REF TO z2ui5_cl_agent_session.
+    DATA mv_xml TYPE string.
+    DATA mv_model TYPE string.
+
+    METHODS pick_single    FOR TESTING.
+    METHODS pick_multi     FOR TESTING.
+    METHODS pick_ticked    FOR TESTING.
+    METHODS pick_none      FOR TESTING.
+    METHODS pick_unknown   FOR TESTING.
+    METHODS table_events   FOR TESTING.
+
+    METHODS screen
+      IMPORTING
+        xml       TYPE string
+        model     TYPE string
+        t_pending TYPE z2ui5_cl_agent_snapshot=>ty_t_pending OPTIONAL.
+
+    "! The pick (for a pick action) and the arguments as JSON - or the refusal.
+    METHODS act
+      IMPORTING
+        event         TYPE string
+        row           TYPE string OPTIONAL
+      RETURNING
+        VALUE(result) TYPE string.
+
+    METHODS pending
+      RETURNING
+        VALUE(result) TYPE string.
+
+    CLASS-METHODS dialog
+      IMPORTING
+        multi         TYPE string
+        args          TYPE string
+      RETURNING
+        VALUE(result) TYPE string.
+
+    CLASS-METHODS rows
+      RETURNING
+        VALUE(result) TYPE string.
+
+ENDCLASS.
+
+
+CLASS ltcl_args IMPLEMENTATION.
+
+  METHOD screen.
+
+    mv_xml = |<mvc:View xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc" xmlns:t="sap.ui.table"><Page title="T">{ xml }</Page></mvc:View>|.
+    mv_model = model.
+    mo_cut = NEW #( `ABAP Unit` ).
+    mo_cut->mt_pending = t_pending.
+    mo_cut->mo_snap = z2ui5_cl_agent_snapshot=>create( VALUE #( session   = `D1`
+                                                                 app       = `Z_T`
+                                                                 max_rows  = 20
+                                                                 t_pending = t_pending
+                                                                 t_layer   = VALUE #( ( layer = `MAIN`
+                                                                                        xml   = mv_xml
+                                                                                        model = mv_model ) ) ) ).
+
+  ENDMETHOD.
+
+  METHOD act.
+
+    DATA lt_part TYPE string_table.
+    DATA lt_picked TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+
+    TRY.
+        DATA(ls_action) = mo_cut->find_action( event   = event
+                                               has_row = xsdbool( row IS NOT INITIAL ) ).
+        IF ls_action-pick = abap_true.
+          lt_picked = mo_cut->apply_pick( is_action = ls_action
+                                          row_raw   = row ).
+          mo_cut->mo_snap = z2ui5_cl_agent_snapshot=>create( VALUE #( session   = `D1`
+                                                                       app       = `Z_T`
+                                                                       max_rows  = 20
+                                                                       t_pending = mo_cut->mt_pending
+                                                                       t_layer   = VALUE #( ( layer = `MAIN`
+                                                                                              xml   = mv_xml
+                                                                                              model = mv_model ) ) ) ).
+        ENDIF.
+        LOOP AT mo_cut->event_args( is_action = ls_action
+                                    t_given   = VALUE #( )
+                                    row_raw   = row
+                                    t_picked  = lt_picked ) INTO DATA(ls_val).
+          INSERT z2ui5_cl_agent_viewxml=>val_to_json( ls_val ) INTO TABLE lt_part.
+        ENDLOOP.
+        result = |[{ concat_lines_of( table = lt_part
+                                      sep   = `,` ) }]|.
+      CATCH z2ui5_cx_ui5_util_error INTO DATA(lx).
+        result = lx->get_text( ).
+    ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD pending.
+
+    DATA lt_part TYPE string_table.
+
+    LOOP AT mo_cut->mt_pending INTO DATA(ls_pending).
+      INSERT |{ ls_pending-path }={ z2ui5_cl_agent_viewxml=>val_to_json( ls_pending-val ) }| INTO TABLE lt_part.
+    ENDLOOP.
+    result = concat_lines_of( table = lt_part
+                              sep   = ` ` ).
+
+  ENDMETHOD.
+
+  METHOD dialog.
+
+    result = |<TableSelectDialog title="Pick" multiSelect="{ multi }" items="\{/T\}" confirm=".eB(['OK']{ args })">| &&
+             `<ColumnListItem selected="{SEL}" type="Active"><cells><Text text="{A}"/><ObjectIdentifier title="{B}" text="{N}"/></cells>` &&
+             `</ColumnListItem><columns><Column><header><Text text="A"/></header></Column><Column><header><Text text="B"/></header>` &&
+             `</Column></columns></TableSelectDialog>`.
+
+  ENDMETHOD.
+
+  METHOD rows.
+
+    result = `{"T":[{"A":"a0","B":"b0","N":0,"SEL":false},{"A":"a1","B":"b1","N":10,"SEL":true},{"A":"a2","B":"b2","N":20,"SEL":false}]}`.
+
+  ENDMETHOD.
+
+  METHOD pick_single.
+
+    " the picked row selected, the previous selection cleared - both pending;
+    " item arguments from the row; selectedContexts[0]/sPath is null, as the
+    " browser's JSONModel has no [n] syntax
+    screen( xml   = dialog( multi = `false`
+                            args  = `, ${$parameters>/selectedContexts/0/sPath}` &&
+                                    `, ${$parameters>/selectedItem}.getCells()[1].getTitle()` &&
+                                    `, ${$parameters>/selectedItem}.getCells()[1].getText()` &&
+                                    `, ${$parameters>/selectedItem}.getBindingContext().getProperty('A')` &&
+                                    `, ${$parameters>/selectedItem}.getBindingContext().getPath()` &&
+                                    `, ${$parameters>/selectedItem} ? ${$parameters>/selectedItem}.getCells()[0].getText() : ''` &&
+                                    `, ${$parameters>/selectedItem}.getType()` &&
+                                    `, ${$parameters>/selectedContexts/length}` &&
+                                    `, ${$parameters>/selectedContexts[0]/sPath}` )
+            model = rows( ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `["/T/2","b2","20","a2","/T/2","a2","Active",1,null]`
+                                        act = act( event = `OK`
+                                                   row   = `2` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `/T/1/SEL=false /T/2/SEL=true`
+                                        act = pending( ) ).
+
+  ENDMETHOD.
+
+  METHOD pick_multi.
+
+    " the row joins the selection, selectedItem is the first selected row in
+    " model order
+    screen( xml   = dialog( multi = `true`
+                            args  = `, ${$parameters>/selectedContexts/1/sPath}, ${$parameters>/selectedItem}.getCells()[0].getText()` )
+            model = rows( ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `["/T/2","a1"]`
+                                        act = act( event = `OK`
+                                                   row   = `2` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `/T/2/SEL=true`
+                                        act = pending( ) ).
+
+  ENDMETHOD.
+
+  METHOD pick_ticked.
+
+    " without row a multi-select dialog confirms what is ticked
+    screen( xml       = dialog( multi = `true`
+                                args  = `, ${$parameters>/selectedContexts/0/sPath}` )
+            model     = replace( val  = rows( )
+                                 sub  = `"N":10,"SEL":true`
+                                 with = `"N":10,"SEL":false` )
+            t_pending = VALUE #( ( model_key = `MAIN`
+                                   path      = `/T/0/SEL`
+                                   val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_true ) ) ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `["/T/0"]`
+                                        act = act( `OK` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `/T/0/SEL=true`
+                                        act = pending( ) ).
+
+  ENDMETHOD.
+
+  METHOD pick_none.
+
+    " an item argument with nothing ticked is refused; a single-select
+    " dialog with nothing selected needs a row, and one that exists
+    screen( xml   = dialog( multi = `true`
+                            args  = `, ${$parameters>/selectedItem}.getCells()[0].getText()` )
+            model = replace( val  = rows( )
+                             sub  = `"N":10,"SEL":true`
+                             with = `"N":10,"SEL":false` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `argument 0 of OK ($expr:${$parameters>/selectedItem}.getCells()[0].getText()) ` &&
+                                              `reads the picked row and none is selected - pass row, or the value in args[0]`
+                                        act = act( `OK` ) ).
+    screen( xml   = dialog( multi = `false`
+                            args  = `` )
+            model = replace( val  = rows( )
+                             sub  = `"N":10,"SEL":true`
+                             with = `"N":10,"SEL":false` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `action a1 (OK) picks a row of table t1 (3 rows) - pass row (0-2)`
+                                        act = act( `OK` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `table t1 has 3 row(s) - row 3 does not exist (rows are 0-based)`
+                                        act = act( event = `OK`
+                                                   row   = `3` ) ).
+
+  ENDMETHOD.
+
+  METHOD pick_unknown.
+
+    " a marshalled control, an id, a cell that does not exist, a property the
+    " template does not set: asked for in args
+    LOOP AT VALUE string_table( ( `${$parameters>/selectedItems}|$parameters:selectedItems` )
+                                ( `${$parameters>/selectedItem}.getId()|$expr:${$parameters>/selectedItem}.getId()` )
+                                ( `${$parameters>/selectedItem}.getCells()[5].getText()|$expr:${$parameters>/selectedItem}.getCells()[5].getText()` )
+                                ( `${$parameters>/selectedItem}.getHighlight()|$expr:${$parameters>/selectedItem}.getHighlight()` ) ) INTO DATA(lv_case).
+      SPLIT lv_case AT `|` INTO DATA(lv_arg) DATA(lv_describe).
+      screen( xml   = dialog( multi = `false`
+                              args  = |, { lv_arg }| )
+              model = rows( ) ).
+      cl_abap_unit_assert=>assert_equals( exp = |argument 0 of OK ({ lv_describe }) is computed in the browser - pass its value in args[0]|
+                                          act = act( event = `OK`
+                                                     row   = `0` ) ).
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD table_events.
+
+    " listItem, rowIndex / rowContext and a row action item's row are filled
+    " from row; a parameter outside them is asked for in args
+    screen( xml   = `<Table items="{/T}" itemPress=".eB(['PRESS'], ${$parameters>/listItem}.getBindingContext().getProperty('B'), ` &&
+                    `${$parameters>/listItem}.getCells()[0].getText())"><columns><Column/></columns><items><ColumnListItem type="Active">` &&
+                    `<cells><Text text="{A}"/></cells></ColumnListItem></items></Table>` &&
+                    `<t:Table rows="{/T}" rowSelectionChange=".eB(['SEL'], ${$parameters>/rowIndex}, ${$parameters>/rowContext}.getPath(), ` &&
+                    `${$parameters>/rowContext/sPath})" cellClick=".eB(['CELL'], ${$parameters>/rowBindingContext}.getProperty('A'), ` &&
+                    `${$parameters>/columnIndex})"><t:columns><t:Column><Label text="A"/><t:template><Text text="{A}"/></t:template>` &&
+                    `</t:Column></t:columns><t:rowActionTemplate><t:RowAction><t:RowActionItem type="Navigation" ` &&
+                    `press=".eB(['NAV'], ${$parameters>/row}.getBindingContext().getProperty('B'))"/></t:RowAction></t:rowActionTemplate></t:Table>`
+            model = rows( ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `action a1 (PRESS) is a row action of table t1 (3 rows) - pass row (0-2)`
+                                        act = act( `PRESS` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `["b1","a1"]`
+                                        act = act( event = `PRESS`
+                                                   row   = `1` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `[2,"/T/2","/T/2"]`
+                                        act = act( event = `SEL`
+                                                   row   = `2` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `argument 1 of CELL ($parameters:columnIndex) is computed in the browser - pass its value in args[1]`
+                                        act = act( event = `CELL`
+                                                   row   = `0` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `["b0"]`
+                                        act = act( event = `NAV`
+                                                   row   = `0` ) ).
+    " a table row event selects nothing by itself
+    cl_abap_unit_assert=>assert_initial( pending( ) ).
 
   ENDMETHOD.
 

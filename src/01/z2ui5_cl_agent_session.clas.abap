@@ -113,6 +113,38 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
         column   TYPE string,
       END OF ty_s_target.
 
+    TYPES ty_t_int TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+
+    TYPES:
+      "! A value of a row event's $parameters (row_event_params): kind i an
+      "! item of a row, c the row's binding context, l a cell of an item
+      "! (cell: its 0-based index), a an array of items or contexts (elem,
+      "! t_row), o the parameters themselves, v a plain value (val - undefined
+      "! and null included), ? a value this client cannot know.
+      BEGIN OF ty_s_pnode,
+        kind  TYPE c LENGTH 1,
+        elem  TYPE c LENGTH 1,
+        row   TYPE i,
+        cell  TYPE i,
+        t_row TYPE ty_t_int,
+        val   TYPE ty_s_val,
+      END OF ty_s_pnode.
+
+    TYPES:
+      BEGIN OF ty_s_param,
+        name TYPE string,
+        node TYPE ty_s_pnode,
+      END OF ty_s_param.
+    TYPES ty_t_param TYPE STANDARD TABLE OF ty_s_param WITH EMPTY KEY.
+
+    TYPES:
+      "! The parameters of a row event - active = abap_false when the event's
+      "! parameters are not the row (or no row is known).
+      BEGIN OF ty_s_params,
+        active  TYPE abap_bool,
+        t_param TYPE ty_t_param,
+      END OF ty_s_params.
+
     DATA mv_client TYPE string.
     DATA mo_sim TYPE REF TO z2ui5_cl_frontend_simulator.
     DATA ms_row TYPE z2ui5_t_ag_ses.
@@ -226,10 +258,115 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
         is_action     TYPE z2ui5_cl_agent_snapshot=>ty_s_action
         t_given       TYPE ty_t_input
         row_raw       TYPE string
+        t_picked      TYPE ty_t_int OPTIONAL
       RETURNING
         VALUE(result) TYPE z2ui5_cl_agent_viewxml=>ty_t_val
       RAISING
         z2ui5_cx_ui5_util_error.
+
+    "! The 0-based row of row_raw, checked against the table's rows; -1
+    "! without a row.
+    METHODS row_index
+      IMPORTING
+        table_id      TYPE string
+        count         TYPE i
+        row_raw       TYPE string
+      RETURNING
+        VALUE(result) TYPE i
+      RAISING
+        z2ui5_cx_ui5_util_error.
+
+    "! A selection dialog's confirm picks a row (see the implementation) -
+    "! the selected rows, 0-based, in model order.
+    METHODS apply_pick
+      IMPORTING
+        is_action     TYPE z2ui5_cl_agent_snapshot=>ty_s_action
+        row_raw       TYPE string
+      RETURNING
+        VALUE(result) TYPE ty_t_int
+      RAISING
+        z2ui5_cx_ui5_util_error.
+
+    "! A pending value set - in its place when the path is pending already.
+    METHODS pending_set
+      IMPORTING
+        is_pending TYPE z2ui5_cl_agent_snapshot=>ty_s_pending.
+
+    METHODS row_event_params
+      IMPORTING
+        is_action     TYPE z2ui5_cl_agent_snapshot=>ty_s_action
+        is_table      TYPE z2ui5_cl_agent_snapshot=>ty_s_table
+        has_rows      TYPE abap_bool
+        t_row         TYPE ty_t_int
+      RETURNING
+        VALUE(result) TYPE ty_s_params.
+
+    METHODS row_param_arg
+      IMPORTING
+        is_desc       TYPE z2ui5_cl_agent_viewxml=>ty_s_arg
+        is_params     TYPE ty_s_params
+        is_table      TYPE z2ui5_cl_agent_snapshot=>ty_s_table
+      RETURNING
+        VALUE(result) TYPE ty_s_pnode.
+
+    METHODS walk_params
+      IMPORTING
+        is_params     TYPE ty_s_params
+        path          TYPE string
+        is_table      TYPE z2ui5_cl_agent_snapshot=>ty_s_table
+      RETURNING
+        VALUE(result) TYPE ty_s_pnode.
+
+    METHODS head_of
+      IMPORTING
+        is_params     TYPE ty_s_params
+        path          TYPE string
+      RETURNING
+        VALUE(result) TYPE ty_s_pnode.
+
+    METHODS param_expr
+      IMPORTING
+        raw           TYPE string
+        is_params     TYPE ty_s_params
+        is_table      TYPE z2ui5_cl_agent_snapshot=>ty_s_table
+      RETURNING
+        VALUE(result) TYPE ty_s_pnode.
+
+    CLASS-METHODS pnode_value
+      IMPORTING
+        val           TYPE ty_s_val
+      RETURNING
+        VALUE(result) TYPE ty_s_pnode.
+
+    CLASS-METHODS pnode_truthy
+      IMPORTING
+        is_node       TYPE ty_s_pnode
+      RETURNING
+        VALUE(result) TYPE abap_bool.
+
+    CLASS-METHODS skip_ws
+      IMPORTING
+        val           TYPE string
+        pos           TYPE i
+      RETURNING
+        VALUE(result) TYPE i.
+
+    CLASS-METHODS str_trim
+      IMPORTING
+        val           TYPE string
+      RETURNING
+        VALUE(result) TYPE string.
+
+    "! A JavaScript literal of the ternary shape at off: '...', "...",
+    "! null or a number, with nothing but blanks after it.
+    CLASS-METHODS tail_literal
+      IMPORTING
+        val           TYPE string
+        off           TYPE i
+      EXPORTING
+        found         TYPE abap_bool
+      RETURNING
+        VALUE(result) TYPE ty_s_val.
 
     METHODS send
       IMPORTING
@@ -570,9 +707,19 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                 close_layer( ls_action-frontend ).
                 save( ).
               ELSE.
+                " a selection dialog's confirm picks the row first - its
+                " edits are part of the model the arguments read
+                DATA(lt_picked) = VALUE z2ui5_cl_agent_viewxml=>ty_t_int( ).
+                IF ls_action-pick = abap_true.
+                  lt_picked = apply_pick( is_action = ls_action
+                                          row_raw   = lv_row ).
+                  analyze( ).
+                  READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
+                ENDIF.
                 DATA(lt_tval) = event_args( is_action = ls_action
                                             t_given   = lt_arg
-                                            row_raw   = lv_row ).
+                                            row_raw   = lv_row
+                                            t_picked  = lt_picked ).
                 DATA(lv_id_old) = ms_row-id.
                 send( is_action = ls_action
                       t_arg     = lt_tval ).
@@ -1186,8 +1333,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDLOOP.
 
     LOOP AT lt_plan INTO DATA(ls_plan).
-      DELETE mt_pending WHERE model_key = ls_plan-model_key AND path = ls_plan-path. "#EC CI_SORTSEQ
-      INSERT ls_plan INTO TABLE mt_pending.
+      pending_set( ls_plan ).
       INSERT ls_plan-path INTO TABLE result.
     ENDLOOP.
 
@@ -1226,6 +1372,9 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     DATA lv_row TYPE i VALUE -1.
     DATA ls_explicit TYPE ty_s_val.
+    DATA ls_table TYPE z2ui5_cl_agent_snapshot=>ty_s_table.
+    DATA ls_params TYPE ty_s_params.
+    DATA lt_probe TYPE ty_t_int.
 
     DATA(lt_desc) = is_action-t_wire_arg.
     IF lines( t_given ) > lines( lt_desc ).
@@ -1237,25 +1386,53 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       fail( |row is for row actions - { is_action-id } ({ is_action-event }) is a screen action; leave row out| ).
     ENDIF.
 
+    DATA(lv_count) = 0.
     IF is_action-scope = `row`.
-      DATA(lv_count) = mo_snap->table_rows( is_action-table ).
+      READ TABLE mo_snap->mt_table INTO ls_table WITH KEY id = is_action-table. "#EC CI_SORTSEQ
+      lv_count = mo_snap->table_rows( is_action-table ).
+      " an argument the row would fill: a row property, the source control's
+      " property in the row, or an event parameter that is the row
+      IF is_action-pick = abap_true.
+        lt_probe = t_picked.
+      ELSEIF lv_count > 0.
+        lt_probe = VALUE #( ( 0 ) ).
+      ENDIF.
+      DATA(ls_probe) = row_event_params( is_action = is_action
+                                         is_table  = ls_table
+                                         has_rows  = xsdbool( is_action-pick = abap_true OR lv_count > 0 )
+                                         t_row     = lt_probe ).
       IF row_raw IS INITIAL.
         LOOP AT lt_desc INTO DATA(ls_desc).
           ls_explicit = VALUE #( t_given[ sy-tabix ]-val OPTIONAL ).
-          IF ls_desc-static = abap_false AND ( ls_desc-kind = `row` OR ls_desc-kind = `source` )
-              AND ( ls_explicit-kind IS INITIAL OR ls_explicit-kind = z2ui5_cl_agent_viewxml=>cs_kind-null ).
+          IF ls_desc-static = abap_true OR is_action-pick = abap_true
+              OR ( ls_explicit-kind IS NOT INITIAL AND ls_explicit-kind <> z2ui5_cl_agent_viewxml=>cs_kind-null ).
+            CONTINUE.
+          ENDIF.
+          IF ls_desc-kind = `row` OR ls_desc-kind = `source`
+              OR ( ( ls_desc-kind = `parameters` OR ls_desc-kind = `expr` )
+                   AND row_param_arg( is_desc   = ls_desc
+                                      is_params = ls_probe
+                                      is_table  = ls_table )-kind <> '?' ).
             fail( |action { is_action-id } ({ is_action-event }) is a row action of table { is_action-table } ({ lv_count } rows) - | &&
                   |pass row (0-{ nmax( val1 = 0
                                        val2 = lv_count - 1 ) })| ).
           ENDIF.
         ENDLOOP.
       ELSE.
-        DATA(ls_row) = z2ui5_cl_agent_viewxml=>describe_arg( row_raw ).
-        IF ls_row-static = abap_false OR ls_row-val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-number
-            OR ls_row-val-num <> trunc( ls_row-val-num ) OR ls_row-val-num < 0 OR ls_row-val-num >= lv_count.
-          fail( |table { is_action-table } has { lv_count } row(s) - row { row_raw } does not exist (rows are 0-based)| ).
-        ENDIF.
-        lv_row = ls_row-val-num.
+        lv_row = row_index( table_id = is_action-table
+                            count    = lv_count
+                            row_raw  = row_raw ).
+      ENDIF.
+      IF is_action-pick = abap_true.
+        ls_params = row_event_params( is_action = is_action
+                                      is_table  = ls_table
+                                      has_rows  = abap_true
+                                      t_row     = t_picked ).
+      ELSEIF lv_row >= 0.
+        ls_params = row_event_params( is_action = is_action
+                                      is_table  = ls_table
+                                      has_rows  = abap_true
+                                      t_row     = VALUE #( ( lv_row ) ) ).
       ENDIF.
     ENDIF.
 
@@ -1311,9 +1488,744 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           DATA(lv_choice) = VALUE string( is_action-t_choice[ 1 ] DEFAULT `OK` ).
           INSERT z2ui5_cl_agent_viewxml=>val_string( lv_choice ) INTO TABLE result.
         WHEN OTHERS.
+          " a $parameters / $expr argument of a row event, from its row(s)
+          IF ls_params-active = abap_true.
+            DATA(ls_param) = row_param_arg( is_desc   = ls_desc
+                                            is_params = ls_params
+                                            is_table  = ls_table ).
+            IF ls_param-kind = 'v'.
+              INSERT COND #( WHEN ls_param-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined OR ls_param-val-kind IS INITIAL
+                             THEN VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-null )
+                             ELSE ls_param-val ) INTO TABLE result.
+              CONTINUE.
+            ENDIF.
+          ENDIF.
+          IF is_action-pick = abap_true AND t_picked IS INITIAL AND lv_count > 0.
+            DATA(ls_first) = row_event_params( is_action = is_action
+                                               is_table  = ls_table
+                                               has_rows  = abap_true
+                                               t_row     = VALUE #( ( 0 ) ) ).
+            IF ls_first-active = abap_true AND row_param_arg( is_desc   = ls_desc
+                                                              is_params = ls_first
+                                                              is_table  = ls_table )-kind <> '?'.
+              fail( |argument { lv_index } of { is_action-event } ({ ls_desc-describe }) reads the picked row and none is selected - | &&
+                    |pass row, or the value in args[{ lv_index }]| ).
+            ENDIF.
+          ENDIF.
           fail( |argument { lv_index } of { is_action-event } ({ ls_desc-describe }) is computed in the browser - pass its value in args[{ lv_index }]| ).
       ENDCASE.
     ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD row_index.
+
+    result = -1.
+    IF row_raw IS INITIAL.
+      RETURN.
+    ENDIF.
+    DATA(ls_row) = z2ui5_cl_agent_viewxml=>describe_arg( row_raw ).
+    IF ls_row-static = abap_false OR ls_row-val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-number
+        OR ls_row-val-num <> trunc( ls_row-val-num ) OR ls_row-val-num < 0 OR ls_row-val-num >= count.
+      fail( |table { table_id } has { count } row(s) - row { row_raw } does not exist (rows are 0-based)| ).
+    ENDIF.
+    result = ls_row-val-num.
+
+  ENDMETHOD.
+
+  METHOD pending_set.
+
+    READ TABLE mt_pending TRANSPORTING NO FIELDS
+         WITH KEY model_key = is_pending-model_key path = is_pending-path. "#EC CI_SORTSEQ
+    IF sy-subrc = 0.
+      MODIFY mt_pending FROM is_pending INDEX sy-tabix.
+    ELSE.
+      INSERT is_pending INTO TABLE mt_pending.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD apply_pick.
+
+    DATA ls_table TYPE z2ui5_cl_agent_snapshot=>ty_s_table.
+    DATA lt_truthy TYPE STANDARD TABLE OF abap_bool WITH EMPTY KEY.
+
+    " a selection dialog's confirm picks a row, as a click on it does in the
+    " browser: the row's selectionField becomes true (and, selecting one row,
+    " every other selected row's false) - two-way bound, so the edits travel
+    " with the confirm as the model delta. The selected rows, in model order,
+    " are what the event's selectedItem / selectedItems / selectedContexts
+    " are made of. Without row the selection stays as the model holds it (a
+    " multi-select dialog's OK after the rows were ticked through values);
+    " picking one row needs one
+    READ TABLE mo_snap->mt_table INTO ls_table WITH KEY id = is_action-table. "#EC CI_SORTSEQ
+    DATA(lv_has_table) = xsdbool( sy-subrc = 0 ).
+    DATA(lv_count) = ls_table-row_count.
+    DATA(lv_single) = xsdbool( lv_has_table = abap_true AND ls_table-selection_mode = `Single` ).
+    DATA(lv_row) = row_index( table_id = is_action-table
+                              count    = lv_count
+                              row_raw  = row_raw ).
+    DATA(lv_field) = ls_table-selection_field.
+
+    IF lv_field IS NOT INITIAL.
+      DO lv_count TIMES.
+        INSERT z2ui5_cl_agent_viewxml=>val_truthy( mo_snap->model_value( model_key = ls_table-model_key
+                                                                         path      = lv_field
+                                                                         table_id  = ls_table-id
+                                                                         row       = sy-index - 1 ) ) INTO TABLE lt_truthy.
+      ENDDO.
+    ENDIF.
+    IF lv_field IS NOT INITIAL AND lv_row >= 0.
+      IF lv_single = abap_true.
+        LOOP AT lt_truthy REFERENCE INTO DATA(lr_truthy).
+          DATA(lv_other) = sy-tabix - 1.
+          IF lv_other <> lv_row AND lr_truthy->* = abap_true.
+            pending_set( VALUE #( model_key = ls_table-model_key
+                                  path      = |{ ls_table-path }/{ lv_other }/{ lv_field }|
+                                  val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_false ) ) ).
+            lr_truthy->* = abap_false.
+          ENDIF.
+        ENDLOOP.
+      ENDIF.
+      DATA(ls_current) = mo_snap->model_value( model_key = ls_table-model_key
+                                               path      = lv_field
+                                               table_id  = ls_table-id
+                                               row       = lv_row ).
+      IF NOT ( ls_current-kind = z2ui5_cl_agent_viewxml=>cs_kind-boolean AND ls_current-str = `true` ).
+        pending_set( VALUE #( model_key = ls_table-model_key
+                              path      = |{ ls_table-path }/{ lv_row }/{ lv_field }|
+                              val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_true ) ) ).
+      ENDIF.
+      DATA(lv_line) = lv_row + 1.
+      MODIFY lt_truthy FROM abap_true INDEX lv_line.
+    ENDIF.
+
+    LOOP AT lt_truthy INTO DATA(lv_truthy).
+      DATA(lv_selected) = sy-tabix - 1.
+      IF lv_truthy = abap_true.
+        INSERT lv_selected INTO TABLE result.
+      ENDIF.
+    ENDLOOP.
+    IF lv_row >= 0 AND ( lv_single = abap_true OR lv_field IS INITIAL ).
+      result = VALUE #( ( lv_row ) ).
+    ENDIF.
+    IF lv_row >= 0 AND lv_single = abap_false AND lv_field IS NOT INITIAL AND NOT line_exists( result[ table_line = lv_row ] ).
+      INSERT lv_row INTO TABLE result.
+    ENDIF.
+    IF lv_single = abap_true AND result IS INITIAL.
+      fail( |action { is_action-id } ({ is_action-event }) picks a row of table { is_action-table } ({ lv_count } rows) - | &&
+            |pass row (0-{ nmax( val1 = 0
+                                 val2 = lv_count - 1 ) })| ).
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD row_event_params.
+
+    " the event parameters a row event hands its ${$parameters>/...}
+    " arguments, for the events whose parameters ARE the row: a selection
+    " dialog's confirm (selectedItem, selectedItems, selectedContexts), a
+    " list table's itemPress / selectionChange / delete /
+    " beforeOpenContextMenu (listItem), a grid table's rowSelectionChange
+    " (rowIndex, rowContext), cellClick (rowIndex, rowBindingContext) and
+    " beforeOpenContextMenu (rowIndex), and a row action item of a grid
+    " table (row). Not active: the event's parameters are not the row
+    IF is_table-id IS INITIAL OR has_rows = abap_false.
+      RETURN.
+    ENDIF.
+    IF is_action-pick = abap_true.
+      result-active = abap_true.
+      DATA(ls_selected) = VALUE ty_s_pnode( kind = 'v'
+                                            val  = VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-null ) ).
+      READ TABLE t_row INTO DATA(lv_first) INDEX 1.
+      IF sy-subrc = 0.
+        ls_selected = VALUE #( kind = 'i'
+                               row  = lv_first ).
+      ENDIF.
+      INSERT VALUE #( name = `selectedItem`
+                      node = ls_selected ) INTO TABLE result-t_param.
+      INSERT VALUE #( name = `selectedItems`
+                      node = VALUE #( kind  = 'a'
+                                      elem  = 'i'
+                                      t_row = t_row ) ) INTO TABLE result-t_param.
+      INSERT VALUE #( name = `selectedContexts`
+                      node = VALUE #( kind  = 'a'
+                                      elem  = 'c'
+                                      t_row = t_row ) ) INTO TABLE result-t_param.
+      RETURN.
+    ENDIF.
+    READ TABLE t_row INTO DATA(lv_row) INDEX 1.
+    IF sy-subrc <> 0.
+      RETURN.
+    ENDIF.
+    DATA(lv_trigger) = is_action-trigger.
+    IF is_action-doc = is_table-doc AND is_action-node = is_table-node.
+      IF is_table-kind = `m` AND ( lv_trigger = `itemPress` OR lv_trigger = `selectionChange`
+                                   OR lv_trigger = `delete` OR lv_trigger = `beforeOpenContextMenu` ).
+        result-t_param = VALUE #( ( name = `listItem`
+                                    node = VALUE #( kind = 'i'
+                                                    row  = lv_row ) ) ).
+      ELSEIF is_table-kind = `ui` AND lv_trigger = `rowSelectionChange`.
+        result-t_param = VALUE #( ( name = `rowIndex`
+                                    node = pnode_value( z2ui5_cl_agent_viewxml=>val_number( |{ lv_row }| ) ) )
+                                  ( name = `rowContext`
+                                    node = VALUE #( kind = 'c'
+                                                    row  = lv_row ) ) ).
+      ELSEIF is_table-kind = `ui` AND lv_trigger = `cellClick`.
+        result-t_param = VALUE #( ( name = `rowIndex`
+                                    node = pnode_value( z2ui5_cl_agent_viewxml=>val_number( |{ lv_row }| ) ) )
+                                  ( name = `rowBindingContext`
+                                    node = VALUE #( kind = 'c'
+                                                    row  = lv_row ) ) ).
+      ELSEIF is_table-kind = `ui` AND lv_trigger = `beforeOpenContextMenu`.
+        result-t_param = VALUE #( ( name = `rowIndex`
+                                    node = pnode_value( z2ui5_cl_agent_viewxml=>val_number( |{ lv_row }| ) ) ) ).
+      ENDIF.
+    ELSEIF is_table-kind = `ui` AND is_action-row_template = `rowActionTemplate`.
+      result-t_param = VALUE #( ( name = `row`
+                                  node = VALUE #( kind = 'i'
+                                                  row  = lv_row ) ) ).
+    ENDIF.
+    result-active = xsdbool( result-t_param IS NOT INITIAL ).
+
+  ENDMETHOD.
+
+  METHOD row_param_arg.
+
+    " a $parameters / $expr argument of a row event, from its row(s); ? when
+    " this client cannot
+    result-kind = '?'.
+    IF is_params-active = abap_false.
+      RETURN.
+    ENDIF.
+    CASE is_desc-kind.
+      WHEN `parameters`.
+        result = walk_params( is_params = is_params
+                              path      = is_desc-path
+                              is_table  = is_table ).
+      WHEN `expr`.
+        result = param_expr( raw       = is_desc-raw
+                             is_params = is_params
+                             is_table  = is_table ).
+    ENDCASE.
+
+  ENDMETHOD.
+
+  METHOD walk_params.
+
+    " ${$parameters>/<path>} with the semantics of the JSONModel UI5 puts
+    " the parameters in (EventHandlerResolver): the path is split at / and
+    " walked key by key - there is no [n] index syntax, so
+    " selectedContexts[0]/sPath is undefined in the browser and goes out as
+    " null here too. A context answers its sPath; anything else of an item
+    " or a context (the control marshalled with all its properties) is
+    " unknown, as is a parameter this client does not model
+    SPLIT path AT `/` INTO TABLE DATA(lt_seg).
+    DELETE lt_seg WHERE table_line IS INITIAL.
+    DATA(ls_node) = VALUE ty_s_pnode( kind = 'o' ).
+    LOOP AT lt_seg INTO DATA(lv_seg).
+      IF ls_node-kind = 'v' AND ( ls_node-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-null
+                                  OR ls_node-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ).
+        result = ls_node.
+        RETURN.
+      ENDIF.
+      IF ls_node-kind = 'i' OR ls_node-kind = 'c' OR ls_node-kind = 'l'.
+        IF ls_node-kind = 'c' AND lv_seg = `sPath`.
+          ls_node = pnode_value( z2ui5_cl_agent_viewxml=>val_string( |{ is_table-path }/{ ls_node-row }| ) ).
+          CONTINUE.
+        ENDIF.
+        result-kind = '?'.
+        RETURN.
+      ENDIF.
+      IF lv_seg CA `[]`.
+        result = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) ).
+        RETURN.
+      ENDIF.
+      CASE ls_node-kind.
+        WHEN 'a'.
+          IF lv_seg = `length`.
+            ls_node = pnode_value( z2ui5_cl_agent_viewxml=>val_number( |{ lines( ls_node-t_row ) }| ) ).
+          ELSE.
+            DATA(lv_line) = 0.
+            IF lv_seg CO `0123456789` AND strlen( lv_seg ) <= 9.
+              lv_line = lv_seg.
+              lv_line = lv_line + 1.
+            ENDIF.
+            DATA(lv_elem_row) = 0.
+            IF lv_line > 0.
+              READ TABLE ls_node-t_row INTO lv_elem_row INDEX lv_line.
+            ENDIF.
+            IF lv_line > 0 AND sy-subrc = 0.
+              " not VALUE #( kind = ls_node-elem ) - the target is cleared first
+              DATA(lv_elem) = ls_node-elem.
+              ls_node = VALUE #( kind = lv_elem
+                                 row  = lv_elem_row ).
+            ELSE.
+              ls_node = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) ).
+            ENDIF.
+          ENDIF.
+        WHEN 'o'.
+          READ TABLE is_params-t_param INTO DATA(ls_param) WITH KEY name = lv_seg. "#EC CI_SORTSEQ
+          IF sy-subrc <> 0.
+            result-kind = '?'.
+            RETURN.
+          ENDIF.
+          ls_node = ls_param-node.
+        WHEN OTHERS.
+          " a number or a string has no key
+          result = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) ).
+          RETURN.
+      ENDCASE.
+    ENDLOOP.
+    CASE ls_node-kind.
+      WHEN 'i' OR 'c' OR 'l' OR 'o'.
+        result-kind = '?'.
+      WHEN 'a'.
+        IF ls_node-t_row IS NOT INITIAL.
+          result-kind = '?'.
+        ELSE.
+          result = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-array
+                                         json = `[]` ) ).
+        ENDIF.
+      WHEN OTHERS.
+        result = ls_node.
+    ENDCASE.
+
+  ENDMETHOD.
+
+  METHOD head_of.
+
+    " the parameter a call chain starts from, as a value: an item or a
+    " context is not walked into; a parameter this client does not model is
+    " unknown
+    SPLIT path AT `/` INTO TABLE DATA(lt_seg).
+    DELETE lt_seg WHERE table_line IS INITIAL.
+    result = VALUE #( kind = 'o' ).
+    LOOP AT lt_seg INTO DATA(lv_seg).
+      IF ( result-kind = 'v' AND ( result-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-null
+                                   OR result-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) )
+          OR result-kind = 'i' OR result-kind = 'c' OR result-kind = 'l' OR lv_seg CA `[]`.
+        result = VALUE #( kind = '?' ).
+        RETURN.
+      ENDIF.
+      CASE result-kind.
+        WHEN 'o'.
+          READ TABLE is_params-t_param INTO DATA(ls_param) WITH KEY name = lv_seg. "#EC CI_SORTSEQ
+          IF sy-subrc <> 0.
+            result = VALUE #( kind = '?' ).
+            RETURN.
+          ENDIF.
+          result = ls_param-node.
+        WHEN 'a'.
+          DATA(lv_line) = 0.
+          IF lv_seg CO `0123456789` AND strlen( lv_seg ) <= 9.
+            lv_line = lv_seg.
+            lv_line = lv_line + 1.
+          ENDIF.
+          DATA(lv_elem_row) = 0.
+          IF lv_line > 0.
+            READ TABLE result-t_row INTO lv_elem_row INDEX lv_line.
+          ENDIF.
+          IF lv_line > 0 AND sy-subrc = 0.
+            " not VALUE #( kind = result-elem ) - the target is cleared first
+            DATA(lv_elem) = result-elem.
+            result = VALUE #( kind = lv_elem
+                              row  = lv_elem_row ).
+          ELSE.
+            result = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) ).
+          ENDIF.
+        WHEN OTHERS.
+          result = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) ).
+      ENDCASE.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD param_expr.
+
+    " the browser-computed argument shapes of a row event, the ones views
+    " actually write:
+    "   ${$parameters>/P}                                (walk_params)
+    "   ${$parameters>/P}.getBindingContext().getPath()
+    "   ${$parameters>/P}.getBindingContext().getProperty('X')
+    "   ${$parameters>/P}.getPath() / .getProperty('X')  (P a context)
+    "   ${$parameters>/P}.get<Prop>()                    (the item template's <prop>)
+    "   ${$parameters>/P}.getCells()[n].get<Prop>()
+    "   ${$parameters>/P} ? <one of the above> : <literal>
+    " anything else is unknown - the caller asks for it in args
+    CONSTANTS lc_head TYPE string VALUE `${$parameters>`.
+    CONSTANTS lc_alpha TYPE string VALUE `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`.
+    CONSTANTS lc_word TYPE string VALUE `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_`.
+    DATA lv_found TYPE abap_bool.
+
+    result-kind = '?'.
+    DATA(lv_src) = str_trim( raw ).
+    DATA(lv_len) = strlen( lv_src ).
+    IF lv_len < 15 OR substring( val = lv_src
+                                 len = 14 ) <> lc_head.
+      RETURN.
+    ENDIF.
+    " the reference: ${$parameters>/?<path>} - no braces inside
+    DATA(lv_close) = find( val = lv_src
+                           sub = `}`
+                           off = 14 ).
+    IF lv_close < 0.
+      RETURN.
+    ENDIF.
+    DATA(lv_path) = substring( val = lv_src
+                               off = 14
+                               len = lv_close - 14 ).
+    IF lv_path CA `{`.
+      RETURN.
+    ENDIF.
+    IF strlen( lv_path ) > 0 AND lv_path(1) = `/`.
+      lv_path = substring( val = lv_path
+                           off = 1 ).
+    ENDIF.
+    DATA(lv_pos) = lv_close + 1.
+
+    " the ternary: <reference> ? <shape> : <literal>
+    DATA(lv_q) = skip_ws( val = lv_src
+                          pos = lv_pos ).
+    IF lv_q < lv_len AND lv_src+lv_q(1) = `?`.
+      DATA(lv_after) = lv_q + 1.
+      DATA(lv_max) = skip_ws( val = lv_src
+                              pos = lv_after ).
+      DATA(lv_start) = lv_max.
+      DATA(lv_tern) = abap_false.
+      DATA(ls_lit) = VALUE ty_s_val( ).
+      DATA(lv_end) = 0.
+      WHILE lv_start >= lv_after AND lv_tern = abap_false.
+        lv_end = lv_start + 1.
+        WHILE lv_end <= lv_len AND lv_tern = abap_false.
+          ls_lit = tail_literal( EXPORTING val   = lv_src
+                                           off   = lv_end
+                                 IMPORTING found = lv_found ).
+          IF lv_found = abap_true.
+            lv_tern = abap_true.
+          ELSE.
+            lv_end = lv_end + 1.
+          ENDIF.
+        ENDWHILE.
+        IF lv_tern = abap_false.
+          lv_start = lv_start - 1.
+        ENDIF.
+      ENDWHILE.
+      IF lv_tern = abap_true.
+        " the condition is the parameter itself - an item is truthy
+        DATA(ls_cond) = head_of( is_params = is_params
+                                 path      = lv_path ).
+        IF ls_cond-kind = '?'.
+          RETURN.
+        ENDIF.
+        IF pnode_truthy( ls_cond ) = abap_true.
+          result = param_expr( raw       = substring( val = lv_src
+                                                      off = lv_start
+                                                      len = lv_end - lv_start )
+                               is_params = is_params
+                               is_table  = is_table ).
+        ELSE.
+          result = pnode_value( ls_lit ).
+        ENDIF.
+        RETURN.
+      ENDIF.
+    ENDIF.
+
+    DATA(lv_rest) = substring( val = lv_src
+                               off = lv_pos ).
+    IF str_trim( lv_rest ) IS INITIAL.
+      result = walk_params( is_params = is_params
+                            path      = lv_path
+                            is_table  = is_table ).
+      RETURN.
+    ENDIF.
+    DATA(ls_cur) = head_of( is_params = is_params
+                            path      = lv_path ).
+    IF ls_cur-kind = '?'.
+      RETURN.
+    ENDIF.
+    WHILE str_trim( lv_rest ) IS NOT INITIAL.
+      IF ls_cur-kind <> 'i' AND ls_cur-kind <> 'c' AND ls_cur-kind <> 'l'.
+        RETURN.
+      ENDIF.
+      " .<name>( ) or .<name>('<arg>')
+      DATA(lv_rlen) = strlen( lv_rest ).
+      lv_pos = skip_ws( val = lv_rest
+                        pos = 0 ).
+      IF lv_pos >= lv_rlen OR lv_rest+lv_pos(1) <> `.`.
+        RETURN.
+      ENDIF.
+      lv_pos = skip_ws( val = lv_rest
+                        pos = lv_pos + 1 ).
+      IF lv_pos >= lv_rlen OR lv_rest+lv_pos(1) NA lc_alpha.
+        RETURN.
+      ENDIF.
+      DATA(lv_name_from) = lv_pos.
+      WHILE lv_pos < lv_rlen AND lv_rest+lv_pos(1) CA lc_word.
+        lv_pos = lv_pos + 1.
+      ENDWHILE.
+      DATA(lv_fn) = substring( val = lv_rest
+                               off = lv_name_from
+                               len = lv_pos - lv_name_from ).
+      lv_pos = skip_ws( val = lv_rest
+                        pos = lv_pos ).
+      IF lv_pos >= lv_rlen OR lv_rest+lv_pos(1) <> `(`.
+        RETURN.
+      ENDIF.
+      lv_pos = skip_ws( val = lv_rest
+                        pos = lv_pos + 1 ).
+      DATA(lv_has_arg) = abap_false.
+      DATA(lv_arg) = ``.
+      IF lv_pos < lv_rlen AND ( lv_rest+lv_pos(1) = `'` OR lv_rest+lv_pos(1) = `"` ).
+        DATA(lv_quote) = lv_rest+lv_pos(1).
+        DATA(lv_arg_end) = find( val = lv_rest
+                                 sub = lv_quote
+                                 off = lv_pos + 1 ).
+        IF lv_arg_end < 0.
+          RETURN.
+        ENDIF.
+        lv_has_arg = abap_true.
+        lv_arg = substring( val = lv_rest
+                            off = lv_pos + 1
+                            len = lv_arg_end - lv_pos - 1 ).
+        lv_pos = skip_ws( val = lv_rest
+                          pos = lv_arg_end + 1 ).
+      ENDIF.
+      IF lv_pos >= lv_rlen OR lv_rest+lv_pos(1) <> `)`.
+        RETURN.
+      ENDIF.
+      lv_rest = substring( val = lv_rest
+                           off = lv_pos + 1 ).
+
+      DATA(lv_row) = ls_cur-row.
+      IF ls_cur-kind = 'c'.
+        IF lv_fn = `getPath` AND lv_has_arg = abap_false.
+          ls_cur = pnode_value( z2ui5_cl_agent_viewxml=>val_string( |{ is_table-path }/{ lv_row }| ) ).
+        ELSEIF lv_fn = `getProperty` AND lv_has_arg = abap_true.
+          DATA(ls_prop) = mo_snap->model_value( model_key = is_table-model_key
+                                                path      = lv_arg
+                                                table_id  = is_table-id
+                                                row       = lv_row ).
+          IF ls_prop-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined OR ls_prop-kind IS INITIAL.
+            ls_prop = VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-null ).
+          ENDIF.
+          ls_cur = pnode_value( ls_prop ).
+        ELSE.
+          RETURN.
+        ENDIF.
+      ELSEIF lv_fn = `getBindingContext` AND lv_has_arg = abap_false.
+        ls_cur = VALUE #( kind = 'c'
+                          row  = lv_row ).
+      ELSEIF lv_fn = `getCells` AND lv_has_arg = abap_false AND ls_cur-kind = 'i'.
+        " [n]
+        lv_rlen = strlen( lv_rest ).
+        lv_pos = skip_ws( val = lv_rest
+                          pos = 0 ).
+        IF lv_pos >= lv_rlen OR lv_rest+lv_pos(1) <> `[`.
+          RETURN.
+        ENDIF.
+        lv_pos = skip_ws( val = lv_rest
+                          pos = lv_pos + 1 ).
+        DATA(lv_digit_from) = lv_pos.
+        WHILE lv_pos < lv_rlen AND lv_rest+lv_pos(1) CA `0123456789`.
+          lv_pos = lv_pos + 1.
+        ENDWHILE.
+        IF lv_pos = lv_digit_from.
+          RETURN.
+        ENDIF.
+        DATA(lv_digits) = substring( val = lv_rest
+                                     off = lv_digit_from
+                                     len = lv_pos - lv_digit_from ).
+        lv_pos = skip_ws( val = lv_rest
+                          pos = lv_pos ).
+        IF lv_pos >= lv_rlen OR lv_rest+lv_pos(1) <> `]`.
+          RETURN.
+        ENDIF.
+        lv_rest = substring( val = lv_rest
+                             off = lv_pos + 1 ).
+        IF strlen( lv_digits ) > 9.
+          RETURN.
+        ENDIF.
+        DATA(lv_cell) = CONV i( lv_digits ).
+        IF lv_cell >= lines( is_table-t_cellnode ).
+          RETURN.
+        ENDIF.
+        ls_cur = VALUE #( kind = 'l'
+                          row  = lv_row
+                          cell = lv_cell ).
+      ELSEIF strlen( lv_fn ) > 3 AND lv_fn(3) = `get` AND lv_fn+3(1) CA `ABCDEFGHIJKLMNOPQRSTUVWXYZ`
+          AND lv_has_arg = abap_false AND lv_fn <> `getId`.
+        " a property getter: the template attribute resolved in the row - a
+        " number as the string the UI5 property holds; an attribute the
+        " template does not set (or one bound to nothing) is unknown
+        DATA(lv_prop) = to_lower( lv_fn+3(1) ) && substring( val = lv_fn
+                                                            off = 4 ).
+        DATA(lv_node) = 0.
+        IF ls_cur-kind = 'l'.
+          DATA(lv_cell_line) = ls_cur-cell + 1.
+          READ TABLE is_table-t_cellnode INTO lv_node INDEX lv_cell_line.
+        ELSEIF is_table-kind = `m`.
+          lv_node = is_table-template.
+        ENDIF.
+        IF lv_node = 0.
+          RETURN.
+        ENDIF.
+        DATA(ls_value) = mo_snap->template_value( table_id = is_table-id
+                                                  node     = lv_node
+                                                  prop     = lv_prop
+                                                  row      = lv_row ).
+        CASE ls_value-kind.
+          WHEN z2ui5_cl_agent_viewxml=>cs_kind-undefined OR z2ui5_cl_agent_viewxml=>cs_kind-null OR space.
+            RETURN.
+          WHEN z2ui5_cl_agent_viewxml=>cs_kind-number.
+            ls_value = z2ui5_cl_agent_viewxml=>val_string( z2ui5_cl_agent_viewxml=>val_to_string( ls_value ) ).
+        ENDCASE.
+        ls_cur = pnode_value( ls_value ).
+      ELSE.
+        RETURN.
+      ENDIF.
+    ENDWHILE.
+    IF ls_cur-kind = 'i' OR ls_cur-kind = 'c' OR ls_cur-kind = 'l'.
+      RETURN.
+    ENDIF.
+    result = ls_cur.
+
+  ENDMETHOD.
+
+  METHOD tail_literal.
+
+    " \s*:\s*('...'|"..."|null|-?\d+(\.\d+)?)\s*$ at off
+    found = abap_false.
+    DATA(lv_len) = strlen( val ).
+    DATA(lv_pos) = skip_ws( val = val
+                            pos = off ).
+    IF lv_pos >= lv_len OR val+lv_pos(1) <> `:`.
+      RETURN.
+    ENDIF.
+    lv_pos = skip_ws( val = val
+                      pos = lv_pos + 1 ).
+    IF lv_pos >= lv_len.
+      RETURN.
+    ENDIF.
+    DATA(lv_char) = val+lv_pos(1).
+    IF lv_char = `'` OR lv_char = `"`.
+      DATA(lv_text) = ``.
+      lv_pos = lv_pos + 1.
+      DATA(lv_closed) = abap_false.
+      WHILE lv_pos < lv_len AND lv_closed = abap_false.
+        DATA(lv_c) = val+lv_pos(1).
+        IF lv_c = `\`.
+          IF lv_pos + 1 >= lv_len.
+            RETURN.
+          ENDIF.
+          lv_text = lv_text && val+lv_pos(2).
+          lv_pos = lv_pos + 2.
+        ELSEIF lv_c = lv_char.
+          lv_closed = abap_true.
+          lv_pos = lv_pos + 1.
+        ELSE.
+          lv_text = lv_text && lv_c.
+          lv_pos = lv_pos + 1.
+        ENDIF.
+      ENDWHILE.
+      IF lv_closed = abap_false.
+        RETURN.
+      ENDIF.
+      " the escapes: \x is x
+      DATA(lv_value) = ``.
+      DATA(lv_i) = 0.
+      DATA(lv_text_len) = strlen( lv_text ).
+      WHILE lv_i < lv_text_len.
+        IF lv_text+lv_i(1) = `\` AND lv_i + 1 < lv_text_len.
+          lv_i = lv_i + 1.
+        ENDIF.
+        lv_value = lv_value && lv_text+lv_i(1).
+        lv_i = lv_i + 1.
+      ENDWHILE.
+      result = z2ui5_cl_agent_viewxml=>val_string( lv_value ).
+    ELSEIF lv_pos + 4 <= lv_len AND val+lv_pos(4) = `null`.
+      lv_pos = lv_pos + 4.
+      result-kind = z2ui5_cl_agent_viewxml=>cs_kind-null.
+    ELSE.
+      DATA(lv_from) = lv_pos.
+      IF lv_char = `-`.
+        lv_pos = lv_pos + 1.
+      ENDIF.
+      DATA(lv_digits_from) = lv_pos.
+      WHILE lv_pos < lv_len AND val+lv_pos(1) CA `0123456789`.
+        lv_pos = lv_pos + 1.
+      ENDWHILE.
+      IF lv_pos = lv_digits_from.
+        RETURN.
+      ENDIF.
+      DATA(lv_next) = lv_pos + 1.
+      IF lv_next < lv_len AND val+lv_pos(1) = `.` AND val+lv_next(1) CA `0123456789`.
+        lv_pos = lv_next.
+        WHILE lv_pos < lv_len AND val+lv_pos(1) CA `0123456789`.
+          lv_pos = lv_pos + 1.
+        ENDWHILE.
+      ENDIF.
+      result = z2ui5_cl_agent_viewxml=>val_number( z2ui5_cl_agent_viewxml=>number_normalize(
+                                                       substring( val = val
+                                                                  off = lv_from
+                                                                  len = lv_pos - lv_from ) ) ).
+    ENDIF.
+    IF skip_ws( val = val
+                pos = lv_pos ) = lv_len.
+      found = abap_true.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD pnode_value.
+
+    result = VALUE #( kind = 'v'
+                      val  = val ).
+
+  ENDMETHOD.
+
+  METHOD pnode_truthy.
+
+    CASE is_node-kind.
+      WHEN 'v'.
+        result = z2ui5_cl_agent_viewxml=>val_truthy( is_node-val ).
+      WHEN '?'.
+        result = abap_false.
+      WHEN OTHERS.
+        result = abap_true.
+    ENDCASE.
+
+  ENDMETHOD.
+
+  METHOD skip_ws.
+
+    DATA(lv_ws) = ` ` && cl_abap_char_utilities=>horizontal_tab && cl_abap_char_utilities=>cr_lf
+               && cl_abap_char_utilities=>form_feed && cl_abap_char_utilities=>vertical_tab.
+    result = pos.
+    DATA(lv_len) = strlen( val ).
+    WHILE result < lv_len AND val+result(1) CA lv_ws.
+      result = result + 1.
+    ENDWHILE.
+
+  ENDMETHOD.
+
+  METHOD str_trim.
+
+    DATA(lv_ws) = ` ` && cl_abap_char_utilities=>horizontal_tab && cl_abap_char_utilities=>cr_lf
+               && cl_abap_char_utilities=>form_feed && cl_abap_char_utilities=>vertical_tab.
+    DATA(lv_from) = skip_ws( val = val
+                             pos = 0 ).
+    DATA(lv_to) = strlen( val ).
+    WHILE lv_to > lv_from.
+      DATA(lv_last) = lv_to - 1.
+      IF val+lv_last(1) NA lv_ws.
+        EXIT.
+      ENDIF.
+      lv_to = lv_last.
+    ENDWHILE.
+    result = substring( val = val
+                        off = lv_from
+                        len = lv_to - lv_from ).
 
   ENDMETHOD.
 

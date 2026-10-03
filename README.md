@@ -87,13 +87,17 @@ the VS Code extension, and this addon - specified in
 of the MCP server: `fields` (id, model path, label, kind, value, required,
 editable, choice values), `actions` (event, arguments with descriptors such as
 `$row:NAME`, label, trigger, enabled, row scope), `tables` (columns, the first
-rows, selection), `messages` (toast, message box, MessageStrip, value states,
-the app's message table), `texts`, `unsupported`, and `pending`.
+rows, selection - the selection dialogs `SelectDialog` / `TableSelectDialog`
+included), `messages` (toast, message box, MessageStrip, value states, the
+app's message table, the items of a `MessagePopover` / `MessageView` with
+their subtitle and description), `texts`, `unsupported`, and `pending`.
 
 `z2ui5_cl_agent_snapshot` is an ABAP port of the reference implementation
-(`lib/viewxml.mjs`, `lib/snapshot.mjs`). Measured against it on the 11 recorded
-sessions of the MCP server (every step, at 20 and at 2 rows) plus 7 synthetic
-views: **70 of 70 snapshots byte-identical**. One deliberate extension: an
+(`lib/viewxml.mjs`, `lib/snapshot.mjs`, mcp-server commit `6bd3cc3`). Measured
+against it on the 15 recorded sessions of the MCP server (every step, at 20
+and at 2 rows) plus 12 synthetic views (selection dialogs, row event
+arguments, message lists among them): **110 of 110 snapshots
+byte-identical**. One deliberate extension: an
 action the app or the settings classify `confirm` or `forbidden` carries
 `"policy"` - without such a classification the output is the reference's,
 key for key.
@@ -230,7 +234,22 @@ model path or name, or a table cell as `"<table path or id>/<row>/<COLUMN>"`
 (selecting a row is setting its `selectionField`); `event` is an event name or
 an action id; `row` (0-based) fills the row arguments of a row action; `args`
 (positional, `null` = let the client fill it) supplies what only a browser
-computes. Without `event` the values stay **pending**. `@CLOSE_POPUP` /
+computes - except the `${$parameters>/...}` arguments of row events, which
+are filled from the row (`listItem`, `rowIndex`, `rowContext`, a row action
+item's `row`, and the call shapes views write on them:
+`.getBindingContext().getProperty('X')`, `.getPath()`, `.getCells()[n].getText()`,
+`.getTitle()`, ...; a `[n]` path segment is `null`, as in the browser's
+JSONModel). Without `event` the values stay **pending**.
+
+**Value helps: the pick.** A `SelectDialog` / `TableSelectDialog` is a table
+of its layer, and its `confirm` is a row action: `app_act({ event: <the
+confirm>, row: 2 })` picks row 2 as a click in the browser does - the row's
+`selectionField` becomes `true` (single select: every other selected row's
+`false`), the edits travel with the confirm as the model delta, and the
+confirm's `selectedItem` / `selectedItems` / `selectedContexts` are the
+selected rows. A multi-select dialog confirms what is ticked (tick rows
+through `values`, `row` adds one); a single-select dialog with nothing
+selected refuses an act without `row`. `@CLOSE_POPUP` /
 `@CLOSE_POPOVER` close a dialog locally, as the browser does. Every refusal is
 a tool result with `isError: true` and a sentence naming what was wrong and
 what is allowed - and a refused act sends nothing and changes nothing.
@@ -284,6 +303,16 @@ tab, a selection without a `selected` binding), named models, custom controls,
 frontend actions (`.eF` wires, `OPEN_NEW_TAB`, ... - listed, never
 performed), nested tables, file uploads. On top of that, in this addon:
 
+- **Value helps work, message popovers are read.** An F4 help built as a
+  `SelectDialog` / `TableSelectDialog` (abap2UI5's `z2ui5_cl_pop_to_select`,
+  the popups addon's `z2ui5_cl_popup_to_select`) is operated with the pick
+  above. The items of a `MessagePopover` are messages
+  (`source: "popover"`) even while the popover itself only opens in the
+  browser (a frontend action this addon does not perform); a `MessageView`'s
+  are `source: "messageview"`. At most 50 per list. A control-valued event
+  parameter outside the row events (a MessagePopover's `${$parameters>/item}`)
+  is marshalled by the browser with all its properties - pass what the app
+  reads in `args`.
 - **Stateful apps** (`client->set_session_stateful( )`) cannot be operated: a
   stateful session lives in one HTTP request, an MCP call is one request.
   `app_start` refuses them; an app that switches mid-session ends the session.

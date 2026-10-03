@@ -2,7 +2,9 @@
 "! and what its unit tests drive. A travel request: a form, a table with a
 "! row action and row selection, a popup that closes in the browser, a
 "! trip plan with tags (a multichoice) and a structure that holds a table of
-"! stops, and three events of each policy: ADD and PLAN are allowed, SUBMIT
+"! stops, two value helps - a SelectDialog for the destination (one row is
+"! picked) and a TableSelectDialog for the tags (several rows) - and three
+"! events of each policy: ADD and PLAN are allowed, SUBMIT
 "! needs a human (confirm), DELETE_ALL is forbidden for agents. The IBAN is
 "! sensitive - the audit log masks it.
 "!
@@ -34,6 +36,14 @@ CLASS z2ui5_cl_agent_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
     TYPES ty_t_stop TYPE STANDARD TABLE OF ty_s_stop WITH EMPTY KEY.
 
     TYPES:
+      BEGIN OF ty_s_choice,
+        key   TYPE string,
+        text  TYPE string,
+        selkz TYPE abap_bool,
+      END OF ty_s_choice.
+    TYPES ty_t_choice TYPE STANDARD TABLE OF ty_s_choice WITH EMPTY KEY.
+
+    TYPES:
       BEGIN OF ty_s_trip,
         purpose TYPE string,
         t_stop  TYPE ty_t_stop,
@@ -49,6 +59,8 @@ CLASS z2ui5_cl_agent_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA t_request   TYPE ty_t_request.
     DATA tags        TYPE string_table.
     DATA trip        TYPE ty_s_trip.
+    DATA t_dest      TYPE ty_t_choice.
+    DATA t_tag       TYPE ty_t_choice.
 
   PROTECTED SECTION.
 
@@ -56,6 +68,8 @@ CLASS z2ui5_cl_agent_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     METHODS view_display.
     METHODS popup_display.
+    METHODS dest_help_display.
+    METHODS tags_help_display.
     METHODS on_event.
     METHODS model_init.
 
@@ -261,7 +275,13 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
             )->tag( `Button`
                 )->a( n = `text`  v = `Submit`
                 )->a( n = `type`  v = `Emphasized`
-                )->a( n = `press` v = client->_event( `SUBMIT` ) ).
+                )->a( n = `press` v = client->_event( `SUBMIT` )
+            )->tag( `Button`
+                )->a( n = `text`  v = `Pick destination`
+                )->a( n = `press` v = client->_event( `DEST_HELP` )
+            )->tag( `Button`
+                )->a( n = `text`  v = `Pick tags`
+                )->a( n = `press` v = client->_event( `TAGS_HELP` ) ).
 
     client->view_display( view->stringify( ) ).
 
@@ -293,6 +313,72 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
             )->a( n = `text`  v = `OK`
             )->a( n = `type`  v = `Emphasized`
             )->a( n = `press` v = client->_event( `POPUP_OK` ) ).
+
+    client->popup_display( popup->stringify( ) ).
+
+  ENDMETHOD.
+
+  METHOD dest_help_display.
+
+    " a value help: one row is picked - its SELKZ travels with the confirm,
+    " the picked item's title is the event argument
+    DATA(popup) = z2ui5_cl_ui5_view_builder=>factory(
+        )->ele( n = `FragmentDefinition` ns = `core`
+            )->a( n = `xmlns`      v = `sap.m`
+            )->a( n = `xmlns:core` v = `sap.ui.core` ).
+
+    popup->ele( `SelectDialog`
+        )->a( n = `title`   v = `Destinations`
+        )->a( n = `items`   v = client->_bind( t_dest )
+        )->a( n = `confirm` v = client->_event( val = `DEST_PICKED`
+                                                arg = `${$parameters>/selectedItem}.getTitle()` )
+        )->a( n = `cancel`  v = client->_event( `HELP_CANCEL` )
+        )->tag( `StandardListItem`
+            )->a( n = `title`       v = `{TEXT}`
+            )->a( n = `description` v = `{KEY}`
+            )->a( n = `selected`    v = `{SELKZ}` ).
+
+    client->popup_display( popup->stringify( ) ).
+
+  ENDMETHOD.
+
+  METHOD tags_help_display.
+
+    " a value help for several rows: the ticked rows travel with the OK, the
+    " event argument is how many were selected
+    DATA(popup) = z2ui5_cl_ui5_view_builder=>factory(
+        )->ele( n = `FragmentDefinition` ns = `core`
+            )->a( n = `xmlns`      v = `sap.m`
+            )->a( n = `xmlns:core` v = `sap.ui.core` ).
+
+    popup->ele( `TableSelectDialog`
+        )->a( n = `title`       v = `Tags`
+        )->a( n = `multiSelect` v = `true`
+        )->a( n = `items`       v = client->_bind( t_tag )
+        )->a( n = `confirm`     v = client->_event( val = `TAGS_PICKED`
+                                                    arg = `${$parameters>/selectedContexts/length}` )
+        )->a( n = `cancel`      v = client->_event( `HELP_CANCEL` )
+        )->ele( `columns`
+
+            )->ele( `Column`
+                )->tag( `Text`
+                    )->a( n = `text` v = `Tag`
+            )->end(
+            )->ele( `Column`
+                )->tag( `Text`
+                    )->a( n = `text` v = `Description`
+            )->end(
+
+        )->end(
+        )->ele( `items`
+            )->ele( `ColumnListItem`
+                )->a( n = `selected` v = `{SELKZ}`
+                )->ele( `cells`
+
+                    )->tag( `Text`
+                        )->a( n = `text` v = `{KEY}`
+                    )->tag( `Text`
+                        )->a( n = `text` v = `{TEXT}` ).
 
     client->popup_display( popup->stringify( ) ).
 
@@ -350,6 +436,33 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
         CLEAR t_request.
         status = `All requests deleted`.
 
+      WHEN `DEST_HELP`.
+        dest_help_display( ).
+
+      WHEN `TAGS_HELP`.
+        tags_help_display( ).
+
+      WHEN `HELP_CANCEL`.
+        client->popup_destroy( ).
+
+      WHEN `DEST_PICKED`.
+        client->popup_destroy( ).
+        DATA(lv_selected) = 0.
+        LOOP AT t_dest INTO DATA(ls_dest) WHERE selkz = abap_true. "#EC CI_SORTSEQ
+          lv_selected = lv_selected + 1.
+          destination = ls_dest-key.
+        ENDLOOP.
+        status = |Destination { destination } ({ client->get_event_arg( ) }), { lv_selected } selected|.
+
+      WHEN `TAGS_PICKED`.
+        client->popup_destroy( ).
+        CLEAR tags.
+        LOOP AT t_tag INTO DATA(ls_tag) WHERE selkz = abap_true. "#EC CI_SORTSEQ
+          INSERT ls_tag-key INTO TABLE tags.
+        ENDLOOP.
+        status = |{ client->get_event_arg( ) } tag(s) picked: { concat_lines_of( table = tags
+                                                                               sep   = `,` ) }|.
+
     ENDCASE.
 
   ENDMETHOD.
@@ -360,6 +473,12 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
     days = 3.
     t_request = VALUE #( ( id = 1 name = `Alice` destination = `PAR` days = 2 )
                          ( id = 2 name = `Bob`   destination = `ROM` days = 5 ) ).
+    t_dest = VALUE #( ( key = `BER` text = `Berlin` )
+                      ( key = `PAR` text = `Paris` )
+                      ( key = `ROM` text = `Rome` ) ).
+    t_tag = VALUE #( ( key = `FAIR`  text = `Trade fair` )
+                     ( key = `MEET`  text = `Customer meeting` )
+                     ( key = `TRAIN` text = `Training` ) ).
     trip = VALUE #( purpose = `Customer visit`
                     t_stop  = VALUE #( ( city = `Lyon` nights = 1 )
                                        ( city = `Nice` nights = 2 ) ) ).

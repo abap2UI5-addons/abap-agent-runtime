@@ -59,9 +59,16 @@ documentation; keep it in step with every change.
 - **The 7.02 downport hoists table expressions** in front of the statement:
   never put `tab[ ... ]` inside an `IF`/`COND` guarded by another condition -
   read it ahead with `VALUE #( tab[ ... ] OPTIONAL )`.
-- **The simulator sends text.** Booleans go out as `X` / space (what the core
-  reads back), arrays and tables inside structures are refused before sending.
-  When headless-frontend gets a typed delta API, switch `send( )` to it.
+- **The simulator builds the delta.** `send( )` hands every pending value of
+  the action's model to `z2ui5_cl_frontend_simulator=>set_json( )` (the JSON
+  of the value at its model path, `layer` = the action's model) and fires with
+  `click( layer )` - the simulator applies the frontend's
+  `buildDeltaFromPaths`. Never rebuild the delta here, and never send values
+  as text. Only the event arguments are text (`sim_text`, `click( )` takes a
+  string table).
+- **A layer closed in the browser** (`@CLOSE_POPUP` / `@CLOSE_POPOVER`) is
+  closed with the simulator's `close_layer( )` - never edit its `get_state( )`
+  JSON.
 
 ## Code rules
 
@@ -96,7 +103,7 @@ write the addon's tables and restore them in `teardown`), the parser and
 snapshot tests are `HARMLESS`.
 
 **Temporary:** until headless-frontend merges the session API (`resume`,
-`get_state`, `get_layers`, `get_actions`), `abaplint.jsonc`,
+`get_state`, `get_layers`, `get_actions`, `set_json`, `close_layer`), `abaplint.jsonc`,
 `abap_cloud.jsonc` and `ABAP_702.yaml` resolve it from its branch
 `claude/abap2ui5-project-brainstorm-nt7ifs`; switch them to `main` then.
 Local runs can pre-fill `.abaplint-deps/` (git-ignored) - abaplint uses a

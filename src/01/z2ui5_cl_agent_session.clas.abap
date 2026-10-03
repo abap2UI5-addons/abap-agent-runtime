@@ -1319,8 +1319,9 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   METHOD sim_text.
 
-    " the request text the core reads back: a boolean as abap_bool, as the
-    " core turns the browser's true / false into X / space
+    " an event argument as the text the simulator sends (click( ) t_arg): a
+    " boolean as abap_bool, as the core turns the browser's true / false
+    " into X / space
     CASE val-kind.
       WHEN z2ui5_cl_agent_viewxml=>cs_kind-boolean.
         result = COND #( WHEN val-str = `true` THEN `X` ).
@@ -1338,80 +1339,28 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     DATA lt_arg TYPE string_table.
     DATA lt_keep TYPE z2ui5_cl_agent_snapshot=>ty_t_pending.
-    DATA lt_done TYPE string_table.
 
-    " the model delta, as the frontend builds it (core/Lib.js buildDeltaFromPaths):
-    " a scalar or structure edit ships the whole top-level attribute, a
-    " table cell ships the row delta. The simulator sends text values
-    " (set_value / set_cell) - what the core converts into the bound field
-    LOOP AT mt_pending INTO DATA(ls_pending).
-      IF ls_pending-model_key <> is_action-model_key.
-        INSERT ls_pending INTO TABLE lt_keep.
-        CONTINUE.
-      ENDIF.
-      SPLIT ls_pending-path AT `/` INTO TABLE DATA(lt_seg).
-      DELETE lt_seg WHERE table_line IS INITIAL.
-      DATA(lv_attr) = VALUE string( lt_seg[ 1 ] OPTIONAL ).
-      DATA(lv_seg2) = VALUE string( lt_seg[ 2 ] OPTIONAL ).
-      DATA(lv_seg3) = VALUE string( lt_seg[ 3 ] OPTIONAL ).
-      DATA(lv_count) = lines( lt_seg ).
-
-      IF lv_count = 3 AND lv_seg2 CO `0123456789` AND lv_seg3 CN `0123456789`.
-        " a cell of a table: its row delta
-        DATA(ls_cell) = mo_snap->model_value( model_key = ls_pending-model_key
-                                              path      = ls_pending-path ).
-        IF ls_cell-kind = z2ui5_cl_agent_viewxml=>cs_kind-object OR ls_cell-kind = z2ui5_cl_agent_viewxml=>cs_kind-array.
-          fail( |the cell { ls_pending-path } holds a structure or a table - the simulator sends text values only, nothing was sent| ).
-        ENDIF.
-        mo_sim->set_cell( table  = |/{ lv_attr }|
-                          row    = CONV i( lv_seg2 ) + 1
-                          column = lv_seg3
-                          value  = sim_text( ls_cell ) ).
-        CONTINUE.
-      ENDIF.
-
-      IF line_exists( lt_done[ table_line = lv_attr ] ). "#EC CI_SORTSEQ
-        CONTINUE.
-      ENDIF.
-      INSERT lv_attr INTO TABLE lt_done.
-      DATA(ls_whole) = mo_snap->model_value( model_key = ls_pending-model_key
-                                             path      = |/{ lv_attr }| ).
-      CASE ls_whole-kind.
-        WHEN z2ui5_cl_agent_viewxml=>cs_kind-array.
-          fail( |{ ls_pending-path } is (part of) a table or list value - the simulator sends text values only | &&
-                |(headless-frontend set_value / set_cell), nothing was sent| ).
-        WHEN z2ui5_cl_agent_viewxml=>cs_kind-object.
-          " the whole structure, leaf by leaf - the core fills a structure
-          " from what the delta carries and clears the rest
-          IF find( val = ls_whole-json
-                   sub = `[` ) >= 0.
-            fail( |{ ls_pending-path } belongs to a structure that holds a table - the simulator sends text values only, nothing was sent| ).
+    " the edits of the model the event's view owns, as typed JSON values at
+    " their model paths - the simulator builds the frontend's delta from
+    " them (core/Lib.js buildDeltaFromPaths): a table cell as a row delta,
+    " anything else - a boolean, an array, a structure that holds a table -
+    " as the whole top-level attribute
+    DATA(lv_model_key) = COND string( WHEN is_action-model_key IS INITIAL
+                                      THEN z2ui5_cl_agent_snapshot=>cs_model-main
+                                      ELSE is_action-model_key ).
+    TRY.
+        LOOP AT mt_pending INTO DATA(ls_pending).
+          IF ls_pending-model_key <> lv_model_key.
+            INSERT ls_pending INTO TABLE lt_keep.
+            CONTINUE.
           ENDIF.
-          TRY.
-              DATA(lo_struc) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( ls_whole-json ) ).
-              DATA(lt_todo) = VALUE string_table( ( `` ) ).
-              WHILE lt_todo IS NOT INITIAL.
-                DATA(lv_node) = lt_todo[ 1 ].
-                DELETE lt_todo INDEX 1.
-                LOOP AT lo_struc->members( COND #( WHEN lv_node IS INITIAL THEN `/` ELSE lv_node ) ) INTO DATA(lv_member).
-                  DATA(lv_sub) = |{ lv_node }/{ lv_member }|.
-                  IF lo_struc->get_node_type( lv_sub ) = z2ui5_if_ajson_types=>node_type-object.
-                    INSERT lv_sub INTO TABLE lt_todo.
-                  ELSE.
-                    mo_sim->set_value( name  = |/{ lv_attr }{ lv_sub }|
-                                       value = sim_text( val_of_node( io_json = lo_struc
-                                                                      path    = lv_sub ) ) ).
-                  ENDIF.
-                ENDLOOP.
-              ENDWHILE.
-            CATCH cx_root INTO DATA(lx_struc).
-              fail( |{ ls_pending-path } could not be sent - { lx_struc->get_text( ) }| ).
-          ENDTRY.
-        WHEN OTHERS.
-          mo_sim->set_value( name  = |/{ lv_attr }|
-                             value = sim_text( ls_whole ) ).
-      ENDCASE.
-    ENDLOOP.
+          mo_sim->set_json( path  = ls_pending-path
+                            json  = z2ui5_cl_agent_viewxml=>val_to_json( ls_pending-val )
+                            layer = lv_model_key ).
+        ENDLOOP.
+      CATCH cx_root INTO DATA(lx_value).
+        fail( |the pending values could not be sent - { lx_value->get_text( ) }; nothing was sent| ).
+    ENDTRY.
 
     LOOP AT t_arg INTO DATA(ls_arg).
       INSERT sim_text( ls_arg ) INTO TABLE lt_arg.
@@ -1419,7 +1368,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     TRY.
         mo_sim->click( event = is_action-event
-                       t_arg = lt_arg ).
+                       t_arg = lt_arg
+                       layer = lv_model_key ).
       CATCH cx_root INTO DATA(lx).
         fail( |the backend refused the roundtrip - { lx->get_text( ) }| ).
     ENDTRY.
@@ -1444,36 +1394,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   METHOD close_layer.
 
-    DATA lv_layers TYPE string.
-
-    " the browser closes the dialog itself - the simulator learns it through
-    " the state it is resumed from: the layer leaves the state
+    " performed in the browser: the simulator closes the slot without a
+    " roundtrip, and get_state( ) - what the session is saved with - no
+    " longer carries it
     TRY.
-        DATA(lo_state) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = mo_sim->get_state( )
-                                                                     iv_keep_item_order = abap_true ) ).
-        LOOP AT lo_state->members( `/` ) INTO DATA(lv_member).
-          IF to_upper( lv_member ) = `T_LAYER`.
-            lv_layers = |/{ lv_member }|.
-          ENDIF.
-        ENDLOOP.
-        IF lv_layers IS INITIAL.
-          fail( `the simulator state carries no layers - this headless-frontend version cannot close a layer locally` ).
-        ENDIF.
-        DATA(lv_count) = lines( lo_state->members( lv_layers ) ).
-        DATA(lv_index) = lv_count.
-        WHILE lv_index > 0.
-          LOOP AT lo_state->members( |{ lv_layers }/{ lv_index }| ) INTO DATA(lv_field).
-            IF to_upper( lv_field ) = `LAYER` AND lo_state->get( |{ lv_layers }/{ lv_index }/{ lv_field }| ) = slot.
-              lo_state->delete( |{ lv_layers }/{ lv_index }| ).
-            ENDIF.
-          ENDLOOP.
-          lv_index = lv_index - 1.
-        ENDWHILE.
-        DATA(lv_state) = lo_state->stringify( ).
-        mo_sim = z2ui5_cl_frontend_simulator=>resume( id    = ms_row-id
-                                                      state = lv_state ).
-      CATCH z2ui5_cx_ui5_util_error INTO DATA(lx_fail).
-        RAISE EXCEPTION lx_fail.
+        mo_sim->close_layer( slot ).
       CATCH cx_root INTO DATA(lx).
         fail( |the { slot } could not be closed - { lx->get_text( ) }| ).
     ENDTRY.

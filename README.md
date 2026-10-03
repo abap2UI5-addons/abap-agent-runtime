@@ -11,8 +11,8 @@ and authority checks. No Node, no browser, no screen scraping.
 agent: app_start { "app": "z2ui5_cl_agent_demo" }
   <-   { "session": "8F3A...", "title": "Travel requests",
          "fields":  [ { "id": "f1", "path": "/NAME", "label": "Name", "kind": "text", "editable": true, ... }, ... ],
-         "actions": [ { "id": "a4", "event": "ADD", "label": "Add", ... },
-                      { "id": "a5", "event": "SUBMIT", "label": "Submit", "policy": "confirm", ... } ],
+         "actions": [ { "id": "a5", "event": "ADD", "label": "Add", ... },
+                      { "id": "a6", "event": "SUBMIT", "label": "Submit", "policy": "confirm", ... } ],
          "tables":  [ { "id": "t1", "path": "/T_REQUEST", "rowCount": 2, "rows": [ ... ], "selectionField": "SELKZ" } ], ... }
 
 agent: app_act { "session": "8F3A...", "values": { "NAME": "Carol", "f2": "ROM" }, "event": "ADD" }
@@ -66,7 +66,7 @@ never past it:
      |  z2ui5_cl_agent_snapshot  layers + model -> agent snapshot v1 (+ the index an act needs)
      |  z2ui5_cl_agent_viewxml   view XML, bindings, expressions, event wires
      v
- z2ui5_cl_frontend_simulator  (abap2UI5/headless-frontend)  start / resume / set_value / click
+ z2ui5_cl_frontend_simulator  (abap2UI5/headless-frontend)  start / resume / set_json / click / close_layer
      v
  abap2UI5 core: z2ui5_cl_ui5_handler -> your app's main( ) -> draft (Z2UI5_T_01)
 ```
@@ -106,7 +106,8 @@ Requires, in this order, each with [abapGit](https://abapgit.org):
 2. [abap2UI5/headless-frontend](https://github.com/abap2UI5/headless-frontend) -
    the simulator this addon runs on (for now its branch
    `claude/abap2ui5-project-brainstorm-nt7ifs`, which carries `resume( )`,
-   `get_state( )` and `get_layers( )`; `main` once merged)
+   `get_state( )`, `get_layers( )`, `set_json( )` and `close_layer( )`;
+   `main` once merged)
 3. this repository - **from the branch of your platform**:
 
 | Platform | Branch | Contains |
@@ -286,11 +287,16 @@ performed), nested tables, file uploads. On top of that, in this addon:
 - **Stateful apps** (`client->set_session_stateful( )`) cannot be operated: a
   stateful session lives in one HTTP request, an MCP call is one request.
   `app_start` refuses them; an app that switches mid-session ends the session.
-- **Text deltas.** The simulator sends model values as text (`set_value` /
-  `set_cell`), which the core converts into the bound field - booleans travel
-  as `X` / space. A `multichoice` value (an array) and an edit inside a
-  structure that also holds a table cannot be sent yet and are refused before
-  anything is sent.
+- **Event arguments travel as text.** Model values go out typed, as the
+  browser sends them: every pending value is handed to the simulator's
+  `set_json( )` at its model path - a boolean as `true` / `false`, a
+  `multichoice` as an array of keys, a number as a number - and the simulator
+  builds the frontend's delta from them (a table cell as a row delta,
+  everything else, a structure that holds a table included, as the whole
+  top-level attribute). The positional event arguments (`args`, the row
+  arguments of a row action) are still text, because the simulator's
+  `click( )` takes them as a string table: a boolean as `X` / space, an object
+  or array as its JSON.
 - **`app_list` reads the class directory** (SEOMETAREL on ABAP Standard, XCO
   on ABAP Cloud) through the core's utility. Where it cannot be read it lists
   only what the settings name; `app_start` works either way.

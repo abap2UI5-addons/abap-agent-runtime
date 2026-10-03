@@ -94,6 +94,8 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS popup_flow          FOR TESTING.
     METHODS row_action          FOR TESTING.
     METHODS row_selection       FOR TESTING.
+    METHODS typed_values        FOR TESTING.
+    METHODS structure_table     FOR TESTING.
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
 
@@ -476,6 +478,71 @@ CLASS ltcl_session IMPLEMENTATION.
     refused( is_result = mo_session->app_act( session = ls_act-session
                                               values  = `{"t1/0/NAME":"x"}` )
              pattern   = `*column NAME of table t1 is not editable - editable columns: SELKZ*` ).
+
+  ENDMETHOD.
+
+  METHOD typed_values.
+
+    " a boolean and a multichoice travel as JSON true / false and an array
+    DATA(ls_start) = start( ).
+    DATA(ls_plan) = mo_session->app_act( session = ls_start-session
+                                         values  = `{"HOTEL":true,"TAGS":["FAIR","MEET"]}`
+                                         event   = `PLAN` ).
+    COMMIT WORK.
+    DATA(lo_snap) = ok( ls_plan ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Plan: Customer visit, 2 stop(s), 3 night(s), tags FAIR,MEET, hotel yes","source":"strip"*`
+                                         act = ls_plan-text ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"path":"/TAGS"*"kind":"multichoice","value":["FAIR","MEET"]*`
+                                         act = ls_plan-text ).
+
+    refused( is_result = mo_session->app_act( session = ls_plan-session
+                                              values  = `{"TAGS":["XX"]}` )
+             pattern   = `*'XX' is not one of its values - allowed keys: 'FAIR', 'MEET', 'TRAIN'*` ).
+    refused( is_result = mo_session->app_act( session = ls_plan-session
+                                              values  = `{"TAGS":"FAIR"}` )
+             pattern   = `*is a multichoice - pass an array of keys*` ).
+
+    DATA(ls_none) = mo_session->app_act( session = ls_plan-session
+                                         values  = `{"HOTEL":false,"TAGS":[]}`
+                                         event   = action_id( io_snap = lo_snap
+                                                              event   = `PLAN` ) ).
+    COMMIT WORK.
+    ok( ls_none ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Plan: Customer visit, 2 stop(s), 3 night(s), tags none, hotel no","source":"strip"*`
+                                         act = ls_none-text ).
+
+  ENDMETHOD.
+
+  METHOD structure_table.
+
+    " a field of a structure that holds a table, and a cell of that table:
+    " the whole structure travels, its table with it
+    DATA(ls_start) = start( ).
+    DATA(ls_plan) = mo_session->app_act( session = ls_start-session
+                                         values  = `{"/TRIP/PURPOSE":"Fair","t2/1/NIGHTS":4}`
+                                         event   = `PLAN` ).
+    COMMIT WORK.
+    DATA(lo_snap) = ok( ls_plan ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Plan: Fair, 2 stop(s), 5 night(s), tags none, hotel no","source":"strip"*`
+                                         act = ls_plan-text ).
+    cl_abap_unit_assert=>assert_equals( exp = `/TRIP/T_STOP`
+                                        act = lo_snap->get_string( `/tables/2/path` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 4
+                                        act = lo_snap->get_integer( `/tables/2/rows/2/NIGHTS` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `Lyon`
+                                        act = lo_snap->get_string( `/tables/2/rows/1/CITY` ) ).
+
+    " pending first, sent with the next event - the same delta
+    DATA(ls_typed) = mo_session->app_act( session = ls_plan-session
+                                          values  = `{"t2/0/NIGHTS":3}` ).
+    COMMIT WORK.
+    ok( ls_typed ).
+    DATA(ls_sent) = mo_session->app_act( session = ls_typed-session
+                                         event   = `PLAN` ).
+    COMMIT WORK.
+    ok( ls_sent ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Plan: Fair, 2 stop(s), 7 night(s), tags none, hotel no","source":"strip"*`
+                                         act = ls_sent-text ).
 
   ENDMETHOD.
 

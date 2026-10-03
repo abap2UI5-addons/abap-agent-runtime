@@ -32,11 +32,10 @@ jobs:
         ref: main
         path: .unit/abap2UI5
         persist-credentials: false
-    # TEMPORARY branch - see AGENTS.md, "Gates" (and CONFIG in unit.mjs)
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: abap2UI5/headless-frontend
-        ref: claude/abap2ui5-project-brainstorm-nt7ifs
+        ref: main
         path: .unit/headless-frontend
         persist-credentials: false
     - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0

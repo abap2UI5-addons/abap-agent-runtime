@@ -108,10 +108,5 @@ abap2UI5 (README, "Development"), every risk level; `ltcl_session` /
 `ltcl_mcp` are `RISK LEVEL DANGEROUS` (they write the addon's tables and
 restore them in `teardown`), the parser and snapshot tests are `HARMLESS`.
 
-**Temporary:** until headless-frontend merges the session API (`resume`,
-`get_state`, `get_layers`, `get_actions`, `set_json`, `close_layer`), `abaplint.jsonc`,
-`abap_cloud.jsonc`, `ABAP_702.yaml`, `ABAP_UNIT.yaml` and
-`.github/scripts/unit.mjs` resolve it from its branch
-`claude/abap2ui5-project-brainstorm-nt7ifs`; switch them to `main` then.
 Local runs can pre-fill `.abaplint-deps/` (git-ignored) - abaplint uses a
 dependency folder that exists instead of cloning.

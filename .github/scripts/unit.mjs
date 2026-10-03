@@ -45,10 +45,7 @@ const CONFIG = {
   // built in
   repos: [
     { name: "abap2UI5", url: "https://github.com/abap2UI5/abap2UI5", ref: "main" },
-    // TEMPORARY branch, like abaplint.jsonc and ABAP_702.yaml - switch to
-    // main once headless-frontend has merged the session API (AGENTS.md,
-    // "Gates")
-    { name: "headless-frontend", url: "https://github.com/abap2UI5/headless-frontend", ref: "claude/abap2ui5-project-brainstorm-nt7ifs" },
+    { name: "headless-frontend", url: "https://github.com/abap2UI5/headless-frontend", ref: "main" },
   ],
   // copied into <abap2UI5>/src/<into>/: entries relative to <from>/src -
   // the engine (01) and the apps (02); 03 and 04 are the HTTP entries

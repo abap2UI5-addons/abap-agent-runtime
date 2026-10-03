@@ -23,10 +23,9 @@ jobs:
         cache: 'npm'
     - run: npm ci
     # the simulator this addon runs on is modern ABAP too: downported with it.
-    # TEMPORARY branch - see AGENTS.md, "Gates"
     - name: Add headless-frontend to the downport
       run: |
-        git clone --depth 1 -b claude/abap2ui5-project-brainstorm-nt7ifs https://github.com/abap2UI5/headless-frontend /tmp/headless-frontend
+        git clone --depth 1 https://github.com/abap2UI5/headless-frontend /tmp/headless-frontend
         mkdir -p src/zz_headless_frontend
         cp /tmp/headless-frontend/src/* src/zz_headless_frontend/
     # rewrites src/ in place - CI only, the downported source is never committed

@@ -108,10 +108,8 @@ Requires, in this order, each with [abapGit](https://abapgit.org):
 
 1. [abap2UI5](https://github.com/abap2UI5/abap2UI5) - the framework
 2. [abap2UI5/headless-frontend](https://github.com/abap2UI5/headless-frontend) -
-   the simulator this addon runs on (for now its branch
-   `claude/abap2ui5-project-brainstorm-nt7ifs`, which carries `resume( )`,
-   `get_state( )`, `get_layers( )`, `set_json( )` and `close_layer( )`;
-   `main` once merged)
+   the simulator this addon runs on (`resume( )`, `get_state( )`,
+   `get_layers( )`, `set_json( )` and `close_layer( )`)
 3. this repository - **from the branch of your platform**:
 
 | Platform | Branch | Contains |

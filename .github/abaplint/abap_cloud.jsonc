@@ -18,9 +18,8 @@
       "files": "/src/**/*.*"
     },
     {
-      // TEMPORARY - see abaplint.jsonc
+      // the simulator - see abaplint.jsonc
       "url": "https://github.com/abap2UI5/headless-frontend",
-      "branch": "claude/abap2ui5-project-brainstorm-nt7ifs",
       "folder": "/../../.abaplint-deps/headless-frontend",
       "files": "/src/**/*.*"
     },

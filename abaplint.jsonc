@@ -18,11 +18,9 @@
       "files": "/src/**/*.*"
     },
     {
-      // TEMPORARY: the simulator API this addon needs (resume, get_state,
-      // get_layers, get_actions, ...) lives on this branch until it is merged
-      // to headless-frontend main - switch to main then (AGENTS.md, "Gates").
+      // the simulator this addon runs on (resume, get_state, get_layers,
+      // set_json, close_layer, ...)
       "url": "https://github.com/abap2UI5/headless-frontend",
-      "branch": "claude/abap2ui5-project-brainstorm-nt7ifs",
       "folder": "/.abaplint-deps/headless-frontend",
       "files": "/src/**/*.*"
     },

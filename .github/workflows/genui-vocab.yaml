@@ -1,0 +1,39 @@
+name: genui-vocab
+
+# The closed vocabulary of generative UI (z2ui5_cl_agent_gen_vocab) is
+# generated from the abap2UI5 protocol's portable view profile v1, pinned as
+# .github/genui/portable-v1.json, and the linter's UI5 metadata
+# (package-lock.json pins it). Two checks:
+#   generated - the committed class is what the pins generate
+#   drift     - the pin is still upstream's profiles/portable-v1.json
+#               (abap2UI5/protocol main); when it moved, update the pin with
+#               npm run genui:vocab -- --update and review the vocabulary diff
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 5 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: genui-vocab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  genui-vocab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+    - run: npm ci
+    - name: generated
+      run: npm run genui:check
+    - name: drift
+      run: npm run genui:drift

@@ -2,7 +2,7 @@
   "name": "abap2ui5-agent",
   "private": true,
   "version": "1.0.0",
-  "description": "Every abap2UI5 app is agent-operable - an ABAP-native MCP endpoint that lets AI agents read and operate abap2UI5 apps as the real SAP user.",
+  "description": "Every abap2UI5 app is agent-operable - an ABAP-native MCP endpoint that lets AI agents read and operate abap2UI5 apps as the real SAP user - plus AI at runtime: generative UI and an in-app copilot.",
   "scripts": {
     "lint": "abaplint ./abaplint.jsonc",
     "lint:cloud": "abaplint .github/abaplint/abap_cloud.jsonc",
@@ -10,9 +10,12 @@
     "unit": "node .github/scripts/unit.mjs",
     "check:abap2ui5": "abap2ui5lint",
     "fmt:chains": "abap2ui5lint --fix",
+    "genui:vocab": "node .github/scripts/genui-vocab.mjs",
+    "genui:check": "node .github/scripts/genui-vocab.mjs --check",
+    "genui:drift": "node .github/scripts/genui-vocab.mjs --drift",
     "syfixes": "find src -type f -name '*.abap' -exec sed -i -e 's/ RAISE EXCEPTION TYPE cx_sy_itab_line_not_found/ ASSERT 1 = 0/g' {} +",
     "downport": "abaplint --fix .github/abaplint/abap_702.jsonc && npm run syfixes",
-    "check": "npm run lint && npm run lint:cloud && npm run check:abap2ui5"
+    "check": "npm run lint && npm run lint:cloud && npm run check:abap2ui5 && npm run genui:check"
   },
   "repository": {
     "type": "git",

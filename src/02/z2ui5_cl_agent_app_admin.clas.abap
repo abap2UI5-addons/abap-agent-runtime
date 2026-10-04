@@ -2,7 +2,10 @@
 "! endpoint on and off, allow or deny app classes, classify events
 "! (allowed / confirm / forbidden) on top of what the apps say, mark fields
 "! whose values the audit log masks, maintain the administrators, set the
-"! page a handover sends the user to, and clean up the audit log.
+"! page a handover sends the user to, configure the language model of the
+"! AI features (generative UI, the in-app copilot) and clean up the audit
+"! log. The API key is write-only: the app shows whether one is set, never
+"! the key.
 "! Start it with ?app_start=z2ui5_cl_agent_app_admin.
 "!
 "! Everybody may look; only an agent administrator may change anything.
@@ -46,6 +49,23 @@ CLASS z2ui5_cl_agent_app_admin DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA new_value    TYPE string.
     DATA cleanup_days TYPE i.
 
+    DATA llm_provider      TYPE string.
+    DATA llm_model         TYPE string.
+    DATA llm_effort        TYPE string.
+    DATA llm_max_tokens    TYPE string.
+    DATA llm_timeout       TYPE string.
+    DATA llm_url           TYPE string.
+    DATA llm_destination   TYPE string.
+    DATA llm_key           TYPE string.
+    DATA llm_key_state     TYPE string.
+    DATA llm_beta          TYPE string.
+    DATA llm_fallback      TYPE abap_bool.
+    DATA llm_log_prompts   TYPE abap_bool.
+    DATA llm_genui_samples TYPE abap_bool.
+    DATA llm_genui_repair  TYPE abap_bool.
+    DATA llm_copilot       TYPE abap_bool.
+    DATA llm_copilot_act   TYPE abap_bool.
+
   PROTECTED SECTION.
 
     DATA client TYPE REF TO z2ui5_if_client.
@@ -61,6 +81,8 @@ CLASS z2ui5_cl_agent_app_admin DEFINITION PUBLIC FINAL CREATE PUBLIC.
       IMPORTING
         text TYPE string.
     METHODS model_init.
+    METHODS llm_save.
+    METHODS llm_test.
 
   PRIVATE SECTION.
 
@@ -253,6 +275,102 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
                     )->a( n = `text` v = `{SOURCE}` ).
 
     page->ele( n = `SimpleForm` ns = `form`
+        )->a( n = `title`    v = `Language model (generative UI, in-app copilot)`
+        )->a( n = `editable` b = is_admin
+        )->ele( n = `content` ns = `form`
+
+            )->tag( `Label`
+                )->a( n = `text` v = `API key`
+            )->tag( `Input`
+                )->a( n = `value`       v = client->_bind( llm_key )
+                )->a( n = `type`        v = `Password`
+                )->a( n = `editable`    b = is_admin
+                )->a( n = `placeholder` v = client->_bind( llm_key_state )
+            )->tag( `Button`
+                )->a( n = `text`    v = `Remove key`
+                )->a( n = `enabled` b = is_admin
+                )->a( n = `press`   v = client->_event( `LLM_KEY_REMOVE` )
+            )->tag( `Label`
+                )->a( n = `text` v = `Destination`
+            )->tag( `Input`
+                )->a( n = `value`       v = client->_bind( llm_destination )
+                )->a( n = `editable`    b = is_admin
+                )->a( n = `placeholder` v = `SM59 destination - on ABAP Cloud SCENARIO/SERVICE_ID of an arrangement`
+            )->tag( `Label`
+                )->a( n = `text` v = `URL`
+            )->tag( `Input`
+                )->a( n = `value`       v = client->_bind( llm_url )
+                )->a( n = `editable`    b = is_admin
+                )->a( n = `placeholder` v = z2ui5_cl_agent_llm_anthropic=>c_default_url
+            )->tag( `Label`
+                )->a( n = `text` v = `Model / effort`
+            )->tag( `Input`
+                )->a( n = `value`       v = client->_bind( llm_model )
+                )->a( n = `editable`    b = is_admin
+                )->a( n = `placeholder` v = z2ui5_cl_agent_llm_anthropic=>c_default_model
+            )->tag( `Input`
+                )->a( n = `value`       v = client->_bind( llm_effort )
+                )->a( n = `editable`    b = is_admin
+                )->a( n = `placeholder` v = `low (default), medium, high, xhigh, max`
+            )->tag( `Label`
+                )->a( n = `text` v = `Max tokens / timeout (s)`
+            )->tag( `Input`
+                )->a( n = `value`       v = client->_bind( llm_max_tokens )
+                )->a( n = `editable`    b = is_admin
+                )->a( n = `placeholder` v = `16000`
+            )->tag( `Input`
+                )->a( n = `value`       v = client->_bind( llm_timeout )
+                )->a( n = `editable`    b = is_admin
+                )->a( n = `placeholder` v = `300`
+            )->tag( `Label`
+                )->a( n = `text` v = `Refusal fallback / beta header`
+            )->tag( `CheckBox`
+                )->a( n = `selected` v = client->_bind( llm_fallback )
+                )->a( n = `editable` b = is_admin
+            )->tag( `Input`
+                )->a( n = `value`       v = client->_bind( llm_beta )
+                )->a( n = `editable`    b = is_admin
+                )->a( n = `placeholder` v = z2ui5_cl_agent_llm_anthropic=>c_default_beta
+            )->tag( `Label`
+                )->a( n = `text` v = `Provider class`
+            )->tag( `Input`
+                )->a( n = `value`       v = client->_bind( llm_provider )
+                )->a( n = `editable`    b = is_admin
+                )->a( n = `placeholder` v = z2ui5_cl_agent_llm=>c_default_provider
+            )->tag( `Label`
+                )->a( n = `text` v = `Audit keeps prompts and answers`
+            )->tag( `CheckBox`
+                )->a( n = `selected` v = client->_bind( llm_log_prompts )
+                )->a( n = `editable` b = is_admin
+            )->tag( `Label`
+                )->a( n = `text` v = `Generative UI: sample rows / repair round`
+            )->tag( `CheckBox`
+                )->a( n = `selected` v = client->_bind( llm_genui_samples )
+                )->a( n = `editable` b = is_admin
+            )->tag( `CheckBox`
+                )->a( n = `selected` v = client->_bind( llm_genui_repair )
+                )->a( n = `editable` b = is_admin
+            )->tag( `Label`
+                )->a( n = `text` v = `In-app copilot / may propose actions`
+            )->tag( `CheckBox`
+                )->a( n = `selected` v = client->_bind( llm_copilot )
+                )->a( n = `editable` b = is_admin
+            )->tag( `CheckBox`
+                )->a( n = `selected` v = client->_bind( llm_copilot_act )
+                )->a( n = `editable` b = is_admin
+            )->tag( `Label`
+                )->a( n = `text` v = ``
+            )->tag( `Button`
+                )->a( n = `text`    v = `Save`
+                )->a( n = `type`    v = `Emphasized`
+                )->a( n = `enabled` b = is_admin
+                )->a( n = `press`   v = client->_event( `LLM_SAVE` )
+            )->tag( `Button`
+                )->a( n = `text`    v = `Test call`
+                )->a( n = `enabled` b = is_admin
+                )->a( n = `press`   v = client->_event( `LLM_TEST` ) ).
+
+    page->ele( n = `SimpleForm` ns = `form`
         )->a( n = `title`    v = `Audit log housekeeping`
         )->a( n = `editable` v = `true`
         )->a( n = `visible`  b = is_admin
@@ -340,6 +458,27 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         audit( |rule removed: { ls_rule-kind } { ls_rule-app } { ls_rule-item } { ls_rule-value }| ).
         load( ).
 
+      WHEN `LLM_SAVE`.
+        IF check_change( ) = abap_false.
+          RETURN.
+        ENDIF.
+        llm_save( ).
+
+      WHEN `LLM_KEY_REMOVE`.
+        IF check_change( ) = abap_false.
+          RETURN.
+        ENDIF.
+        z2ui5_cl_agent_settings=>set_llm( z2ui5_cl_agent_settings=>cs_llm-key ).
+        audit( `language model: API key removed` ).
+        load( ).
+        client->message_toast_display( `API key removed` ).
+
+      WHEN `LLM_TEST`.
+        IF check_change( ) = abap_false.
+          RETURN.
+        ENDIF.
+        llm_test( ).
+
       WHEN `CLEANUP`.
         IF check_change( ) = abap_false.
           RETURN.
@@ -406,6 +545,72 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD llm_save.
+
+    DATA(lt_item) = VALUE string_table( ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-provider
+                                      value = to_upper( condense( llm_provider ) ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-model
+                                      value = condense( llm_model ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-effort
+                                      value = to_lower( condense( llm_effort ) ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-max_tokens
+                                      value = condense( llm_max_tokens ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-timeout
+                                      value = condense( llm_timeout ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-url
+                                      value = condense( llm_url ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-destination
+                                      value = condense( llm_destination ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-beta
+                                      value = condense( llm_beta ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-fallback
+                                      value = COND #( WHEN llm_fallback = abap_true THEN `on` ELSE `off` ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-log_prompts
+                                      value = COND #( WHEN llm_log_prompts = abap_true THEN `on` ELSE `off` ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-genui_samples
+                                      value = COND #( WHEN llm_genui_samples = abap_true THEN `on` ELSE `off` ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-genui_repair
+                                      value = COND #( WHEN llm_genui_repair = abap_true THEN `on` ELSE `off` ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-copilot
+                                      value = COND #( WHEN llm_copilot = abap_true THEN `on` ELSE `off` ) ).
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-copilot_act
+                                      value = COND #( WHEN llm_copilot_act = abap_true THEN `on` ELSE `off` ) ).
+    " the key only when a new one was typed - it is never shown back
+    IF llm_key IS NOT INITIAL.
+      z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-key
+                                        value = condense( llm_key ) ).
+      INSERT `API key replaced` INTO TABLE lt_item.
+    ENDIF.
+    CLEAR llm_key.
+    audit( |language model settings saved: provider { llm_provider }, model { llm_model }, effort { llm_effort }, | &&
+           |destination { llm_destination }, url { llm_url }, copilot { llm_copilot }/{ llm_copilot_act }, | &&
+           |log prompts { llm_log_prompts }{ COND #( WHEN lt_item IS NOT INITIAL THEN `, API key replaced` ) }| ).
+    load( ).
+    client->message_toast_display( `Language model settings saved` ).
+
+  ENDMETHOD.
+
+  METHOD llm_test.
+
+    TRY.
+        DATA(ls_answer) = z2ui5_cl_agent_llm=>create( )->chat(
+            VALUE #( purpose   = `test`
+                     app       = `Z2UI5_CL_AGENT_APP_ADMIN`
+                     t_message = VALUE #( ( role    = z2ui5_if_agent_llm=>cs_role-user
+                                            content = `Answer with the single word: ok` ) ) ) ).
+        client->message_box_display( text  = |{ ls_answer-model } answered "{ ls_answer-text }" | &&
+                                             |({ ls_answer-usage-input_tokens } + { ls_answer-usage-output_tokens } tokens)|
+                                     type  = `success`
+                                     title = `Language model` ).
+      CATCH z2ui5_cx_agent_llm INTO DATA(lx).
+        client->message_box_display( text  = lx->get_text( )
+                                     type  = `error`
+                                     title = `Language model` ).
+    ENDTRY.
+
+  ENDMETHOD.
+
   METHOD load.
 
     z2ui5_cl_agent_settings=>refresh( ).
@@ -422,7 +627,7 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         WHEN z2ui5_cl_agent_settings=>cs_kind-url.
           url = ls_setting-value.
           CONTINUE.
-        WHEN z2ui5_cl_agent_settings=>cs_kind-enabled.
+        WHEN z2ui5_cl_agent_settings=>cs_kind-enabled OR z2ui5_cl_agent_settings=>cs_kind-llm.
           CONTINUE.
       ENDCASE.
       INSERT VALUE #( kind  = ls_setting-kind
@@ -441,6 +646,27 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
                                         WHEN z2ui5_cl_agent_settings=>cs_kind-admin
                                           THEN `may change these settings` ) ) INTO TABLE t_rule.
     ENDLOOP.
+
+    llm_provider = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-provider ).
+    llm_model = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-model ).
+    llm_effort = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-effort ).
+    llm_max_tokens = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-max_tokens ).
+    llm_timeout = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-timeout ).
+    llm_url = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-url ).
+    llm_destination = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-destination ).
+    llm_beta = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-beta ).
+    llm_fallback = z2ui5_cl_agent_settings=>check_llm( item    = z2ui5_cl_agent_settings=>cs_llm-fallback
+                                                       default = abap_true ).
+    llm_log_prompts = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-log_prompts ).
+    llm_genui_samples = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-genui_samples ).
+    llm_genui_repair = z2ui5_cl_agent_settings=>check_llm( item    = z2ui5_cl_agent_settings=>cs_llm-genui_repair
+                                                           default = abap_true ).
+    llm_copilot = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot ).
+    llm_copilot_act = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot_act ).
+    CLEAR llm_key.
+    llm_key_state = COND #( WHEN z2ui5_cl_agent_settings=>check_llm_key( ) = abap_true
+                            THEN `set - type a new key to replace it`
+                            ELSE `not set` ).
 
     CLEAR t_app.
     TRY.

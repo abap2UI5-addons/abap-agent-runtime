@@ -14,6 +14,11 @@
 "!   ADMIN      APP user name                 may change these settings
 "!   URL        APP *            VALUE url     the abap2UI5 page a handover
 "!                                            sends the user to
+"!   LLM        APP *            ITEM name     the language model and the AI
+"!                                            features (cs_llm) - get_llm( ),
+"!                                            set_llm( ); the API key is never
+"!                                            read back by an app, only whether
+"!                                            it is set (check_llm_key)
 "! Patterns are CP patterns (*, +), compared upper case.
 "!
 "! The addon's own apps (z2ui5_cl_agent_app_*) are never agent-operable,
@@ -30,7 +35,39 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
         sensitive TYPE string VALUE `SENSITIVE`,
         admin     TYPE string VALUE `ADMIN`,
         url       TYPE string VALUE `URL`,
+        llm       TYPE string VALUE `LLM`,
       END OF cs_kind.
+
+    CONSTANTS:
+      "! The items of kind LLM. provider: the class implementing
+      "! z2ui5_if_agent_llm (default z2ui5_cl_agent_llm_anthropic); model,
+      "! effort, max_tokens, timeout (seconds): of every call; url,
+      "! destination, key: where the provider sends it (z2ui5_if_agent_llm_http);
+      "! fallback (on/off, default on): the server-side refusal fallback of
+      "! the Claude API, beta its header value; log_prompts (on/off, default
+      "! off): the audit log keeps the prompt and the answer; genui_samples
+      "! (on/off, default off): generative UI shows the model a few rows;
+      "! genui_repair (on/off, default on): one repair round with the
+      "! validation errors; copilot (on/off, default off): the in-app
+      "! copilot answers; copilot_act (on/off, default off): it may propose
+      "! actions.
+      BEGIN OF cs_llm,
+        provider      TYPE string VALUE `PROVIDER`,
+        model         TYPE string VALUE `MODEL`,
+        effort        TYPE string VALUE `EFFORT`,
+        max_tokens    TYPE string VALUE `MAX_TOKENS`,
+        timeout       TYPE string VALUE `TIMEOUT`,
+        url           TYPE string VALUE `URL`,
+        destination   TYPE string VALUE `DESTINATION`,
+        key           TYPE string VALUE `KEY`,
+        fallback      TYPE string VALUE `FALLBACK`,
+        beta          TYPE string VALUE `BETA`,
+        log_prompts   TYPE string VALUE `LOG_PROMPTS`,
+        genui_samples TYPE string VALUE `GENUI_SAMPLES`,
+        genui_repair  TYPE string VALUE `GENUI_REPAIR`,
+        copilot       TYPE string VALUE `COPILOT`,
+        copilot_act   TYPE string VALUE `COPILOT_ACT`,
+      END OF cs_llm.
 
     CONSTANTS:
       BEGIN OF cs_app_rule,
@@ -41,6 +78,10 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
     "! Where a handover sends the user when no URL is set: the ICF node the
     "! abap2UI5 documentation installs.
     CONSTANTS c_default_url TYPE string VALUE `/sap/bc/z2ui5`.
+
+    "! The event that opens the in-app copilot (z2ui5_cl_agent_copilot) -
+    "! forbidden for agents on every screen: the copilot is for people.
+    CONSTANTS c_copilot_event TYPE string VALUE `Z2UI5_AGENT_COPILOT`.
 
     TYPES ty_t_setting TYPE STANDARD TABLE OF z2ui5_t_ag_set WITH EMPTY KEY.
 
@@ -87,6 +128,7 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
       IMPORTING
         uname TYPE clike.
 
+    "! Every setting - the value of the API key masked.
     CLASS-METHODS get_all
       RETURNING
         VALUE(result) TYPE ty_t_setting.
@@ -161,6 +203,38 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE string.
 
+    "! A language model setting (cs_llm) - empty when not set. Never the
+    "! key: get_llm_key( ) is for the provider only.
+    CLASS-METHODS get_llm
+      IMPORTING
+        item          TYPE clike
+      RETURNING
+        VALUE(result) TYPE string.
+
+    "! An on/off setting of kind LLM, with its default when not set.
+    CLASS-METHODS check_llm
+      IMPORTING
+        item          TYPE clike
+        default       TYPE abap_bool DEFAULT abap_false
+      RETURNING
+        VALUE(result) TYPE abap_bool.
+
+    "! Store a language model setting - an empty value removes it.
+    CLASS-METHODS set_llm
+      IMPORTING
+        item  TYPE clike
+        value TYPE clike OPTIONAL.
+
+    "! Whether an API key is stored - what the settings app shows of it.
+    CLASS-METHODS check_llm_key
+      RETURNING
+        VALUE(result) TYPE abap_bool.
+
+    "! The stored API key - for a provider's outbound call only.
+    CLASS-METHODS get_llm_key
+      RETURNING
+        VALUE(result) TYPE string.
+
     "! How long a session lives - the draft expiry of the abap2UI5
     "! configuration (z2ui5_if_ui5_exit, draft_exp_time_in_hours).
     CLASS-METHODS get_expiry_hours
@@ -224,6 +298,10 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
 
     load( ).
     result = gt_setting.
+    " the API key never leaves this class but through get_llm_key( )
+    LOOP AT result REFERENCE INTO DATA(lr_setting) WHERE kind = cs_kind-llm AND item = cs_llm-key. "#EC CI_SORTSEQ
+      lr_setting->value = `***`.
+    ENDLOOP.
 
   ENDMETHOD.
 
@@ -303,8 +381,9 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
 
   METHOD check_own_app.
 
-    " the addon's own apps change and show the rules - never agent-operable
-    result = xsdbool( app CP `Z2UI5_CL_AGENT_APP_*` ).
+    " the addon's own apps change and show the rules - never agent-operable;
+    " nor the copilot, which operates apps itself
+    result = xsdbool( app CP `Z2UI5_CL_AGENT_APP_*` OR app CP `Z2UI5_CL_AGENT_COPILOT*` ).
 
   ENDMETHOD.
 
@@ -470,6 +549,11 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     lv_event = event.
     result = VALUE #( policy = z2ui5_if_agent_app=>cs_policy-allowed
                       source = `default` ).
+    IF lv_event = c_copilot_event.
+      result = VALUE #( policy = z2ui5_if_agent_app=>cs_policy-forbidden
+                        source = `the in-app copilot is for people - an agent never opens it` ).
+      RETURN.
+    ENDIF.
 
     " the app's own word
     DATA(ls_info) = get_app_info( lv_app ).
@@ -539,6 +623,62 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
                                  THEN ls_setting-value
                                  ELSE c_default_url ).
     result = |{ lv_base }#/app/{ to_upper( app ) }/{ draft }|.
+
+  ENDMETHOD.
+
+  METHOD get_llm.
+
+    DATA lv_item TYPE string.
+
+    lv_item = to_upper( item ).
+    IF lv_item = cs_llm-key.
+      RETURN.
+    ENDIF.
+    load( ).
+    READ TABLE gt_setting INTO DATA(ls_setting) WITH KEY kind = cs_kind-llm item = lv_item. "#EC CI_SORTSEQ
+    IF sy-subrc = 0.
+      result = ls_setting-value.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD check_llm.
+
+    DATA(lv_value) = to_lower( get_llm( item ) ).
+    result = COND #( WHEN lv_value = `on` OR lv_value = `x` OR lv_value = `true` THEN abap_true
+                     WHEN lv_value = `off` OR lv_value = `-` OR lv_value = `false` THEN abap_false
+                     ELSE default ).
+
+  ENDMETHOD.
+
+  METHOD set_llm.
+
+    IF value IS INITIAL.
+      remove( kind = cs_kind-llm
+              app  = `*`
+              item = item ).
+    ELSE.
+      save( kind  = cs_kind-llm
+            app   = `*`
+            item  = item
+            value = value ).
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD check_llm_key.
+
+    result = xsdbool( get_llm_key( ) IS NOT INITIAL ).
+
+  ENDMETHOD.
+
+  METHOD get_llm_key.
+
+    load( ).
+    READ TABLE gt_setting INTO DATA(ls_setting) WITH KEY kind = cs_kind-llm item = cs_llm-key. "#EC CI_SORTSEQ
+    IF sy-subrc = 0.
+      result = ls_setting-value.
+    ENDIF.
 
   ENDMETHOD.
 

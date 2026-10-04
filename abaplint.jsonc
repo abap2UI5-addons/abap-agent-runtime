@@ -26,10 +26,12 @@
     },
     {
       // if_http_extension and the ICF interfaces it names are not in the
-      // 702 intersection above - package 03 implements it
+      // 702 intersection above - package 03 implements it; cl_http_client
+      // and its interface are the outbound call of the language model
+      // (z2ui5_cl_agent_llm_std)
       "url": "https://github.com/open-abap/open-abap-core",
       "folder": "/.abaplint-deps/open-abap-core",
-      "files": "/src/http/if_http_{extension,server,request,response,entity}.intf.abap"
+      "files": "/src/http/{if_http_{extension,server,request,response,entity,client,utility}.intf.abap,cl_http_{client,utility}.clas.abap,ssfapplssl.dtel.xml}"
     }
   ],
   "syntax": {
@@ -93,7 +95,7 @@
     },
     "object_naming": {
       "patternKind": "required",
-      "clas": "^Z2UI5_CL_AGENT",
+      "clas": "^Z2UI5_C[LX]_AGENT",
       "intf": "^Z2UI5_IF_AGENT",
       "tabl": "^Z2UI5_T_AG_"
     },

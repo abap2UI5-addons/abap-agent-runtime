@@ -19,6 +19,12 @@
 "! sends nothing and changes nothing. On top of the reference, the policy:
 "! events the app or the settings classify confirm or forbidden are never
 "! fired by an agent - see z2ui5_if_agent_app.
+"!
+"! The in-app copilot (z2ui5_cl_agent_assist) uses the same class in mode
+"! copilot: app_attach( ) continues a copy of the draft the user's browser
+"! is on (instead of app_start( )), app_check( ) validates an act without
+"! sending it, and the copilot switch of the settings replaces the
+"! endpoint switch - the validation and the policy are the very same.
 CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PUBLIC SECTION.
@@ -33,10 +39,20 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
         session  TYPE string,
       END OF ty_s_result.
 
+    CONSTANTS:
+      BEGIN OF cs_mode,
+        mcp     TYPE string VALUE `mcp`,
+        copilot TYPE string VALUE `copilot`,
+      END OF cs_mode.
+
     "! client: the MCP client's name and version (for the audit log).
+    "! mode: mcp (the endpoint, its switch) or copilot (the in-app copilot,
+    "! the copilot switch of the language model settings).
     METHODS constructor
       IMPORTING
-        client TYPE clike OPTIONAL.
+        client TYPE clike OPTIONAL
+        mode   TYPE clike DEFAULT cs_mode-mcp
+          PREFERRED PARAMETER client.
 
     "! The apps an agent may start - {"count":..,"apps":[{app,description,source}],"hint":..}.
     METHODS app_list
@@ -75,6 +91,42 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
         max_rows      TYPE clike OPTIONAL
       RETURNING
         VALUE(result) TYPE ty_s_result.
+
+    "! Continue the screen of a draft the browser is on - a copy of it, so
+    "! the user's own draft is never touched: the copy is restored with a
+    "! restore roundtrip (the app's main( ) runs check_on_navigated( ) and
+    "! displays its main view; a popup that was open is not part of a
+    "! draft) and becomes an agent session of this user.
+    METHODS app_attach
+      IMPORTING
+        draft         TYPE clike
+        max_rows      TYPE clike OPTIONAL
+      RETURNING
+        VALUE(result) TYPE ty_s_result.
+
+    "! app_act( ) without the act: everything validated exactly as app_act( )
+    "! validates it - the action, its policy, every value, the arguments -
+    "! but nothing is sent and nothing is saved. text: the snapshot with
+    "! the values applied as pending.
+    METHODS app_check
+      IMPORTING
+        session       TYPE clike
+        values        TYPE clike OPTIONAL
+        event         TYPE clike OPTIONAL
+        args          TYPE clike OPTIONAL
+        row           TYPE clike OPTIONAL
+      RETURNING
+        VALUE(result) TYPE ty_s_result.
+
+    "! The analysed screen of a session (no roundtrip) - the snapshot and
+    "! its index: which field is a password input, the model values.
+    METHODS get_snapshot
+      IMPORTING
+        session       TYPE clike
+      RETURNING
+        VALUE(result) TYPE REF TO z2ui5_cl_agent_snapshot
+      RAISING
+        z2ui5_cx_ui5_util_error.
 
   PROTECTED SECTION.
 
@@ -146,6 +198,8 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       END OF ty_s_params.
 
     DATA mv_client TYPE string.
+    DATA mv_mode TYPE string.
+    DATA mv_dry_run TYPE abap_bool.
     DATA mo_sim TYPE REF TO z2ui5_cl_frontend_simulator.
     DATA ms_row TYPE z2ui5_t_ag_ses.
     DATA mt_custom TYPE string_table.
@@ -433,6 +487,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
   METHOD constructor.
 
     mv_client = client.
+    mv_mode = mode.
 
   ENDMETHOD.
 
@@ -461,6 +516,13 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   METHOD check_enabled.
 
+    IF mv_mode = cs_mode-copilot.
+      IF z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot ) = abap_false.
+        fail( `the in-app copilot is switched off on this system - an agent administrator switches it on in ` &&
+              `Z2UI5_CL_AGENT_APP_ADMIN ("Language model")` ).
+      ENDIF.
+      RETURN.
+    ENDIF.
     IF z2ui5_cl_agent_settings=>check_enabled( ) = abap_false.
       fail( `the abap2UI5 agent endpoint is disabled on this system - an administrator enables it in the app ` &&
             `Z2UI5_CL_AGENT_APP_ADMIN (README of abap2UI5-addons/agent, "Enabling the endpoint")` ).
@@ -696,38 +758,52 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             apply_values( lt_value ).
             " the values may have changed what the args read: re-analyse first
             analyze( ).
-            IF lv_event IS INITIAL.
-              save( ).
-            ELSE.
+            IF lv_event IS NOT INITIAL.
               DATA(lv_action_id) = ls_action-id.
               READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
-              IF ls_action-frontend IS NOT INITIAL.
-                " performed here, as the browser performs it: the slot closes,
-                " its unsent edits go with it, no roundtrip
-                close_layer( ls_action-frontend ).
-                save( ).
-              ELSE.
-                " a selection dialog's confirm picks the row first - its
-                " edits are part of the model the arguments read
-                DATA(lt_picked) = VALUE z2ui5_cl_agent_viewxml=>ty_t_int( ).
-                IF ls_action-pick = abap_true.
-                  lt_picked = apply_pick( is_action = ls_action
-                                          row_raw   = lv_row ).
-                  analyze( ).
-                  READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
-                ENDIF.
-                DATA(lt_tval) = event_args( is_action = ls_action
-                                            t_given   = lt_arg
-                                            row_raw   = lv_row
-                                            t_picked  = lt_picked ).
-                DATA(lv_id_old) = ms_row-id.
-                send( is_action = ls_action
-                      t_arg     = lt_tval ).
-                save( lv_id_old ).
-              ENDIF.
             ENDIF.
-            result = VALUE #( text    = ms_row-snapshot
-                              session = ms_row-id ).
+            IF mv_dry_run = abap_true.
+              " checked: the action, its policy, every value - the arguments
+              " too, unless the act closes a layer or picks a row (that
+              " changes the session itself)
+              IF lv_event IS NOT INITIAL AND ls_action-frontend IS INITIAL AND ls_action-pick = abap_false.
+                event_args( is_action = ls_action
+                            t_given   = lt_arg
+                            row_raw   = lv_row ).
+              ENDIF.
+              result = VALUE #( text    = mo_snap->get_json( )
+                                session = ms_row-id ).
+              mt_pending = lt_pending_before.
+            ELSEIF lv_event IS INITIAL.
+              save( ).
+            ELSEIF ls_action-frontend IS NOT INITIAL.
+              " performed here, as the browser performs it: the slot closes,
+              " its unsent edits go with it, no roundtrip
+              close_layer( ls_action-frontend ).
+              save( ).
+            ELSE.
+              " a selection dialog's confirm picks the row first - its
+              " edits are part of the model the arguments read
+              DATA(lt_picked) = VALUE z2ui5_cl_agent_viewxml=>ty_t_int( ).
+              IF ls_action-pick = abap_true.
+                lt_picked = apply_pick( is_action = ls_action
+                                        row_raw   = lv_row ).
+                analyze( ).
+                READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
+              ENDIF.
+              DATA(lt_tval) = event_args( is_action = ls_action
+                                          t_given   = lt_arg
+                                          row_raw   = lv_row
+                                          t_picked  = lt_picked ).
+              DATA(lv_id_old) = ms_row-id.
+              send( is_action = ls_action
+                    t_arg     = lt_tval ).
+              save( lv_id_old ).
+            ENDIF.
+            IF mv_dry_run = abap_false.
+              result = VALUE #( text    = ms_row-snapshot
+                                session = ms_row-id ).
+            ENDIF.
           CATCH z2ui5_cx_ui5_util_error INTO DATA(lx_act).
             " a refused act changes nothing: neither the pending edits nor the session
             mt_pending = lt_pending_before.
@@ -751,10 +827,107 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     IF lv_row IS NOT INITIAL.
       lv_args = |{ lv_args },"row":{ lv_row }|.
     ENDIF.
-    audit( operation = `app_act`
+    audit( operation = COND #( WHEN mv_dry_run = abap_true THEN `app_check` ELSE `app_act` )
            event     = COND string( WHEN ls_action-event IS NOT INITIAL THEN ls_action-event ELSE lv_event )
            args      = |{ lv_args }\}|
            is_result = result ).
+
+  ENDMETHOD.
+
+  METHOD app_attach.
+
+    DATA lv_reason TYPE string.
+    DATA lv_copy TYPE string.
+
+    TRY.
+        check_enabled( ).
+        mv_max_rows = rows_of( val     = max_rows
+                               default = z2ui5_cl_agent_snapshot=>c_max_rows_default ).
+        IF draft IS INITIAL.
+          fail( `pass draft - the draft id of the screen to continue` ).
+        ENDIF.
+
+        " a copy - the user's own draft stays as the browser left it
+        TRY.
+            DATA(lo_store) = z2ui5_cl_ui5_srv_draft=>get_instance( ).
+            DATA(ls_db) = lo_store->read_draft( draft ).
+            lv_copy = z2ui5_cl_ui5_util_context=>uuid_get_c32( ).
+            lo_store->create( draft     = VALUE #( id                = lv_copy
+                                                   id_prev           = ls_db-id_prev
+                                                   id_prev_app       = ls_db-id_prev_app
+                                                   id_prev_app_stack = ls_db-id_prev_app_stack )
+                              model_xml = ls_db-data ).
+          CATCH cx_root INTO DATA(lx_copy).
+            fail( |the draft { draft } cannot be read - { lx_copy->get_text( ) }| ).
+        ENDTRY.
+        TRY.
+            mo_sim = z2ui5_cl_frontend_simulator=>resume( id      = lv_copy
+                                                          refresh = abap_true ).
+          CATCH cx_root INTO DATA(lx_resume).
+            fail( |the screen of draft { draft } cannot be restored - { lx_resume->get_text( ) }| ).
+        ENDTRY.
+        DATA(lv_app) = mo_sim->get_app( ).
+        IF z2ui5_cl_agent_settings=>check_app( EXPORTING app    = lv_app
+                                               IMPORTING reason = lv_reason ) = abap_false.
+          fail( lv_reason ).
+        ENDIF.
+        IF mo_sim->is_sticky( ) = abap_true.
+          fail( |the app { lv_app } runs in a stateful session (set_session_stateful) - it cannot be continued| ).
+        ENDIF.
+
+        ms_row = VALUE #( id         = mo_sim->get_id( )
+                          uname      = sy-uname
+                          app        = lv_app
+                          app_start  = lv_app
+                          mcp_client = mv_client
+                          max_rows   = mv_max_rows
+                          created_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ) ).
+        mt_custom = custom_of_sim( ).
+        analyze( ).
+        save( ).
+        result = VALUE #( text    = ms_row-snapshot
+                          session = ms_row-id ).
+
+      CATCH cx_root INTO DATA(lx).
+        result = VALUE #( is_error = abap_true
+                          text     = lx->get_text( )
+                          session  = ms_row-id ).
+    ENDTRY.
+    audit( operation = `app_attach`
+           args      = |\{"draft":{ z2ui5_cl_agent_viewxml=>json_string( draft ) }\}|
+           is_result = result ).
+
+  ENDMETHOD.
+
+  METHOD app_check.
+
+    mv_dry_run = abap_true.
+    TRY.
+        result = app_act( session = session
+                          values  = values
+                          event   = event
+                          args    = args
+                          row     = row ).
+      CLEANUP.
+        mv_dry_run = abap_false.
+    ENDTRY.
+    mv_dry_run = abap_false.
+
+  ENDMETHOD.
+
+  METHOD get_snapshot.
+
+    check_enabled( ).
+    load( session ).
+    mv_max_rows = ms_row-max_rows.
+    TRY.
+        mo_sim = z2ui5_cl_frontend_simulator=>resume( id    = ms_row-id
+                                                      state = ms_row-state ).
+      CATCH cx_root INTO DATA(lx).
+        fail( |session '{ ms_row-id }' cannot be continued - { lx->get_text( ) }| ).
+    ENDTRY.
+    analyze( ).
+    result = mo_snap.
 
   ENDMETHOD.
 

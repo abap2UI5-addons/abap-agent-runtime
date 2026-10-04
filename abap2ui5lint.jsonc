@@ -18,7 +18,11 @@
   "rules": {
     // the house layout of the view builder chain (view-chain-layout skill)
     "chain-house-layout": { "severity": "warning" },
-    "missing-on-navigated-branch": "warning"
+    "missing-on-navigated-branch": "warning",
+    // package 01 is the engine and may use abap2UI5 internals (AGENTS.md,
+    // "Engine vs. apps") - z2ui5_cl_agent_genui builds views there; the
+    // apps in 02 stay on the released API
+    "non-released-api": { "severity": "warning", "exclude": ["^src/01/"] }
   },
 
   "failOn": "warning"

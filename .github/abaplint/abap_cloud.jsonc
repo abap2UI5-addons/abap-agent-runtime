@@ -29,6 +29,18 @@
       "url": "https://github.com/open-abap/open-abap-core",
       "folder": "/../../.abaplint-deps/open-abap-core",
       "files": "/src/http/if_{http_service_extension,web_http_request,web_http_response}.intf.abap"
+    },
+    {
+      // the outbound HTTP client of ABAP Cloud (z2ui5_cl_agent_llm_cloud,
+      // package 04) - from the full released API of the 2305 cloud release
+      "url": "https://github.com/abapedia/steampunk-2305-api",
+      "folder": "/../../.abaplint-deps/steampunk-2305",
+      "files": "/src/{cl_web_http_client_manager,cl_http_destination_provider,cx_web_http_client_error,cx_http_dest_provider_error,cx_web_message_error}.clas.abap"
+    },
+    {
+      "url": "https://github.com/abapedia/steampunk-2305-api",
+      "folder": "/../../.abaplint-deps/steampunk-2305",
+      "files": "/src/if_{web_http_client,http_destination}.intf.abap"
     }
   ],
   "syntax": {

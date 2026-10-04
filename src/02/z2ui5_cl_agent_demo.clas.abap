@@ -9,7 +9,9 @@
 "! sensitive - the audit log masks it.
 "!
 "! Start it in the browser with ?app_start=z2ui5_cl_agent_demo, or as an
-"! agent with app_start { "app": "z2ui5_cl_agent_demo" }.
+"! agent with app_start { "app": "z2ui5_cl_agent_demo" }. The button in the
+"! page header opens the in-app copilot (z2ui5_cl_agent_copilot) - an
+"! agent never presses it (the settings classify it forbidden).
 CLASS z2ui5_cl_agent_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PUBLIC SECTION.
@@ -91,6 +93,10 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
 
   METHOD z2ui5_if_app~main.
 
+    " the in-app copilot - the one line in main( ), the button in the page header
+    IF z2ui5_cl_agent_copilot=>attach( client ) = abap_true.
+      RETURN.
+    ENDIF.
     me->client = client.
     IF client->check_on_init( ).
       model_init( ).
@@ -117,6 +123,12 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
     DATA(page) = view->ele( `Shell`
         )->ele( `Page`
             )->a( n = `title` v = `Travel requests` ).
+
+    page->ele( `headerContent`
+        )->tag( `Button`
+            )->a( n = `icon`    v = `sap-icon://discussion`
+            )->a( n = `tooltip` v = `Copilot - ask this screen`
+            )->a( n = `press`   v = client->_event( z2ui5_cl_agent_copilot=>c_event ) ).
 
     page->tag( `MessageStrip`
         )->a( n = `text`     v = client->_bind( status )

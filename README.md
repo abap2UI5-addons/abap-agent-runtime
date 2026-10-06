@@ -301,7 +301,8 @@ nothing.
   validated against a closed vocabulary, its proposals against the same
   policy as every agent - see [AI at runtime](#ai-at-runtime).
 - **Browser-side abuse is refused**: a request with an `Origin` (or `Referer`)
-  of another host gets 403 - the check abap2UI5 applies to its own POSTs - and
+  of another host gets 403, whatever its method - the check abap2UI5 applies
+  to its own POSTs - and
   only `Content-Type: application/json` is accepted, so a web page cannot drive
   the endpoint with the user's SSO cookies.
 

@@ -80,6 +80,7 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS get_not_allowed     FOR TESTING.
     METHODS content_type        FOR TESTING.
     METHODS cross_origin        FOR TESTING.
+    METHODS delete_cross_origin FOR TESTING.
     METHODS parse_error         FOR TESTING.
     METHODS invalid_request     FOR TESTING.
     METHODS invalid_id          FOR TESTING.
@@ -198,6 +199,27 @@ CLASS ltcl_mcp IMPLEMENTATION.
                                                                     host         = `sap.example:443` ) ).
     cl_abap_unit_assert=>assert_equals( exp = 403
                                         act = ls_response-status ).
+
+  ENDMETHOD.
+
+  METHOD delete_cross_origin.
+
+    DATA(ls_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",` &&
+                          `"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
+    DATA(lv_session) = ls_init-t_header[ name = `Mcp-Session-Id` ]-value. "#EC CI_SORTSEQ
+    DATA(lv_id) = CONV z2ui5_t_ag_mcp-id( lv_session ).
+
+    " a page of another host ends no MCP session either
+    DATA(ls_response) = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method     = `DELETE`
+                                                                    session_id = lv_session
+                                                                    origin     = `https://evil.example`
+                                                                    host       = `sap.example:443` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 403
+                                        act = ls_response-status ).
+    SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_id INTO @DATA(lv_client).
+    cl_abap_unit_assert=>assert_subrc( exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( exp = `unit-test 1.0`
+                                        act = lv_client ).
 
   ENDMETHOD.
 

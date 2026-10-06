@@ -232,6 +232,21 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ms_request = is_request.
     DATA(lv_method) = to_upper( is_request-method ).
 
+    " a browser page must not drive the endpoint with the user's SSO
+    " cookies: an Origin (or Referer) of another host is refused, the same
+    " rule abap2UI5 applies to its own POSTs - on every method, the DELETE
+    " that ends an MCP session included
+    IF z2ui5_cl_ui5_http_handler=>_check_csrf_rejected( active  = abap_true
+                                                        origin  = is_request-origin
+                                                        referer = is_request-referer
+                                                        host    = is_request-host ) = abap_true.
+      result = http_error( status = 403
+                           reason = `Forbidden`
+                           code   = cs_error-invalid_request
+                           text   = `cross-origin request refused - the Origin does not match the host of this endpoint` ).
+      RETURN.
+    ENDIF.
+
     IF lv_method = `DELETE`.
       IF is_request-session_id IS NOT INITIAL.
         DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( is_request-session_id ).
@@ -249,19 +264,6 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " a browser page must not drive the endpoint with the user's SSO
-    " cookies: an Origin (or Referer) of another host is refused, the same
-    " rule abap2UI5 applies to its own POSTs
-    IF z2ui5_cl_ui5_http_handler=>_check_csrf_rejected( active  = abap_true
-                                                        origin  = is_request-origin
-                                                        referer = is_request-referer
-                                                        host    = is_request-host ) = abap_true.
-      result = http_error( status = 403
-                           reason = `Forbidden`
-                           code   = cs_error-invalid_request
-                           text   = `cross-origin request refused - the Origin does not match the host of this endpoint` ).
-      RETURN.
-    ENDIF.
     " the media type itself, not a substring: text/plain;application/json
     " is a simple request a page may send cross-site without a preflight
     DATA(lv_media_type) = to_lower( is_request-content_type ).

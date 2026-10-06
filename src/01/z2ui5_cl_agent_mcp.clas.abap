@@ -394,6 +394,15 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDIF.
     DATA(lv_method) = io_json->get( |{ path }/method| ).
 
+    IF lv_has_id = abap_false AND io_json->exists( |{ path }/id| ) = abap_true.
+      " an id that is null, a boolean, an object or an array: a request
+      " all the same (MCP ids are strings or numbers) - answered, not
+      " silently taken for a notification
+      result = rpc_error( id   = lv_id
+                          code = cs_error-invalid_request
+                          text = `invalid request - id must be a string or a number` ).
+      RETURN.
+    ENDIF.
     IF lv_has_id = abap_false.
       " a notification (notifications/initialized, notifications/cancelled,
       " ...): accepted and never answered

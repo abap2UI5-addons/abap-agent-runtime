@@ -82,6 +82,7 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS cross_origin        FOR TESTING.
     METHODS parse_error         FOR TESTING.
     METHODS invalid_request     FOR TESTING.
+    METHODS invalid_id          FOR TESTING.
     METHODS notification        FOR TESTING.
     METHODS ping                FOR TESTING.
     METHODS initialize          FOR TESTING.
@@ -216,6 +217,22 @@ CLASS ltcl_mcp IMPLEMENTATION.
                                         act = lo_json->get_integer( `/error/code` ) ).
     cl_abap_unit_assert=>assert_equals( exp = 7
                                         act = lo_json->get_integer( `/id` ) ).
+
+  ENDMETHOD.
+
+  METHOD invalid_id.
+
+    " an id that is neither a string nor a number makes no notification of
+    " the request: it is answered - with id null - and nothing runs
+    LOOP AT VALUE string_table( ( `null` ) ( `true` ) ( `{"n":1}` ) ( `[1]` ) ) INTO DATA(lv_id).
+      DATA(lo_json) = rpc( |\{"jsonrpc":"2.0","id":{ lv_id },"method":"tools/call","params":\{"name":"app_list"\}\}| ).
+      cl_abap_unit_assert=>assert_equals( exp = -32600
+                                          act = lo_json->get_integer( `/error/code` )
+                                          msg = |id { lv_id }| ).
+      cl_abap_unit_assert=>assert_equals( exp = z2ui5_if_ajson_types=>node_type-null
+                                          act = lo_json->get_node_type( `/id` ) ).
+      cl_abap_unit_assert=>assert_false( lo_json->exists( `/result` ) ).
+    ENDLOOP.
 
   ENDMETHOD.
 

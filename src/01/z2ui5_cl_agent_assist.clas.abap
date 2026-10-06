@@ -620,11 +620,12 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         ASSIGN app->(lv_attribute) TO <current>.
       ELSE.
         DATA(lo_type) = cl_abap_typedescr=>describe_by_data( <current> ).
+        " a failed ASSIGN leaves <next> where the last segment put it
+        UNASSIGN <next>.
         IF lo_type->kind = cl_abap_typedescr=>kind_table.
           ASSIGN <current> TO <table>.
           DATA(lv_index) = CONV i( lv_segment ) + 1.
           DATA(lv_tabix) = 0.
-          UNASSIGN <next>.
           LOOP AT <table> ASSIGNING FIELD-SYMBOL(<row>).
             lv_tabix = lv_tabix + 1.
             IF lv_tabix = lv_index.

@@ -1,3 +1,6 @@
+CLASS ltcl_write DEFINITION DEFERRED.
+CLASS z2ui5_cl_agent_assist DEFINITION LOCAL FRIENDS ltcl_write.
+
 "! The in-app copilot end to end, on the headless frontend simulator: the
 "! agent demo app (z2ui5_cl_agent_demo, two lines of copilot opt-in) is
 "! started, its copilot button pressed, the copilot popup asked - with a
@@ -362,6 +365,63 @@ CLASS ltcl_copilot IMPLEMENTATION.
                                                    event     = z2ui5_cl_agent_copilot=>c_event )-policy
         exp = z2ui5_if_agent_app=>cs_policy-forbidden ).
     cl_abap_unit_assert=>assert_false( z2ui5_cl_agent_settings=>check_app( `Z2UI5_CL_AGENT_COPILOT` ) ).
+
+  ENDMETHOD.
+
+ENDCLASS.
+
+
+"! An app instance the copilot writes the filled values back into.
+CLASS ltd_app DEFINITION FINAL FOR TESTING.
+
+  PUBLIC SECTION.
+    TYPES:
+      BEGIN OF ty_s_row,
+        a TYPE string,
+        n TYPE i,
+      END OF ty_s_row.
+    TYPES ty_t_row TYPE STANDARD TABLE OF ty_s_row WITH EMPTY KEY.
+
+    DATA t_row TYPE ty_t_row.
+
+ENDCLASS.
+
+
+CLASS ltd_app IMPLEMENTATION.
+ENDCLASS.
+
+
+"! write( ): a model path of the screen into the attribute of the app.
+CLASS ltcl_write DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+
+  PRIVATE SECTION.
+
+    METHODS unknown_column FOR TESTING.
+
+ENDCLASS.
+
+
+CLASS ltcl_write IMPLEMENTATION.
+
+  METHOD unknown_column.
+
+    DATA(lo_app) = NEW ltd_app( ).
+    lo_app->t_row = VALUE #( ( a = `a0` n = 7 ) ).
+
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/T_ROW/0/A`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `a1` ) ).
+    " a column the row does not have is no path of the app - refused, and
+    " the value never lands in the row it would have been a column of
+    TRY.
+        z2ui5_cl_agent_assist=>write( app  = lo_app
+                                      path = `/T_ROW/0/NOPE`
+                                      val  = z2ui5_cl_agent_viewxml=>val_string( `x` ) ).
+        cl_abap_unit_assert=>fail( `a column the row does not have was written` ).
+      CATCH z2ui5_cx_ui5_util_error ##NO_HANDLER.
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( exp = VALUE ltd_app=>ty_t_row( ( a = `a1` n = 7 ) )
+                                        act = lo_app->t_row ).
 
   ENDMETHOD.
 

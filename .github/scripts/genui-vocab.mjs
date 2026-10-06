@@ -104,10 +104,12 @@ function generate(pinText, meta) {
     const c = profile.controls[name];
     if (!controls[name]) fail(`${name} of the profile is not in the UI5 metadata`);
     if (newer(controls[name].since)) continue;
-    const def = c.defaultAggregation || "";
+    const defAgg = c.defaultAggregation ? member(name, "aggregations", c.defaultAggregation) : undefined;
+    // a default aggregation introduced after the floor (sap.m.Title content
+    // 1.87) is none at the floor - left out like the aggregation itself
+    const def = defAgg && !newer(defAgg.since) ? c.defaultAggregation : "";
     if (def) {
-      const agg = member(name, "aggregations", def);
-      rows.push([name, "D", def, agg && agg.multiple ? "M" : "S", agg ? agg.type : ""]);
+      rows.push([name, "D", def, defAgg.multiple ? "M" : "S", defAgg.type]);
     }
     for (const p of (c.properties || []).map((x) => x.name).sort()) {
       const m = member(name, "properties", p);

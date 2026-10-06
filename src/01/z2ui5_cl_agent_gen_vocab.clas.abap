@@ -659,7 +659,6 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Shell;T;sap.ui.base.ManagedObject` TO lt_raw.
     APPEND `sap.m.Shell;T;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Shell;T;sap.ui.core.Element` TO lt_raw.
-    APPEND `sap.m.StandardListItem;D;actions;M;sap.m.ListItemActionBase` TO lt_raw.
     APPEND `sap.m.StandardListItem;P;counter;I` TO lt_raw.
     APPEND `sap.m.StandardListItem;P;description;S` TO lt_raw.
     APPEND `sap.m.StandardListItem;P;highlight;S` TO lt_raw.
@@ -783,7 +782,6 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.TextArea;T;sap.ui.core.IFormContent` TO lt_raw.
     APPEND `sap.m.TextArea;T;sap.ui.core.ILabelable` TO lt_raw.
     APPEND `sap.m.TextArea;T;sap.ui.core.ISemanticFormContent` TO lt_raw.
-    APPEND `sap.m.Title;D;content;S;sap.ui.core.ITitleContent` TO lt_raw.
     APPEND `sap.m.Title;P;level;E;Auto|H1|H2|H3|H4|H5|H6` TO lt_raw.
     APPEND `sap.m.Title;P;text;S` TO lt_raw.
     APPEND `sap.m.Title;P;textAlign;E;Begin|End|Left|Right|Center|Initial` TO lt_raw.

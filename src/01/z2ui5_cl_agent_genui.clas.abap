@@ -995,6 +995,10 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
           ENDIF.
         ENDIF.
       ENDIF.
+    ELSEIF NOT line_exists( mt_vocab[ control = node-control kind = `T` name = `sap.ui.core.Control` ] ). "#EC CI_SORTSEQ
+      " the root goes into the content of the view and of the dialog
+      issue( node = node
+             text = `the root sits in the content of a view - it must be a sap.ui.core.Control` ).
     ENDIF.
 
     " the properties
@@ -1154,11 +1158,14 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
           result = `true or false`.
         ENDIF.
       WHEN `I`.
-        IF value IS INITIAL OR value CN `-0123456789` OR strlen( value ) > 9.
+        " a sign only in front - "5-" or "-" is no int and the view fails to load
+        FIND REGEX `^-?[0-9]{1,9}$` IN value ##REGEX_POSIX.
+        IF sy-subrc <> 0.
           result = `an integer`.
         ENDIF.
       WHEN `F`.
-        IF value IS INITIAL OR value CN `-0123456789.` OR strlen( value ) > 15.
+        FIND REGEX `^-?[0-9]*\.?[0-9]+$` IN value ##REGEX_POSIX.
+        IF sy-subrc <> 0 OR strlen( value ) > 15.
           result = `a number`.
         ENDIF.
       WHEN `C`.

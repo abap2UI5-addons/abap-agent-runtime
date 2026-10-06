@@ -36,6 +36,7 @@ CLASS z2ui5_cl_agent_genui_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA report     TYPE string.
     DATA configured TYPE abap_bool.
     DATA selected   TYPE string.
+    DATA generated  TYPE abap_bool.
 
   PROTECTED SECTION.
 
@@ -173,7 +174,7 @@ CLASS z2ui5_cl_agent_genui_demo IMPLEMENTATION.
                 )->a( n = `press`   v = client->_event( `GENERATE` )
             )->tag( `Button`
                 )->a( n = `text`    v = `Show again`
-                )->a( n = `enabled` b = xsdbool( xml_popup IS NOT INITIAL )
+                )->a( n = `enabled` v = client->_bind( generated )
                 )->a( n = `press`   v = client->_event( `SHOW` )
         )->end(
         )->tag( `Label`
@@ -217,6 +218,8 @@ CLASS z2ui5_cl_agent_genui_demo IMPLEMENTATION.
     ENDIF.
     IF ls_result-ok = abap_true.
       xml_popup = ls_result-xml_popup.
+      " bound: the view is not rendered again after this event
+      generated = abap_true.
       client->popup_display( xml_popup ).
     ELSE.
       client->message_box_display( text = `The view was rejected - see the validation report`

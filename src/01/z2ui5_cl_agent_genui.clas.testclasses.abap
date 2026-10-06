@@ -272,7 +272,9 @@ CLASS ltcl_genui IMPLEMENTATION.
     " an enum value with markup in it, a URI that is no icon
     mo_double->add_answer( valid_tree( VALUE #( ( node( id = `x` parent = `root` control = `sap.m.Button`
                                                         props = |{ prop( name = `type` value = `Emphasized" press="x` ) },| &&
-                                                                |{ prop( name = `icon` value = `javascript:alert(1)` ) }| ) ) ) ) ).
+                                                                |{ prop( name = `icon` value = `javascript:alert(1)` ) }| ) )
+                                                ( node( id = `y` parent = `root` control = `sap.m.Input`
+                                                        props = prop( name = `maxLength` value = `5-` ) ) ) ) ) ).
     DATA(sim) = run( ).
 
     cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
@@ -281,6 +283,8 @@ CLASS ltcl_genui IMPLEMENTATION.
                                          exp = `*type = "Emphasized" press="x": one of Default, Back, *` ).
     cl_abap_unit_assert=>assert_char_cp( act = lv_report
                                          exp = `*icon = "javascript:alert(1)": only an icon URI of the SAP icon font*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*maxLength = "5-": an integer*` ).
 
   ENDMETHOD.
 
@@ -354,6 +358,13 @@ CLASS ltcl_genui IMPLEMENTATION.
     sim = run( ).
     cl_abap_unit_assert=>assert_char_cp( act = sim->get_value( `REPORT` )
                                          exp = `*a list needs exactly one row template in items, it has 2*` ).
+
+    " an element that is no control cannot be the content of the view
+    mo_double->add_answer( tree( VALUE #( ( node( id = `root` parent = `` control = `sap.m.Column` ) ) ) ) ).
+    sim = run( ).
+    cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_value( `REPORT` )
+                                         exp = `*node "root" (sap.m.Column): the root sits in the content of a view*` ).
 
   ENDMETHOD.
 

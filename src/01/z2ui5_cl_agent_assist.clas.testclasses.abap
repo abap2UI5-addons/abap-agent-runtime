@@ -28,6 +28,7 @@ CLASS ltcl_copilot DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGER
     METHODS act_off_answers_only FOR TESTING RAISING cx_static_check.
     METHODS switched_off FOR TESTING RAISING cx_static_check.
     METHODS agents_never_open_it FOR TESTING RAISING cx_static_check.
+    METHODS multichoice_filled FOR TESTING RAISING cx_static_check.
 
     METHODS setting
       IMPORTING
@@ -368,6 +369,37 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD multichoice_filled.
+
+    " the values of a proposal are text: a multichoice names its keys
+    " separated by commas - offered, filled, and on the screen after close
+    DATA(sim) = open( ).
+    mo_double->add_answer( answer( text    = `I tag the trip.`
+                                   wanted  = abap_true
+                                   summary = `tag the trip as fair and meeting`
+                                   values  = `{"field":"/TAGS","value":"FAIR, MEET"}` ) ).
+    ask( sim      = sim
+         question = `Tag it as fair and meeting` ).
+
+    cl_abap_unit_assert=>assert_equals( act = sim->get_value( name  = `HAS_PROPOSAL`
+                                                              layer = c_popup )
+                                        exp = `true` ).
+    sim->click( event = `DO`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
+                                         exp = `*Filled 1 field(s)*` ).
+    sim->click( event = `CLOSE`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_app( )
+                                        exp = c_demo ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( )
+                                         exp = `*"TAGS":["FAIR","MEET"]*` ).
+    " and the model is told so
+    cl_abap_unit_assert=>assert_char_cp( act = z2ui5_cl_agent_assist=>get_system( abap_true )
+                                         exp = `*a multichoice by its keys separated by commas*` ).
+
+  ENDMETHOD.
+
 ENDCLASS.
 
 
@@ -397,6 +429,7 @@ CLASS ltd_app DEFINITION FINAL FOR TESTING.
 
     DATA t_row TYPE ty_t_row.
     DATA o_sub TYPE REF TO ltd_sub.
+    DATA tags TYPE string_table.
 
 ENDCLASS.
 
@@ -412,6 +445,7 @@ CLASS ltcl_write DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL HARMLESS
 
     METHODS unknown_column FOR TESTING.
     METHODS object_attribute FOR TESTING.
+    METHODS multichoice_value FOR TESTING.
 
 ENDCLASS.
 
@@ -451,6 +485,21 @@ CLASS ltcl_write IMPLEMENTATION.
                                   val  = z2ui5_cl_agent_viewxml=>val_string( `filled` ) ).
     cl_abap_unit_assert=>assert_equals( exp = `filled`
                                         act = lo_app->o_sub->value ).
+
+  ENDMETHOD.
+
+  METHOD multichoice_value.
+
+    " the keys of a multichoice into the table its selectedKeys is bound to
+    DATA(lo_app) = NEW ltd_app( ).
+    lo_app->tags = VALUE #( ( `OLD` ) ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/TAGS`
+                                  val  = VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-array
+                                                  json = `["FAIR","MEET"]`
+                                                  num  = 2 ) ).
+    cl_abap_unit_assert=>assert_equals( exp = VALUE string_table( ( `FAIR` ) ( `MEET` ) )
+                                        act = lo_app->tags ).
 
   ENDMETHOD.
 

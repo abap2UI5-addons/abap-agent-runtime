@@ -556,7 +556,10 @@ the answer. A **proposal** (fields to fill, an action to press - only with
   reason;
 - everything else exactly as the MCP endpoint's `app_act` validates it -
   `app_check( )` runs the same code without sending (unknown field, a field
-  that is not editable, a choice outside its values, a wrong type);
+  that is not editable, a choice outside its values, a wrong type). The
+  values of a proposal are text: a `multichoice` names its keys separated by
+  commas, and the copilot hands them over as the array of keys `app_act`
+  takes;
 - nothing runs until the user clicks *Do it* / *Fill in*. An **allowed**
   action then runs through the app's own `main( )` in the session
   (`app_act`); for an action classified **confirm** the copilot only fills

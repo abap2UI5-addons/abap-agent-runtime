@@ -40,12 +40,14 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
     TYPES ty_t_turn TYPE STANDARD TABLE OF ty_s_turn WITH EMPTY KEY.
 
     TYPES:
-      "! field: as the model named it (id, path or name); label, path: of
-      "! the snapshot's field.
+      "! field: as the model named it (id, path or name); label, path, kind:
+      "! of the snapshot's field (value of a multichoice: its keys,
+      "! separated by commas).
       BEGIN OF ty_s_value,
         field TYPE string,
         label TYPE string,
         path  TYPE string,
+        kind  TYPE string,
         value TYPE string,
       END OF ty_s_value.
     TYPES ty_t_value TYPE STANDARD TABLE OF ty_s_value WITH EMPTY KEY.
@@ -169,6 +171,7 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
       EXPORTING
         label         TYPE string
         path          TYPE string
+        kind          TYPE string
       RETURNING
         VALUE(result) TYPE abap_bool.
 
@@ -249,7 +252,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       INSERT `When the user asks you to do something on this screen, you may propose ONE step: set ` &&
              `proposal.wanted true, describe it in summary, list the fields to fill in values (field = the ` &&
              `field id or path from the snapshot, only editable fields, never a protected one; value as text, ` &&
-             `a choice by its key, a boolean as true or false) and optionally the action to press in event ` &&
+             `a choice by its key, a multichoice by its keys separated by commas, a boolean as true or false) and optionally the action to press in event ` &&
              `(its event name or action id). The user sees the proposal and confirms it with a click before ` &&
              `anything runs. An action marked "policy":"confirm" is never pressed by you: propose the fields, ` &&
              `the user presses it. Otherwise set proposal.wanted false and leave summary, event and values empty.` INTO TABLE lt_line.
@@ -334,7 +337,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
     DATA lv_index TYPE i.
 
-    CLEAR: label, path.
+    CLEAR: label, path, kind.
     " the field app_check( ) resolves the key to: by id, by path, by name in
     " any case - in that order, as the session resolves it
     LOOP AT io_snap->mt_field INTO DATA(ls_field) WHERE id = field. "#EC CI_SORTSEQ
@@ -359,6 +362,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     IF lv_index > 0.
       label = ls_field-label.
       path = ls_field-path.
+      kind = ls_field-kind.
       IF io_snap->is_secret( ls_field-id ) = abap_true
           OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                        path = ls_field-path
@@ -381,6 +385,10 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
                                   len = strlen( field ) - strlen( lv_row ) - strlen( lv_column ) - 2 ).
       LOOP AT io_snap->mt_table INTO DATA(ls_table) WHERE id = lv_table OR path = lv_table. "#EC CI_SORTSEQ
         lv_path = |{ ls_table-path }/{ lv_row }/{ lv_column }|.
+        LOOP AT ls_table-t_cellspec INTO DATA(ls_spec) WHERE name = lv_column AND has_field_spec = abap_true. "#EC CI_SORTSEQ
+          kind = ls_spec-field_kind.
+          EXIT.
+        ENDLOOP.
         EXIT.
       ENDLOOP.
     ENDIF.
@@ -395,10 +403,28 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
   METHOD values_json.
 
     DATA lt_member TYPE string_table.
+    DATA lt_key TYPE string_table.
+    DATA lt_json TYPE string_table.
+    DATA lv_json TYPE string.
 
     LOOP AT t_value INTO DATA(ls_value).
-      INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-field ) }:{ z2ui5_cl_agent_viewxml=>json_string( ls_value-value ) }|
-             INTO TABLE lt_member.
+      IF ls_value-kind = `multichoice`.
+        " the proposal's values are text - the session takes a multichoice
+        " as an array of keys
+        SPLIT ls_value-value AT `,` INTO TABLE lt_key.
+        CLEAR lt_json.
+        LOOP AT lt_key INTO DATA(lv_key).
+          lv_key = condense( lv_key ).
+          IF lv_key IS NOT INITIAL.
+            INSERT z2ui5_cl_agent_viewxml=>json_string( lv_key ) INTO TABLE lt_json.
+          ENDIF.
+        ENDLOOP.
+        lv_json = |[{ concat_lines_of( table = lt_json
+                                       sep   = `,` ) }]|.
+      ELSE.
+        lv_json = z2ui5_cl_agent_viewxml=>json_string( ls_value-value ).
+      ENDIF.
+      INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-field ) }:{ lv_json }| INTO TABLE lt_member.
     ENDLOOP.
     IF lt_member IS NOT INITIAL.
       result = |\{{ concat_lines_of( table = lt_member
@@ -491,7 +517,8 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       IF check_protected( EXPORTING io_snap = io_snap
                                     field   = lr_value->field
                           IMPORTING label   = lr_value->label
-                                    path    = lr_value->path ) = abap_true.
+                                    path    = lr_value->path
+                                    kind    = lr_value->kind ) = abap_true.
         cs_proposal-reason = |the field { lr_value->field } is protected (a password or sensitive field) - the copilot never fills it|.
         RETURN.
       ENDIF.
@@ -662,6 +689,16 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         <current> = xsdbool( lv_text = `true` ).
       WHEN z2ui5_cl_agent_viewxml=>cs_kind-number.
         <current> = val-num.
+      WHEN z2ui5_cl_agent_viewxml=>cs_kind-array.
+        " a multichoice: its keys into the table the app binds selectedKeys to
+        IF lo_target->kind <> cl_abap_typedescr=>kind_table.
+          RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path } holds no list - the keys { lv_text } do not fit|.
+        ENDIF.
+        TRY.
+            z2ui5_cl_ajson=>parse( val-json )->to_abap( IMPORTING ev_container = <current> ).
+          CATCH cx_root INTO DATA(lx).
+            RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: the keys { lv_text } do not fit - { lx->get_text( ) }|.
+        ENDTRY.
       WHEN OTHERS.
         IF lo_target->type_kind = cl_abap_typedescr=>typekind_date.
           REPLACE ALL OCCURRENCES OF `-` IN lv_text WITH ``.

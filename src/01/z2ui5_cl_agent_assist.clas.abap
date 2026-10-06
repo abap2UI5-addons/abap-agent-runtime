@@ -194,6 +194,20 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
         path TYPE string
         val  TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
 
+    CLASS-METHODS date_of
+      IMPORTING
+        value         TYPE string
+        path          TYPE string
+      RETURNING
+        VALUE(result) TYPE d.
+
+    CLASS-METHODS time_of
+      IMPORTING
+        value         TYPE string
+        path          TYPE string
+      RETURNING
+        VALUE(result) TYPE t.
+
 ENDCLASS.
 
 
@@ -701,12 +715,113 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         ENDTRY.
       WHEN OTHERS.
         IF lo_target->type_kind = cl_abap_typedescr=>typekind_date.
-          REPLACE ALL OCCURRENCES OF `-` IN lv_text WITH ``.
+          <current> = date_of( value = lv_text
+                               path  = path ).
         ELSEIF lo_target->type_kind = cl_abap_typedescr=>typekind_time.
-          REPLACE ALL OCCURRENCES OF `:` IN lv_text WITH ``.
+          <current> = time_of( value = lv_text
+                               path  = path ).
+        ELSE.
+          <current> = lv_text.
         ENDIF.
-        <current> = lv_text.
     ENDCASE.
+
+  ENDMETHOD.
+
+  METHOD date_of.
+
+    " as the model shows a date (2026-10-06) or as ABAP holds it (20261006),
+    " and a day the calendar has - anything else is refused, never written
+    " as a date that is none
+    DATA(lv_date) = condense( value ).
+    IF lv_date IS INITIAL.
+      RETURN.
+    ENDIF.
+    IF strlen( lv_date ) = 10.
+      IF substring( val = lv_date
+                    off = 4
+                    len = 1 ) = `-` AND substring( val = lv_date
+                                                   off = 7
+                                                   len = 1 ) = `-`.
+        lv_date = substring( val = lv_date
+                             len = 4 ) && substring( val = lv_date
+                                                     off = 5
+                                                     len = 2 ) && substring( val = lv_date
+                                                                             off = 8
+                                                                             len = 2 ).
+      ENDIF.
+    ENDIF.
+    IF strlen( lv_date ) <> 8 OR lv_date CN `0123456789`.
+      RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no date (YYYY-MM-DD)|.
+    ENDIF.
+    DATA(lv_year) = CONV i( substring( val = lv_date
+                                       len = 4 ) ).
+    DATA(lv_month) = CONV i( substring( val = lv_date
+                                        off = 4
+                                        len = 2 ) ).
+    DATA(lv_day) = CONV i( substring( val = lv_date
+                                      off = 6
+                                      len = 2 ) ).
+    DATA(lv_last) = 31.
+    IF lv_month = 4 OR lv_month = 6 OR lv_month = 9 OR lv_month = 11.
+      lv_last = 30.
+    ELSEIF lv_month = 2.
+      lv_last = COND #( WHEN ( lv_year MOD 4 = 0 AND lv_year MOD 100 <> 0 ) OR lv_year MOD 400 = 0 THEN 29 ELSE 28 ).
+    ENDIF.
+    IF lv_year < 1 OR lv_month < 1 OR lv_month > 12 OR lv_day < 1 OR lv_day > lv_last.
+      RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no date of the calendar|.
+    ENDIF.
+    result = lv_date.
+
+  ENDMETHOD.
+
+  METHOD time_of.
+
+    DATA lt_part TYPE string_table.
+    DATA lv_time TYPE string.
+    DATA lv_max TYPE i.
+
+    " as the model shows a time (09:30:00), without seconds (9:30) or as
+    " ABAP holds it (093000), and a time the clock has - anything else is
+    " refused, never written as a time that is none
+    DATA(lv_value) = condense( value ).
+    IF lv_value IS INITIAL.
+      RETURN.
+    ENDIF.
+    IF lv_value CA `:`.
+      SPLIT lv_value AT `:` INTO TABLE lt_part.
+    ELSEIF strlen( lv_value ) = 6.
+      INSERT substring( val = lv_value
+                        len = 2 ) INTO TABLE lt_part.
+      INSERT substring( val = lv_value
+                        off = 2
+                        len = 2 ) INTO TABLE lt_part.
+      INSERT substring( val = lv_value
+                        off = 4
+                        len = 2 ) INTO TABLE lt_part.
+    ENDIF.
+    IF lines( lt_part ) = 2.
+      INSERT `00` INTO TABLE lt_part.
+    ENDIF.
+    IF lines( lt_part ) <> 3.
+      RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no time (HH:MM or HH:MM:SS)|.
+    ENDIF.
+    LOOP AT lt_part INTO DATA(lv_part).
+      " the hour in one or two digits, minutes and seconds in two
+      lv_max = 59.
+      IF sy-tabix = 1.
+        lv_max = 23.
+      ELSEIF strlen( lv_part ) <> 2.
+        CLEAR lv_part.
+      ENDIF.
+      IF lv_part IS INITIAL OR lv_part CN `0123456789` OR strlen( lv_part ) > 2.
+        RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no time (HH:MM or HH:MM:SS)|.
+      ENDIF.
+      IF CONV i( lv_part ) > lv_max.
+        RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no time (HH:MM or HH:MM:SS)|.
+      ENDIF.
+      lv_time = |{ lv_time }{ lv_part WIDTH = 2 ALIGN = RIGHT PAD = `0` }|.
+    ENDLOOP.
+    result = lv_time.
 
   ENDMETHOD.
 

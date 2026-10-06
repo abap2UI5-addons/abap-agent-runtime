@@ -569,7 +569,10 @@ the answer. A **proposal** (fields to fill, an action to press - only with
 *Close* returns to the app (`nav_app_leave`): unchanged when nothing ran;
 otherwise in the state the confirmed steps left it (the session's draft,
 `client->get_app( )`), with values that were only filled written into the
-app's public attributes by their model path. The copilot app itself is never
+app's public attributes by their model path - a date (`D`) taken as
+`YYYY-MM-DD` or `YYYYMMDD`, a time (`T`) as `HH:MM`, `HH:MM:SS` or `HHMMSS`;
+a value that is no day of the calendar or time of the clock is not written,
+the user enters it. The copilot app itself is never
 agent-operable, and the copilot event is classified forbidden on every
 screen - an agent cannot open it.
 

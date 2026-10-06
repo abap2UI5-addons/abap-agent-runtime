@@ -429,6 +429,8 @@ CLASS ltd_app DEFINITION FINAL FOR TESTING.
 
     DATA t_row TYPE ty_t_row.
     DATA o_sub TYPE REF TO ltd_sub.
+    DATA start_time TYPE t.
+    DATA start_date TYPE d.
     DATA tags TYPE string_table.
 
 ENDCLASS.
@@ -445,7 +447,15 @@ CLASS ltcl_write DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL HARMLESS
 
     METHODS unknown_column FOR TESTING.
     METHODS object_attribute FOR TESTING.
+    METHODS time_value FOR TESTING.
+    METHODS date_value FOR TESTING.
     METHODS multichoice_value FOR TESTING.
+
+    METHODS refused
+      IMPORTING
+        io_app TYPE REF TO ltd_app
+        path   TYPE string
+        value  TYPE string.
 
 ENDCLASS.
 
@@ -488,6 +498,70 @@ CLASS ltcl_write IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD time_value.
+
+    " as the model shows a time, without seconds, or as ABAP holds it
+    DATA(lo_app) = NEW ltd_app( ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_TIME`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `09:30:15` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV t( '093015' )
+                                        act = lo_app->start_time ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_TIME`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `9:30` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV t( '093000' )
+                                        act = lo_app->start_time ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_TIME`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `174500` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV t( '174500' )
+                                        act = lo_app->start_time ).
+
+    " no time of the clock: refused, the attribute keeps its value
+    refused( io_app = lo_app
+             path   = `/START_TIME`
+             value  = `25:00` ).
+    refused( io_app = lo_app
+             path   = `/START_TIME`
+             value  = `9.30` ).
+    refused( io_app = lo_app
+             path   = `/START_TIME`
+             value  = `9:5` ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV t( '174500' )
+                                        act = lo_app->start_time ).
+
+  ENDMETHOD.
+
+  METHOD date_value.
+
+    DATA(lo_app) = NEW ltd_app( ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_DATE`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `2026-10-06` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV d( '20261006' )
+                                        act = lo_app->start_date ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_DATE`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `20280229` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV d( '20280229' )
+                                        act = lo_app->start_date ).
+
+    " no day of the calendar, or another notation: refused
+    refused( io_app = lo_app
+             path   = `/START_DATE`
+             value  = `2026-02-30` ).
+    refused( io_app = lo_app
+             path   = `/START_DATE`
+             value  = `06.10.2026` ).
+    refused( io_app = lo_app
+             path   = `/START_DATE`
+             value  = `2026-13-01` ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV d( '20280229' )
+                                        act = lo_app->start_date ).
+
+  ENDMETHOD.
+
   METHOD multichoice_value.
 
     " the keys of a multichoice into the table its selectedKeys is bound to
@@ -500,6 +574,18 @@ CLASS ltcl_write IMPLEMENTATION.
                                                   num  = 2 ) ).
     cl_abap_unit_assert=>assert_equals( exp = VALUE string_table( ( `FAIR` ) ( `MEET` ) )
                                         act = lo_app->tags ).
+
+  ENDMETHOD.
+
+  METHOD refused.
+
+    TRY.
+        z2ui5_cl_agent_assist=>write( app  = io_app
+                                      path = path
+                                      val  = z2ui5_cl_agent_viewxml=>val_string( value ) ).
+        cl_abap_unit_assert=>fail( |{ value } was written to { path }| ).
+      CATCH z2ui5_cx_ui5_util_error ##NO_HANDLER.
+    ENDTRY.
 
   ENDMETHOD.
 

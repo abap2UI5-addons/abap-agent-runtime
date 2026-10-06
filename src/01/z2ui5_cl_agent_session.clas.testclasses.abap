@@ -757,6 +757,7 @@ CLASS ltcl_args DEFINITION FINAL
     METHODS pick_none      FOR TESTING.
     METHODS pick_unknown   FOR TESTING.
     METHODS table_events   FOR TESTING.
+    METHODS action_hidden  FOR TESTING.
 
     METHODS screen
       IMPORTING
@@ -998,6 +999,41 @@ CLASS ltcl_args IMPLEMENTATION.
                                                    row   = `0` ) ).
     " a table row event selects nothing by itself
     cl_abap_unit_assert=>assert_initial( pending( ) ).
+
+  ENDMETHOD.
+
+  METHOD action_hidden.
+
+    " the action checked before the values: still there, it is fired ...
+    DATA(lv_xml) = `<CheckBox selected="{/SHOW}"/><Button text="Go" visible="{/SHOW}" press=".eB(['GO'])"/>`.
+    screen( xml   = lv_xml
+            model = `{"SHOW":true}` ).
+    DATA(ls_action) = mo_cut->find_action( event   = `GO`
+                                           has_row = abap_false ).
+    TRY.
+        cl_abap_unit_assert=>assert_equals( exp = `GO`
+                                            act = mo_cut->action_again( id      = ls_action-id
+                                                                        event   = `GO`
+                                                                        refusal = `refused` )-event ).
+      CATCH z2ui5_cx_ui5_util_error INTO DATA(lx).
+        cl_abap_unit_assert=>fail( lx->get_text( ) ).
+    ENDTRY.
+
+    " ... hidden by the values, it is gone - refused, not fired as it was
+    screen( xml       = lv_xml
+            model     = `{"SHOW":true}`
+            t_pending = VALUE #( ( model_key = `MAIN`
+                                   path      = `/SHOW`
+                                   val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_false ) ) ) ).
+    TRY.
+        mo_cut->action_again( id      = ls_action-id
+                              event   = `GO`
+                              refusal = `refused` ).
+        cl_abap_unit_assert=>fail( `an action the values hid was not refused` ).
+      CATCH z2ui5_cx_ui5_util_error INTO lx.
+        cl_abap_unit_assert=>assert_equals( exp = `refused`
+                                            act = lx->get_text( ) ).
+    ENDTRY.
 
   ENDMETHOD.
 

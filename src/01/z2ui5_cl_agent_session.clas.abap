@@ -307,6 +307,19 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RAISING
         z2ui5_cx_ui5_util_error.
 
+    "! The checked action once more, from the snapshot the values or the
+    "! pick changed - refused when it is gone or no longer the event whose
+    "! policy was checked.
+    METHODS action_again
+      IMPORTING
+        id            TYPE string
+        event         TYPE string
+        refusal       TYPE string
+      RETURNING
+        VALUE(result) TYPE z2ui5_cl_agent_snapshot=>ty_s_action
+      RAISING
+        z2ui5_cx_ui5_util_error.
+
     METHODS event_args
       IMPORTING
         is_action     TYPE z2ui5_cl_agent_snapshot=>ty_s_action
@@ -763,16 +776,10 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             IF lv_event IS NOT INITIAL.
               DATA(lv_action_id) = ls_action-id.
               DATA(lv_action_event) = ls_action-event.
-              READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
-              " ids follow the document order: a value that shows or hides a
-              " control renumbers them - the id must still name the event whose
-              " policy was checked above
-              IF sy-subrc = 0 AND ( ls_action-event <> lv_action_event
-                  OR ls_action-policy = z2ui5_if_agent_app=>cs_policy-forbidden
-                  OR ls_action-policy = z2ui5_if_agent_app=>cs_policy-confirm ).
-                fail( |the values change the screen - action { lv_action_id } is no longer { lv_action_event }; | &&
-                      |fill the values without an event first, then fire it from the next snapshot| ).
-              ENDIF.
+              ls_action = action_again( id      = lv_action_id
+                                        event   = lv_action_event
+                                        refusal = |the values change the screen - action { lv_action_id } is no longer { lv_action_event }; | &&
+                                                  |fill the values without an event first, then fire it from the next snapshot| ).
             ENDIF.
             IF mv_dry_run = abap_true.
               " checked: the action, its policy, every value - the arguments
@@ -801,12 +808,9 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                 lt_picked = apply_pick( is_action = ls_action
                                         row_raw   = lv_row ).
                 analyze( ).
-                READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
-                IF sy-subrc = 0 AND ( ls_action-event <> lv_action_event
-                    OR ls_action-policy = z2ui5_if_agent_app=>cs_policy-forbidden
-                    OR ls_action-policy = z2ui5_if_agent_app=>cs_policy-confirm ).
-                  fail( |the pick changes the screen - action { lv_action_id } is no longer { lv_action_event }| ).
-                ENDIF.
+                ls_action = action_again( id      = lv_action_id
+                                          event   = lv_action_event
+                                          refusal = |the pick changes the screen - action { lv_action_id } is no longer { lv_action_event }| ).
               ENDIF.
               DATA(lt_tval) = event_args( is_action = ls_action
                                           t_given   = lt_arg
@@ -1556,6 +1560,20 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ENDIF.
     ENDIF.
     result = lt_pool[ 1 ].
+
+  ENDMETHOD.
+
+  METHOD action_again.
+
+    " ids follow the document order: a value that shows or hides a control
+    " renumbers them - the id must still name the event whose policy was
+    " checked, and an action the values hid is no longer there to fire
+    READ TABLE mo_snap->mt_action INTO result WITH KEY id = id. "#EC CI_SORTSEQ
+    IF sy-subrc <> 0 OR result-event <> event
+        OR result-policy = z2ui5_if_agent_app=>cs_policy-forbidden
+        OR result-policy = z2ui5_if_agent_app=>cs_policy-confirm.
+      fail( refusal ).
+    ENDIF.
 
   ENDMETHOD.
 

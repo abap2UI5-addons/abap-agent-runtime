@@ -177,6 +177,13 @@ CLASS ltcl_mcp IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = 415
                                         act = ls_response-status ).
 
+    " a simple request of a page - the media type is text/plain
+    ls_response = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                              body         = `{}`
+                                                              content_type = `text/plain;application/json` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 415
+                                        act = ls_response-status ).
+
   ENDMETHOD.
 
   METHOD cross_origin.

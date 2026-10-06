@@ -262,8 +262,16 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
                            text   = `cross-origin request refused - the Origin does not match the host of this endpoint` ).
       RETURN.
     ENDIF.
-    IF find( val  = to_lower( is_request-content_type )
-             sub  = `application/json` ) < 0.
+    " the media type itself, not a substring: text/plain;application/json
+    " is a simple request a page may send cross-site without a preflight
+    DATA(lv_media_type) = to_lower( is_request-content_type ).
+    DATA(lv_semicolon) = find( val = lv_media_type
+                               sub = `;` ).
+    IF lv_semicolon >= 0.
+      lv_media_type = substring( val = lv_media_type
+                                 len = lv_semicolon ).
+    ENDIF.
+    IF condense( lv_media_type ) <> `application/json`.
       result = http_error( status = 415
                            reason = `Unsupported Media Type`
                            code   = cs_error-invalid_request

@@ -102,6 +102,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
     METHODS audit_cleanup_range FOR TESTING.
+    METHODS admin_key_not_kept  FOR TESTING.
     METHODS pick_single         FOR TESTING.
     METHODS pick_multi          FOR TESTING.
     METHODS pick_refused        FOR TESTING.
@@ -595,6 +596,27 @@ CLASS ltcl_session IMPLEMENTATION.
     " delete that old - and no overflow
     cl_abap_unit_assert=>assert_equals( exp = 0
                                         act = z2ui5_cl_agent_audit=>cleanup( z2ui5_cl_agent_audit=>c_max_days + 1 ) ).
+
+  ENDMETHOD.
+
+  METHOD admin_key_not_kept.
+
+    " a key typed into the settings app and sent with another event than
+    " Save (here by a user who may not change anything) is not kept in the
+    " app's draft, nor sent back to the browser
+    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    lo_sim->set_value( name  = `LLM_KEY`
+                       value = `sk-unit-typed-key` ).
+    lo_sim->click( `LLM_TEST` ).
+    LOOP AT mo_store->mt_db INTO DATA(ls_db).
+      cl_abap_unit_assert=>assert_equals( exp = -1
+                                          act = find( val = ls_db-data
+                                                      sub = `sk-unit-typed-key` )
+                                          msg = |the typed key is in draft { ls_db-id }| ).
+    ENDLOOP.
+    cl_abap_unit_assert=>assert_equals( exp = -1
+                                        act = find( val = lo_sim->get_model( )
+                                                    sub = `sk-unit-typed-key` ) ).
 
   ENDMETHOD.
 

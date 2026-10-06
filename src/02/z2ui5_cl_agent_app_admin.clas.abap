@@ -101,6 +101,9 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
       view_display( ).
     ELSEIF client->check_on_event( ).
       on_event( ).
+      " the key is write-only: whatever the event, a typed key is neither
+      " kept in the draft of this app nor sent back to the browser
+      CLEAR llm_key.
     ENDIF.
 
   ENDMETHOD.

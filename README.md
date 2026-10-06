@@ -379,7 +379,7 @@ administrators only - every change is audited):
 
 | Setting | |
 | --- | --- |
-| API key | sent as `x-api-key`. Write-only: the app shows *set* / *not set*, never the key; *Remove key* deletes it. Stored in `Z2UI5_T_AG_SET` (kind `LLM`) - protect the table like any credential store, or leave the key empty and let the destination authenticate |
+| API key | sent as `x-api-key`. Write-only: the app shows *set* / *not set*, never the key; *Remove key* deletes it. A typed key is cleared after every event, so it never stays in the app's draft - only *Save* stores it. Stored in `Z2UI5_T_AG_SET` (kind `LLM`) - protect the table like any credential store, or leave the key empty and let the destination authenticate |
 | Destination | **ABAP Standard:** an SM59 destination of type G (host `api.anthropic.com`, port 443, SSL active, client identity `ANONYM` or `DFAULT`, proxy if your landscape needs one); the URL field is then the path (default `/v1/messages`). **ABAP Cloud:** a communication arrangement as `SCENARIO/SERVICE_ID` (or `SCENARIO/SERVICE_ID/COMM_SYSTEM`) - a customer communication scenario with an outbound HTTP service whose system points at `https://api.anthropic.com` (*to verify on your system*) |
 | URL | without a destination the full URL, default `https://api.anthropic.com/v1/messages` (ABAP Standard: the server certificate chain must be in the `ANONYM` PSE, `STRUST`; ABAP Cloud: `cl_http_destination_provider=>create_by_url`) |
 | Model / effort | default `claude-opus-5-5` / `low` (thinking is always on for this model and is never configured; `output_config.effort` is the only control - `low` keeps generated views and answers interactive) |

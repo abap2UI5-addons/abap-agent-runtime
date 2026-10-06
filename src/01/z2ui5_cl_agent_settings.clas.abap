@@ -140,6 +140,17 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
         item  TYPE clike OPTIONAL
         value TYPE clike OPTIONAL.
 
+    "! Why a setting does not fit the table (app and item 60, value 255
+    "! characters) - empty when it fits. save( ) would cut it, and a pattern
+    "! or a key cut short is another one.
+    CLASS-METHODS check_fits
+      IMPORTING
+        app           TYPE clike OPTIONAL
+        item          TYPE clike OPTIONAL
+        value         TYPE clike OPTIONAL
+      RETURNING
+        VALUE(result) TYPE string.
+
     CLASS-METHODS remove
       IMPORTING
         kind TYPE clike
@@ -363,6 +374,24 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ls_row-changed_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
     MODIFY z2ui5_t_ag_set FROM @ls_row.
     refresh( ).
+
+  ENDMETHOD.
+
+  METHOD check_fits.
+
+    DATA ls_row TYPE z2ui5_t_ag_set.
+
+    " the characters the columns hold
+    DATA(lv_app) = CAST cl_abap_elemdescr( cl_abap_typedescr=>describe_by_data( ls_row-app ) )->output_length.
+    DATA(lv_item) = CAST cl_abap_elemdescr( cl_abap_typedescr=>describe_by_data( ls_row-item ) )->output_length.
+    DATA(lv_value) = CAST cl_abap_elemdescr( cl_abap_typedescr=>describe_by_data( ls_row-value ) )->output_length.
+    IF strlen( app ) > lv_app.
+      result = |{ strlen( app ) } characters - an app pattern or user name holds at most { lv_app }|.
+    ELSEIF strlen( item ) > lv_item.
+      result = |{ strlen( item ) } characters - an event or field pattern holds at most { lv_item }|.
+    ELSEIF strlen( value ) > lv_value.
+      result = |{ strlen( value ) } characters - a value holds at most { lv_value }|.
+    ENDIF.
 
   ENDMETHOD.
 

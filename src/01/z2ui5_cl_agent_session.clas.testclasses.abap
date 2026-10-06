@@ -104,6 +104,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS audit_cleanup_range FOR TESTING.
     METHODS admin_key_not_kept  FOR TESTING.
     METHODS admin_change_kept   FOR TESTING.
+    METHODS admin_rule_fits     FOR TESTING.
     METHODS audit_admin_revoked FOR TESTING.
     METHODS pick_single         FOR TESTING.
     METHODS pick_multi          FOR TESTING.
@@ -643,6 +644,31 @@ CLASS ltcl_session IMPLEMENTATION.
     COMMIT WORK.
     cl_abap_unit_assert=>assert_equals( exp = 1
                                         act = lv_count ).
+
+  ENDMETHOD.
+
+  METHOD admin_rule_fits.
+
+    DATA lv_count TYPE i.
+
+    " a rule longer than the settings table holds is refused, not cut: a
+    " SENSITIVE pattern cut to 60 characters masks nothing
+    z2ui5_cl_agent_settings=>admin_add( sy-uname ).
+    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    lo_sim->set_value( name  = `NEW_KIND`
+                       value = `SENSITIVE` ).
+    lo_sim->set_value( name  = `NEW_APP`
+                       value = `*` ).
+    lo_sim->set_value( name  = `NEW_ITEM`
+                       value = `/MS_ORDER/S_PAYMENT/T_ACCOUNT/*/INTERNATIONAL_BANK_ACCOUNT_NUMBER` ).
+    lo_sim->click( `RULE_ADD` ).
+    SELECT COUNT(*) FROM z2ui5_t_ag_set WHERE kind = 'SENSITIVE' INTO @lv_count.
+    DELETE FROM z2ui5_t_ag_log WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 0
+                                        act = lv_count ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `The rule is too long: 65 characters*at most 60*`
+                                         act = lo_sim->get_message( ) ).
 
   ENDMETHOD.
 

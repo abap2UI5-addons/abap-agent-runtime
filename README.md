@@ -155,6 +155,8 @@ until an administrator enables it.
    your usual abap2UI5 ICF node or launchpad tile) and switch *Agents may
    operate apps* on. Here you also allow or deny app classes, classify events,
    mark sensitive fields, set the handover page and clean up the audit log.
+   A rule longer than the settings table holds (60 characters for the app
+   and the event or field, 255 for a value) is refused, not cut short.
 3. **Make the HTTP endpoint reachable:**
    - **ABAP Standard:** abapGit creates the ICF node `/sap/bc/z2ui5_agent`
      with the handler `Z2UI5_CL_AGENT_HTTP`. In transaction `SICF`, activate

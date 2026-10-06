@@ -271,12 +271,15 @@ CLASS ltcl_genui IMPLEMENTATION.
 
   METHOD bad_literal.
 
-    " an enum value with markup in it, a URI that is no icon
+    " an enum value with markup in it, a URI that is no icon, an icon name
+    " the font does not have
     mo_double->add_answer( valid_tree( VALUE #( ( node( id = `x` parent = `root` control = `sap.m.Button`
                                                         props = |{ prop( name = `type` value = `Emphasized" press="x` ) },| &&
                                                                 |{ prop( name = `icon` value = `javascript:alert(1)` ) }| ) )
                                                 ( node( id = `y` parent = `root` control = `sap.m.Input`
-                                                        props = prop( name = `maxLength` value = `5-` ) ) ) ) ) ).
+                                                        props = prop( name = `maxLength` value = `5-` ) ) )
+                                                ( node( id = `z` parent = `root` control = `sap.m.Button`
+                                                        props = prop( name = `icon` value = `sap-icon://a` ) ) ) ) ) ).
     DATA(sim) = run( ).
 
     cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
@@ -287,6 +290,8 @@ CLASS ltcl_genui IMPLEMENTATION.
                                          exp = `*icon = "javascript:alert(1)": only an icon URI of the SAP icon font*` ).
     cl_abap_unit_assert=>assert_char_cp( act = lv_report
                                          exp = `*maxLength = "5-": an integer*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*icon = "sap-icon://a": no icon of the SAP icon font at UI5 1.71*` ).
 
   ENDMETHOD.
 
@@ -417,17 +422,21 @@ CLASS ltcl_genui IMPLEMENTATION.
     cl_abap_unit_assert=>assert_char_cp( act = lv_report
                                          exp = `*node "sp" (sap.m.ToolbarSpacer): a sap.m.ToolbarSpacer belongs in a toolbar*` ).
 
-    " a column has visible, a spacer in a toolbar is laid out
+    " a column has visible, a spacer in a toolbar is laid out, an icon of
+    " the font is shown
     mo_double->add_answer( valid_tree( VALUE #(
         ( node( id = `c3` parent = `table` agg = `columns` control = `sap.m.Column` props = prop( name = `visible` value = `false` ) ) )
         ( node( id = `tb` parent = `root` control = `sap.m.Toolbar` ) )
         ( node( id = `sp` parent = `tb` control = `sap.m.ToolbarSpacer` ) )
-        ( node( id = `pi` parent = `root` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` value = `0.5` ) ) ) ) ) ).
+        ( node( id = `pi` parent = `root` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` value = `0.5` ) ) )
+        ( node( id = `ic` parent = `root` control = `sap.m.Button` props = prop( name = `icon` value = `sap-icon://add` ) ) ) ) ) ).
     sim = run( ).
 
     DATA(lv_popup) = sim->get_popup( ).
     cl_abap_unit_assert=>assert_char_cp( act = lv_popup
                                          exp = `*<Column visible="false"/>*<Toolbar><ToolbarSpacer/></Toolbar>*percentValue="0.5"*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_popup
+                                         exp = `*<Button icon="sap-icon://add"/>*` ).
 
   ENDMETHOD.
 

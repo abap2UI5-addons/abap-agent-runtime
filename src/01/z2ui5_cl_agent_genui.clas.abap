@@ -228,6 +228,8 @@ CLASS z2ui5_cl_agent_genui DEFINITION PUBLIC FINAL CREATE PRIVATE.
     DATA mt_dataset TYPE ty_t_dataset.
     DATA mt_event TYPE ty_t_event.
     DATA mt_vocab TYPE z2ui5_cl_agent_gen_vocab=>ty_t_entry.
+    "! The icon names of the font at the floor - read on the first icon.
+    DATA mt_icon TYPE SORTED TABLE OF string WITH NON-UNIQUE KEY table_line.
     DATA mt_node TYPE ty_t_node.
     DATA mt_issue TYPE string_table.
 
@@ -1229,6 +1231,16 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
         FIND REGEX `^sap-icon://[a-z0-9-]{1,60}$` IN value ##REGEX_POSIX.
         IF sy-subrc <> 0.
           result = `only an icon URI of the SAP icon font, e.g. sap-icon://add`.
+          RETURN.
+        ENDIF.
+        " a name the font does not have renders no icon at all - silently
+        IF mt_icon IS INITIAL.
+          mt_icon = z2ui5_cl_agent_gen_vocab=>get_icons( ).
+        ENDIF.
+        DATA(lv_icon) = substring_after( val = value
+                                         sub = `sap-icon://` ).
+        IF NOT line_exists( mt_icon[ table_line = lv_icon ] ).
+          result = |no icon of the SAP icon font at UI5 { z2ui5_cl_agent_gen_vocab=>c_floor } - e.g. sap-icon://add|.
         ENDIF.
       WHEN `E`.
         SPLIT info AT `|` INTO TABLE lt_value.

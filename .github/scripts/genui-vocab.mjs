@@ -11,13 +11,18 @@
  *                                          linter (package-lock.json pins it):
  *                                          property types, enum values, the
  *                                          aggregation types, class hierarchy
+ *   @abap2ui5/linter data/icons.json       the SAP icon font per release, the
+ *                                          same pin: the icon names a
+ *                                          generated view may use
  *
  * What it writes: one entry per control of the profile and per member the
  * profile allows on it - default aggregation (D), property with its type
  * class (P), aggregation with its multiplicity and type (A), event (E), and
  * the types a control can stand in for (T: itself, its ancestors, its
  * interfaces) - everything filtered to the UI5 1.71 floor (a member or an
- * enum value introduced later is left out).
+ * enum value introduced later is left out). get_icons( ): the names of the
+ * icon font at the floor that no later release removed, comma-separated in
+ * lines of whole names.
  *
  *   npm run genui:vocab            regenerate src/01/z2ui5_cl_agent_gen_vocab.clas.abap
  *   npm run genui:check            fail when the committed class is not what the pins generate
@@ -33,6 +38,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PIN = path.join(ROOT, ".github", "genui", "portable-v1.json");
 const META = path.join(ROOT, "node_modules", "@abap2ui5", "linter", "data", "properties.json");
+const ICONS = path.join(ROOT, "node_modules", "@abap2ui5", "linter", "data", "icons.json");
 const OUT = path.join(ROOT, "src", "01", "z2ui5_cl_agent_gen_vocab.clas.abap");
 const UPSTREAM = "https://raw.githubusercontent.com/abap2UI5/protocol/main/profiles/portable-v1.json";
 const FLOOR = "1.71";
@@ -61,7 +67,7 @@ async function upstream() {
   return res.text();
 }
 
-function generate(pinText, meta) {
+function generate(pinText, meta, icons) {
   const profile = JSON.parse(pinText);
   const controls = meta.controls;
 
@@ -183,6 +189,12 @@ function generate(pinText, meta) {
   lines.push(`      RETURNING`);
   lines.push(`        VALUE(result) TYPE ty_t_entry.`);
   lines.push(``);
+  lines.push(`    "! The icon names a sap-icon:// URI may carry: the SAP icon font at the`);
+  lines.push(`    "! floor without the ones a later release removed (the linter's data).`);
+  lines.push(`    CLASS-METHODS get_icons`);
+  lines.push(`      RETURNING`);
+  lines.push(`        VALUE(result) TYPE string_table.`);
+  lines.push(``);
   lines.push(`  PROTECTED SECTION.`);
   lines.push(``);
   lines.push(`  PRIVATE SECTION.`);
@@ -232,12 +244,51 @@ function generate(pinText, meta) {
   lines.push(``);
   lines.push(`  ENDMETHOD.`);
   lines.push(``);
+
+  // the icon names at the floor, a removed one (renamed later) left out:
+  // it renders nothing on the releases from its removal on
+  const removed = icons.removed || {};
+  const iconNames = Object.entries(icons.icons || {})
+    .filter(([n, since]) => !newer(since) && !removed[n])
+    .map(([n]) => n.toLowerCase())
+    .sort();
+  if (iconNames.length === 0) fail(`no icon at UI5 ${FLOOR} in ${path.relative(ROOT, ICONS)}`);
+  for (const n of iconNames) {
+    if (!/^[a-z0-9-]+$/.test(n)) fail(`icon name ${n} is no plain name`);
+  }
+  lines.push(`  METHOD get_icons.`);
+  lines.push(``);
+  lines.push(`    DATA lt_raw TYPE string_table.`);
+  lines.push(`    DATA lv_raw TYPE string.`);
+  lines.push(`    DATA lt_name TYPE string_table.`);
+  lines.push(``);
+  lines.push(`    " comma-separated, in lines of whole names`);
+  let cur = "";
+  for (const n of iconNames) {
+    const next = cur ? `${cur},${n}` : n;
+    if (next.length > 200 && cur) {
+      lines.push(`    APPEND ${q(cur)} TO lt_raw.`);
+      cur = n;
+    } else {
+      cur = next;
+    }
+  }
+  lines.push(`    APPEND ${q(cur)} TO lt_raw.`);
+  lines.push(``);
+  lines.push(`    LOOP AT lt_raw INTO lv_raw.`);
+  lines.push(`      SPLIT lv_raw AT ',' INTO TABLE lt_name.`);
+  lines.push(`      APPEND LINES OF lt_name TO result.`);
+  lines.push(`    ENDLOOP.`);
+  lines.push(``);
+  lines.push(`  ENDMETHOD.`);
+  lines.push(``);
   lines.push(`ENDCLASS.`);
-  return { text: lines.join("\n") + "\n", rows: rows.length, controls: names.length };
+  return { text: lines.join("\n") + "\n", rows: rows.length, controls: names.length, icons: iconNames.length };
 }
 
 const args = process.argv.slice(2);
 const meta = JSON.parse(fs.readFileSync(META, "utf8"));
+const icons = JSON.parse(fs.readFileSync(ICONS, "utf8"));
 
 if (args.includes("--drift") || args.includes("--update")) {
   const up = await upstream();
@@ -255,12 +306,12 @@ if (args.includes("--drift") || args.includes("--update")) {
 }
 
 const pinText = fs.readFileSync(PIN, "utf8");
-const out = generate(pinText, meta);
+const out = generate(pinText, meta, icons);
 if (args.includes("--check")) {
   const current = fs.existsSync(OUT) ? fs.readFileSync(OUT, "utf8") : "";
   if (current !== out.text) fail(`${path.relative(ROOT, OUT)} is not what the pins generate - run npm run genui:vocab`);
-  console.log(`genui-vocab: up to date (${out.controls} controls, ${out.rows} entries)`);
+  console.log(`genui-vocab: up to date (${out.controls} controls, ${out.rows} entries, ${out.icons} icons)`);
 } else {
   fs.writeFileSync(OUT, out.text);
-  console.log(`genui-vocab: wrote ${path.relative(ROOT, OUT)} (${out.controls} controls, ${out.rows} entries)`);
+  console.log(`genui-vocab: wrote ${path.relative(ROOT, OUT)} (${out.controls} controls, ${out.rows} entries, ${out.icons} icons)`);
 }

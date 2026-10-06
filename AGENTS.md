@@ -32,7 +32,7 @@ in step with every change.
 | `.github/abaplint/` | `abap_cloud.jsonc` (excludes 03), `abap_702.jsonc` (excludes 04, downport) |
 | `.github/workflows/` | `ABAP_STANDARD`, `ABAP_CLOUD`, `ABAP_702`, `ABAP_UNIT`, `check-abap2UI5`, `genui-vocab`, `publish-branches` |
 | `.github/scripts/unit.mjs` | `npm run unit` - the ABAP Unit tests on abap2UI5's transpiled runtime, in `.unit/` (git-ignored); `ABAP_UNIT` runs it |
-| `.github/scripts/genui-vocab.mjs` | `npm run genui:vocab` / `genui:check` / `genui:drift` - generates `z2ui5_cl_agent_gen_vocab` from `.github/genui/portable-v1.json` (pinned copy of abap2UI5/protocol `profiles/portable-v1.json`) and the linter's UI5 metadata |
+| `.github/scripts/genui-vocab.mjs` | `npm run genui:vocab` / `genui:check` / `genui:drift` - generates `z2ui5_cl_agent_gen_vocab` from `.github/genui/portable-v1.json` (pinned copy of abap2UI5/protocol `profiles/portable-v1.json`) and the linter's UI5 metadata and icon data |
 | `abaplint.jsonc` | ABAP Standard 7.50, the strict rule set (excludes 04) |
 | `abap2ui5lint.jsonc` | the abap2UI5 linter (UI5 1.71 floor, `chain-house-layout`) |
 

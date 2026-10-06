@@ -486,7 +486,7 @@ the tree and builds the XML itself with `z2ui5_cl_ui5_view_builder`:
 | controls | anything outside the **portable view profile v1** of the abap2UI5 protocol (65 controls, `z2ui5_cl_agent_gen_vocab`); also `sap.ui.core.HTML`, `Shell`, `Dialog`, `Popover`, `CustomData` and layout data |
 | tree | no or two roots, a missing parent, a cycle, a duplicate id, more than 200 nodes |
 | aggregations | an aggregation the parent does not have, a child of the wrong type, two children in a single aggregation, a `sap.m.ToolbarSpacer` in a `sap.m.Bar` or a page's `headerContent` (no flex container before UI5 1.76: it hides what follows it) |
-| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); `visible` on an element that has none (`sap.ui.core.Item`); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers with a digit before the point, CSS sizes, icons only as `sap-icon://...`, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids) |
+| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); `visible` on an element that has none (`sap.ui.core.Item`); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers with a digit before the point, CSS sizes, icons only as `sap-icon://...` with a name the SAP icon font has at UI5 1.71 and no later release removed, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids) |
 | bindings | a field that is not in the data handed over; relative bindings only inside the row template of a list bound to a table, absolute ones only to a structure; formats `integer` and `decimal` (typed bindings) and nothing else - no expressions, no formatters; a field the property cannot take (UI5 throws on it): a boolean property takes a boolean field, an integer or number property a number field, a CSS size or enum property a string field, a format only a number field |
 | lists | a list bound to a structure or an unknown dataset, sorting or grouping by an unknown field, not exactly one row template, a list inside a template |
 | events | an event the control does not have, an app event not in the app's list, an argument the app did not allow for it |
@@ -499,7 +499,7 @@ second answer is validated the same way. `render( json )` validates and builds
 a tree an app stored. The vocabulary is generated: `.github/genui/portable-v1.json`
 is a pinned copy of `profiles/portable-v1.json` of
 [abap2UI5/protocol](https://github.com/abap2UI5/protocol), typed with the UI5
-metadata of the abap2UI5 linter; `npm run genui:check` fails when
+metadata of the abap2UI5 linter, the icon names from its icon data; `npm run genui:check` fails when
 `z2ui5_cl_agent_gen_vocab` is not what the pins generate, `npm run
 genui:drift` when the pin is no longer upstream's (the `genui-vocab`
 workflow runs both, weekly as well).
@@ -511,7 +511,7 @@ view may fire `ROW_SELECT` (carrier, connection, date) and `REFRESH`.
 **Limits:** no filtering in the view (a filter control can fire an app event
 that takes its value); no nested lists, no NEST slots, no formatters beyond
 the two number formats; enum values and icon names are checked against the
-1.71 floor and the icon URI pattern, not against the icon font; the model
+1.71 floor (icon names against the font in the linter's icon data); the model
 can still build a poor layout - the validation guarantees safety, not taste.
 
 ### In-app copilot

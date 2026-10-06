@@ -104,6 +104,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS audit_cleanup_range FOR TESTING.
     METHODS admin_key_not_kept  FOR TESTING.
     METHODS admin_change_kept   FOR TESTING.
+    METHODS audit_admin_revoked FOR TESTING.
     METHODS pick_single         FOR TESTING.
     METHODS pick_multi          FOR TESTING.
     METHODS pick_refused        FOR TESTING.
@@ -642,6 +643,22 @@ CLASS ltcl_session IMPLEMENTATION.
     COMMIT WORK.
     cl_abap_unit_assert=>assert_equals( exp = 1
                                         act = lv_count ).
+
+  ENDMETHOD.
+
+  METHOD audit_admin_revoked.
+
+    " the audit log app shows everybody's calls only while the user is an
+    " agent administrator - not as long as its draft remembers that he was
+    z2ui5_cl_agent_settings=>admin_add( sy-uname ).
+    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_AUDIT` ).
+    z2ui5_cl_agent_settings=>remove( kind = z2ui5_cl_agent_settings=>cs_kind-admin
+                                     app  = sy-uname ).
+    COMMIT WORK.
+    lo_sim->set_bool( `ALL_USERS` ).
+    lo_sim->click( `SEARCH` ).
+    cl_abap_unit_assert=>assert_char_cp( exp = |*, user { sy-uname }*|
+                                         act = lo_sim->get_model( ) ).
 
   ENDMETHOD.
 

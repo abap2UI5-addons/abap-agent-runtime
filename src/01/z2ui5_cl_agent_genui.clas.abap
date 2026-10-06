@@ -307,6 +307,14 @@ CLASS z2ui5_cl_agent_genui DEFINITION PUBLIC FINAL CREATE PRIVATE.
       RETURNING
         VALUE(result) TYPE abap_bool.
 
+    "! The type of a field (ty_s_field-type) - empty when there is none.
+    METHODS type_of
+      IMPORTING
+        dataset       TYPE string
+        field         TYPE string
+      RETURNING
+        VALUE(result) TYPE string.
+
     METHODS build
       IMPORTING
         close_event   TYPE string
@@ -582,7 +590,8 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
            `parent's default aggregation).` INTO TABLE lt_line.
     INSERT `- properties: a literal in value (field and dataset ""), or a binding: field = a field name. Inside ` &&
            `the template of a list (see list) a field of that list's table; elsewhere set dataset to a structure ` &&
-           `dataset. format "integer" or "decimal" formats a numeric binding; anything else is not possible.` INTO TABLE lt_line.
+           `dataset. format "integer" or "decimal" formats a numeric binding; anything else is not possible. ` &&
+           `A binding fits its property: B a boolean field, I and F a number field, C and E a string field.` INTO TABLE lt_line.
     INSERT `- list binds an aggregation (default: the control's default aggregation) to a table dataset: that ` &&
            `aggregation then has exactly ONE child node, the row template (e.g. sap.m.ColumnListItem in a ` &&
            `sap.m.Table, sap.m.StandardListItem in a sap.m.List, sap.ui.core.Item in a sap.m.Select). sort_by ` &&
@@ -872,6 +881,18 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD type_of.
+
+    READ TABLE mt_dataset INTO DATA(ls_dataset) WITH KEY name = dataset. "#EC CI_SORTSEQ
+    IF sy-subrc = 0.
+      READ TABLE ls_dataset-t_field INTO DATA(ls_field) WITH KEY name = field. "#EC CI_SORTSEQ
+      IF sy-subrc = 0.
+        result = ls_field-type.
+      ENDIF.
+    ENDIF.
+
+  ENDMETHOD.
+
   METHOD validate.
 
     DATA lt_id TYPE string_table.
@@ -1077,6 +1098,7 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
     DATA lv_type TYPE string.
     DATA lv_info TYPE string.
+    DATA lv_dataset TYPE string.
 
     CASE prop-name.
       WHEN `tooltip`.
@@ -1133,20 +1155,43 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
                    field   = prop-field ) = abap_false.
         issue( node = node
                text = |{ prop-name } binds to "{ prop-field }" - no field of { node-scope }, the table of this row| ).
+        RETURN.
       ENDIF.
-      RETURN.
+      lv_dataset = node-scope.
+    ELSE.
+      READ TABLE mt_dataset INTO DATA(ls_dataset) WITH KEY name = prop-dataset. "#EC CI_SORTSEQ
+      IF sy-subrc <> 0 OR prop-dataset IS INITIAL.
+        issue( node = node
+               text = |{ prop-name } binds to "{ prop-field }" outside a row template without a structure dataset| ).
+        RETURN.
+      ELSEIF ls_dataset-is_table = abap_true.
+        issue( node = node
+               text = |{ prop-name } binds to the table { prop-dataset } outside its row template - bind a list instead| ).
+        RETURN.
+      ELSEIF field_of( dataset = prop-dataset
+                       field   = prop-field ) = abap_false.
+        issue( node = node
+               text = |{ prop-name } binds to "{ prop-field }" - no field of { prop-dataset }| ).
+        RETURN.
+      ENDIF.
+      lv_dataset = prop-dataset.
     ENDIF.
-    READ TABLE mt_dataset INTO DATA(ls_dataset) WITH KEY name = prop-dataset. "#EC CI_SORTSEQ
-    IF sy-subrc <> 0 OR prop-dataset IS INITIAL.
+
+    " the value as the property takes it - UI5 throws on a boolean, a
+    " number, a size or an enum value of another type (validateProperty),
+    " and a format formats a number
+    DATA(lv_field_type) = type_of( dataset = lv_dataset
+                                   field   = prop-field ).
+    DATA(lv_takes) = SWITCH string( lv_type
+                                    WHEN `B` THEN `boolean`
+                                    WHEN `I` OR `F` THEN `number`
+                                    WHEN `C` OR `E` THEN `string` ).
+    IF lv_takes IS NOT INITIAL AND lv_field_type <> lv_takes.
       issue( node = node
-             text = |{ prop-name } binds to "{ prop-field }" outside a row template without a structure dataset| ).
-    ELSEIF ls_dataset-is_table = abap_true.
+             text = |{ prop-name } takes a { lv_takes } field - "{ prop-field }" is a { lv_field_type } field| ).
+    ELSEIF prop-format IS NOT INITIAL AND lv_field_type <> `number`.
       issue( node = node
-             text = |{ prop-name } binds to the table { prop-dataset } outside its row template - bind a list instead| ).
-    ELSEIF field_of( dataset = prop-dataset
-                     field   = prop-field ) = abap_false.
-      issue( node = node
-             text = |{ prop-name } binds to "{ prop-field }" - no field of { prop-dataset }| ).
+             text = |{ prop-name }: format { prop-format } formats a number field - "{ prop-field }" is a { lv_field_type } field| ).
     ENDIF.
 
   ENDMETHOD.

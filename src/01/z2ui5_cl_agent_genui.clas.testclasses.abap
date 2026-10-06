@@ -29,6 +29,7 @@ CLASS ltcl_genui DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROU
     METHODS repair_round FOR TESTING RAISING cx_static_check.
     METHODS model_fails FOR TESTING RAISING cx_static_check.
     METHODS floor_views FOR TESTING RAISING cx_static_check.
+    METHODS binding_types FOR TESTING RAISING cx_static_check.
 
     METHODS repair
       IMPORTING
@@ -427,6 +428,34 @@ CLASS ltcl_genui IMPLEMENTATION.
     DATA(lv_popup) = sim->get_popup( ).
     cl_abap_unit_assert=>assert_char_cp( act = lv_popup
                                          exp = `*<Column visible="false"/>*<Toolbar><ToolbarSpacer/></Toolbar>*percentValue="0.5"*` ).
+
+  ENDMETHOD.
+
+  METHOD binding_types.
+
+    " a boolean property bound to a text, a number property bound to a text,
+    " a format on a text: UI5 throws on the first two, the third is no number
+    mo_double->add_answer( valid_tree( VALUE #(
+        ( node( id = `b1` parent = `row` control = `sap.m.CheckBox` props = prop( name = `selected` field = `STATUS` ) ) )
+        ( node( id = `b2` parent = `row` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` field = `CARRID` ) ) )
+        ( node( id = `b3` parent = `row` control = `sap.m.Text` props = prop( name = `text` field = `CARRID` format = `integer` ) ) ) ) ) ).
+    DATA(sim) = run( ).
+
+    cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
+    DATA(lv_report) = sim->get_value( `REPORT` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "b1" (sap.m.CheckBox): selected takes a boolean field - "STATUS" is a string field*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "b2" (sap.m.ProgressIndicator): percentValue takes a number field - "CARRID" is a string field*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "b3" (sap.m.Text): text: format integer formats a number field*` ).
+
+    " a number property bound to a number field
+    mo_double->add_answer( valid_tree( VALUE #(
+        ( node( id = `b2` parent = `row` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` field = `SEATSOCC` ) ) ) ) ) ).
+    sim = run( ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_popup( )
+                                         exp = `*<ProgressIndicator percentValue="{SEATSOCC}"/>*` ).
 
   ENDMETHOD.
 

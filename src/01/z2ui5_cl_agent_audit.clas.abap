@@ -15,6 +15,9 @@ CLASS z2ui5_cl_agent_audit DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     CONSTANTS c_max_args TYPE i VALUE 2000.
     CONSTANTS c_mask TYPE string VALUE `***`.
+    "! cleanup( ) keeps everything beyond this many days - days * 86400
+    "! seconds must stay an integer.
+    CONSTANTS c_max_days TYPE i VALUE 24855.
 
     CONSTANTS:
       BEGIN OF cs_outcome,
@@ -49,8 +52,9 @@ CLASS z2ui5_cl_agent_audit DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE ty_t_log.
 
-    "! Delete the entries older than the given number of days; returns how
-    "! many went.
+    "! Delete the entries older than the given number of days (1 to
+    "! c_max_days - any other number deletes nothing); returns how many
+    "! went.
     CLASS-METHODS cleanup
       IMPORTING
         days          TYPE i
@@ -114,6 +118,11 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
 
   METHOD cleanup.
 
+    " less than a day would delete what was just written; more than the
+    " seconds an integer holds (68 years) reaches back before any entry
+    IF days < 1 OR days > c_max_days.
+      RETURN.
+    ENDIF.
     DATA(lv_limit) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
                          time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
                          seconds = days * 86400 ).

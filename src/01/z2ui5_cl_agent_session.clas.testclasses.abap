@@ -101,6 +101,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS structure_table     FOR TESTING.
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
+    METHODS audit_cleanup_range FOR TESTING.
     METHODS pick_single         FOR TESTING.
     METHODS pick_multi          FOR TESTING.
     METHODS pick_refused        FOR TESTING.
@@ -585,6 +586,15 @@ CLASS ltcl_session IMPLEMENTATION.
                                          act = lv_args ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"NAME":"Gus"*`
                                          act = lv_args ).
+
+  ENDMETHOD.
+
+  METHOD audit_cleanup_range.
+
+    " days beyond what days * 86400 seconds holds as an integer: nothing to
+    " delete that old - and no overflow
+    cl_abap_unit_assert=>assert_equals( exp = 0
+                                        act = z2ui5_cl_agent_audit=>cleanup( z2ui5_cl_agent_audit=>c_max_days + 1 ) ).
 
   ENDMETHOD.
 

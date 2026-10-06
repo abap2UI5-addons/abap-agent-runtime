@@ -249,6 +249,11 @@ CLASS ltcl_session IMPLEMENTATION.
                                                  max_rows = `1` ) ).
     cl_abap_unit_assert=>assert_equals( exp = abap_true
                                         act = lo_two->get_boolean( `/tables/1/truncated` ) ).
+    " beyond any integer: clamped to the limit like any number above it
+    DATA(lo_many) = ok( mo_session->app_describe( session  = ls_result-session
+                                                  max_rows = `10000000000` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = abap_false
+                                        act = lo_many->get_boolean( `/tables/1/truncated` ) ).
 
   ENDMETHOD.
 

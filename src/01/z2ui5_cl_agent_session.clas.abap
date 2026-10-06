@@ -540,11 +540,13 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     IF ls_arg-static = abap_false OR ls_arg-val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-number.
       fail( |max_rows must be a number, not '{ val }' - leaving it out means { default }| ).
     ENDIF.
-    result = trunc( ls_arg-val-num ).
-    IF result < 0.
+    " clamped before it becomes an integer - 10000000000 does not fit one
+    IF ls_arg-val-num < 0.
       result = 0.
-    ELSEIF result > z2ui5_cl_agent_snapshot=>c_max_rows_limit.
+    ELSEIF ls_arg-val-num > z2ui5_cl_agent_snapshot=>c_max_rows_limit.
       result = z2ui5_cl_agent_snapshot=>c_max_rows_limit.
+    ELSE.
+      result = trunc( ls_arg-val-num ).
     ENDIF.
 
   ENDMETHOD.

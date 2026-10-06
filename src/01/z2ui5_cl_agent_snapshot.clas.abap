@@ -754,7 +754,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     SPLIT CONV string( path ) AT `/` INTO TABLE DATA(lt_seg).
     DELETE lt_seg WHERE table_line IS INITIAL.
-    IF lines( lt_seg ) > 1 AND lt_seg[ 1 ] = `XX`.
+    " read ahead: the 7.02 downport hoists a table expression out of the
+    " condition, and "/" has no first segment
+    DATA(lv_first) = VALUE string( lt_seg[ 1 ] OPTIONAL ).
+    IF lines( lt_seg ) > 1 AND lv_first = `XX`.
       DELETE lt_seg INDEX 1.
     ENDIF.
     result = concat_lines_of( table = lt_seg

@@ -239,6 +239,7 @@ CLASS ltcl_viewxml IMPLEMENTATION.
                                         act = z2ui5_cl_agent_snapshot=>name_of_path( `/XX/MS_HEAD/KUNNR` ) ).
     cl_abap_unit_assert=>assert_equals( exp = `NAME`
                                         act = z2ui5_cl_agent_snapshot=>name_of_path( `/NAME` ) ).
+    cl_abap_unit_assert=>assert_initial( z2ui5_cl_agent_snapshot=>name_of_path( `/` ) ).
 
   ENDMETHOD.
 
@@ -246,6 +247,9 @@ CLASS ltcl_viewxml IMPLEMENTATION.
 
     cl_abap_unit_assert=>assert_equals( exp = `"a\"b\\c\nd"`
                                         act = z2ui5_cl_agent_viewxml=>json_string( |a"b\\c{ cl_abap_char_utilities=>newline }d| ) ).
+    " a control character without a short escape - valid JSON all the same
+    cl_abap_unit_assert=>assert_equals( exp = `"a\u000bb"`
+                                        act = z2ui5_cl_agent_viewxml=>json_string( |a{ cl_abap_char_utilities=>vertical_tab }b| ) ).
     cl_abap_unit_assert=>assert_equals( exp = `1.5`
                                         act = z2ui5_cl_agent_viewxml=>number_normalize( `01.50` ) ).
     cl_abap_unit_assert=>assert_equals( exp = `ab...`

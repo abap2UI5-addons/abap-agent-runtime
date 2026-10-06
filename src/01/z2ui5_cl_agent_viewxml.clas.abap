@@ -336,6 +336,13 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CONSTANTS c_hex TYPE string VALUE `0123456789abcdefABCDEF`.
     CONSTANTS c_name_chars TYPE string VALUE `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-`.
     CONSTANTS c_path_chars TYPE string VALUE `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_$/.-`.
+    "! The UTF-8 bytes of the control characters json_string( ) writes as
+    "! \u00xx - the ones without a short escape.
+    CONSTANTS c_json_control_hex TYPE string VALUE `0102030405060B0E0F101112131415161718191A1B1C1D1E1F`.
+
+    "! c_json_control_hex as characters, built on first use.
+    CLASS-DATA gv_json_controls TYPE string.
+    CLASS-DATA gv_json_controls_set TYPE abap_bool.
 
     DATA mt_token TYPE ty_t_token.
     DATA mv_pos   TYPE i.
@@ -1734,6 +1741,26 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>horizontal_tab IN result WITH `\t`.
     REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>form_feed IN result WITH `\f`.
     REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>backspace IN result WITH `\b`.
+    " every other control character as \u00xx - unescaped it makes the
+    " whole document invalid JSON (a vertical tab of a long text)
+    IF gv_json_controls_set = abap_false.
+      TRY.
+          gv_json_controls = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( c_json_control_hex ) ).
+        CATCH cx_root.
+          CLEAR gv_json_controls.
+      ENDTRY.
+      gv_json_controls_set = abap_true.
+    ENDIF.
+    IF gv_json_controls IS NOT INITIAL AND result CA gv_json_controls.
+      DATA(lv_off) = 0.
+      WHILE lv_off < strlen( gv_json_controls ).
+        REPLACE ALL OCCURRENCES OF gv_json_controls+lv_off(1) IN result
+                WITH |\\u00{ to_lower( substring( val = c_json_control_hex
+                                                  off = lv_off * 2
+                                                  len = 2 ) ) }|.
+        lv_off = lv_off + 1.
+      ENDWHILE.
+    ENDIF.
     result = `"` && result && `"`.
 
   ENDMETHOD.

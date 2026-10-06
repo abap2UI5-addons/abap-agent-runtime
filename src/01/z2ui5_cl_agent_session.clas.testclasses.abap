@@ -91,6 +91,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS list_and_opt_in     FOR TESTING.
     METHODS act_values_event    FOR TESTING.
     METHODS earlier_session     FOR TESTING.
+    METHODS long_session_id     FOR TESTING.
     METHODS validation          FOR TESTING.
     METHODS policy              FOR TESTING.
     METHODS pending_values      FOR TESTING.
@@ -328,6 +329,24 @@ CLASS ltcl_session IMPLEMENTATION.
              pattern   = |*earlier state*'{ ls_act-session }'*| ).
     refused( is_result = mo_session->app_describe( `NO_SUCH_SESSION` )
              pattern   = `*unknown session*` ).
+
+  ENDMETHOD.
+
+  METHOD long_session_id.
+
+    " an id longer than the column is unknown - not the session of its first
+    " 32 characters, nor an earlier state of it
+    DATA(ls_start) = start( ).
+    refused( is_result = mo_session->app_describe( |{ ls_start-session }X| )
+             pattern   = |*unknown session '{ ls_start-session }X'*| ).
+    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+                                        values  = `{"NAME":"Eve"}`
+                                        event   = `ADD` ).
+    COMMIT WORK.
+    ok( ls_act ).
+    refused( is_result = mo_session->app_describe( |{ ls_start-session }X| )
+             pattern   = `*unknown session*` ).
+    ok( mo_session->app_describe( ls_act-session ) ).
 
   ENDMETHOD.
 

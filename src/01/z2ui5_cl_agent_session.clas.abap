@@ -972,18 +972,27 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       fail( `pass session - the session the last snapshot carried (app_start returns the first)` ).
     ENDIF.
     lv_id = condense( session ).
-    SELECT SINGLE * FROM z2ui5_t_ag_ses WHERE id = @lv_id AND uname = @sy-uname INTO @ms_row.
-    IF sy-subrc <> 0.
-      SELECT SINGLE id FROM z2ui5_t_ag_ses WHERE id_prev = @lv_id AND uname = @sy-uname INTO @DATA(lv_current).
-      IF sy-subrc = 0.
-        fail( |session '{ lv_id }' is an earlier state of this app session - continue with the current one: | &&
-              |'{ lv_current }' (app_describe shows it)| ).
+    " an id longer than the column is unknown - cut to it, an id with
+    " anything appended would continue the session of its prefix
+    DATA(lv_fits) = xsdbool( lv_id = condense( session ) ).
+    DATA(lv_found) = abap_false.
+    IF lv_fits = abap_true.
+      SELECT SINGLE * FROM z2ui5_t_ag_ses WHERE id = @lv_id AND uname = @sy-uname INTO @ms_row.
+      lv_found = xsdbool( sy-subrc = 0 ).
+    ENDIF.
+    IF lv_found = abap_false.
+      IF lv_fits = abap_true.
+        SELECT SINGLE id FROM z2ui5_t_ag_ses WHERE id_prev = @lv_id AND uname = @sy-uname INTO @DATA(lv_current).
+        IF sy-subrc = 0.
+          fail( |session '{ lv_id }' is an earlier state of this app session - continue with the current one: | &&
+                |'{ lv_current }' (app_describe shows it)| ).
+        ENDIF.
       ENDIF.
       SELECT id, app FROM z2ui5_t_ag_ses WHERE uname = @sy-uname ORDER BY changed_at DESCENDING INTO TABLE @DATA(lt_session).
       LOOP AT lt_session INTO DATA(ls_session).
         INSERT |{ ls_session-id } ({ ls_session-app })| INTO TABLE lt_open.
       ENDLOOP.
-      fail( |unknown session '{ lv_id }' - start one with app_start{ COND #( WHEN lt_open IS NOT INITIAL
+      fail( |unknown session '{ condense( session ) }' - start one with app_start{ COND #( WHEN lt_open IS NOT INITIAL
                                                                               THEN |; open sessions: { list_of( lt_open ) }| ) }| ).
     ENDIF.
 

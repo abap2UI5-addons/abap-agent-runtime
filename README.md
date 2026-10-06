@@ -289,7 +289,8 @@ nothing.
   to a human (below).
 - **Sessions belong to their user**: every read filters by `sy-uname`, the
   draft service binds drafts to their creator, and a session expires with its
-  draft. Only the current draft id of a session is accepted.
+  draft. Only the current draft id of a session is accepted - as it was
+  answered: an id with anything appended is unknown, never its prefix.
 - **Audit log** (`Z2UI5_T_AG_LOG`, app `z2ui5_cl_agent_app_audit`): timestamp,
   user, session, app, operation, event, arguments (truncated; values masked for
   password inputs - and any field on the model path of one - and for fields

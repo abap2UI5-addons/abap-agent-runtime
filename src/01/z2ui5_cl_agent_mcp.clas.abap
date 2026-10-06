@@ -248,8 +248,10 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDIF.
 
     IF lv_method = `DELETE`.
-      IF is_request-session_id IS NOT INITIAL.
-        DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( is_request-session_id ).
+      DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( is_request-session_id ).
+      " an id longer than the column is none - cut to it, an id with
+      " anything appended would end the session of its prefix
+      IF is_request-session_id IS NOT INITIAL AND lv_session = is_request-session_id.
         DELETE FROM z2ui5_t_ag_mcp WHERE id = @lv_session AND uname = @sy-uname.
       ENDIF.
       result = VALUE #( status = 200
@@ -352,6 +354,10 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       RETURN.
     ENDIF.
     DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( ms_request-session_id ).
+    " a longer id is unknown, never the session of its first 32 characters
+    IF lv_session <> ms_request-session_id.
+      RETURN.
+    ENDIF.
     SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_session AND uname = @sy-uname INTO @DATA(lv_client).
     IF sy-subrc = 0.
       mv_client = lv_client.

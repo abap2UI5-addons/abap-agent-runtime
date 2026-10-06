@@ -81,6 +81,7 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS content_type        FOR TESTING.
     METHODS cross_origin        FOR TESTING.
     METHODS delete_cross_origin FOR TESTING.
+    METHODS long_session_id     FOR TESTING.
     METHODS parse_error         FOR TESTING.
     METHODS invalid_request     FOR TESTING.
     METHODS invalid_id          FOR TESTING.
@@ -216,6 +217,41 @@ CLASS ltcl_mcp IMPLEMENTATION.
                                                                     host       = `sap.example:443` ) ).
     cl_abap_unit_assert=>assert_equals( exp = 403
                                         act = ls_response-status ).
+    SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_id INTO @DATA(lv_client).
+    cl_abap_unit_assert=>assert_subrc( exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( exp = `unit-test 1.0`
+                                        act = lv_client ).
+
+  ENDMETHOD.
+
+  METHOD long_session_id.
+
+    DATA lv_count TYPE i.
+
+    DATA(ls_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",` &&
+                          `"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
+    DATA(lv_session) = ls_init-t_header[ name = `Mcp-Session-Id` ]-value. "#EC CI_SORTSEQ
+    DATA(lv_id) = CONV z2ui5_t_ag_mcp-id( lv_session ).
+
+    " an id longer than the column is none: it names no client in the audit
+    " log ...
+    NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                content_type = `application/json`
+                                                session_id   = |{ lv_session }X|
+                                                body         = `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":` &&
+                                                               `{"name":"app_list","arguments":{"filter":"long_session_id"}}}` ) ).
+    COMMIT WORK.
+    SELECT COUNT(*) FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND operation = 'app_list' AND mcp_client = 'unit-test 1.0' AND timestampl >= @mv_start
+      INTO @lv_count.
+    DELETE FROM z2ui5_t_ag_log WHERE uname = @sy-uname AND operation = 'app_list' AND timestampl >= @mv_start.
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 0
+                                        act = lv_count ).
+
+    " ... and ends no session of its first 32 characters
+    NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method     = `DELETE`
+                                                session_id = |{ lv_session }X| ) ).
     SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_id INTO @DATA(lv_client).
     cl_abap_unit_assert=>assert_subrc( exp = 0 ).
     cl_abap_unit_assert=>assert_equals( exp = `unit-test 1.0`

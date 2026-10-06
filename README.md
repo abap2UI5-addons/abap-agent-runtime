@@ -395,9 +395,10 @@ tokens. The request is the Messages API, non-streaming:
 `anthropic-version: 2023-06-01` (+ `anthropic-beta` for the fallback), body
 `{"model","max_tokens","system","messages","output_config":{"effort","format":{"type":"json_schema","schema"}},"fallbacks":"default"}`.
 The answer is the first `text` block; `stop_reason` is checked first - a
-`refusal` and a `max_tokens` answer raise `z2ui5_cx_agent_llm` and are never
-parsed. HTTP 408, 429, 5xx and 529 raise it with `retryable = abap_true`,
-other errors without; the addon does not retry on its own.
+`refusal`, a `max_tokens` and a `model_context_window_exceeded` answer raise
+`z2ui5_cx_agent_llm` and are never parsed. HTTP 408, 429, 5xx and 529 raise
+it with `retryable = abap_true`, other errors without; the addon does not
+retry on its own.
 
 **Your own provider:**
 

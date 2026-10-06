@@ -16,6 +16,7 @@ CLASS ltcl_llm DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROUS.
     METHODS defaults_and_json FOR TESTING RAISING cx_static_check.
     METHODS refusal_refused FOR TESTING RAISING cx_static_check.
     METHODS max_tokens_refused FOR TESTING RAISING cx_static_check.
+    METHODS context_window_refused FOR TESTING RAISING cx_static_check.
     METHODS not_the_json FOR TESTING RAISING cx_static_check.
     METHODS audit_without_prompt FOR TESTING RAISING cx_static_check.
     METHODS audit_with_prompt FOR TESTING RAISING cx_static_check.
@@ -133,6 +134,23 @@ CLASS ltcl_llm IMPLEMENTATION.
         cl_abap_unit_assert=>assert_equals( act = lx->kind
                                             exp = z2ui5_cx_agent_llm=>cs_kind-max_tokens ).
     ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD context_window_refused.
+
+    " cut off by the full context window - valid JSON or not, never an answer
+    mo_double->add_answer( text        = `{"a":"cut"}`
+                           stop_reason = z2ui5_if_agent_llm=>cs_stop-context_window ).
+    TRY.
+        z2ui5_cl_agent_llm=>create( )->chat( request( ) ).
+        cl_abap_unit_assert=>fail( `model_context_window_exceeded must raise` ).
+      CATCH z2ui5_cx_agent_llm INTO DATA(lx).
+        cl_abap_unit_assert=>assert_equals( act = lx->kind
+                                            exp = z2ui5_cx_agent_llm=>cs_kind-max_tokens ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( act = last_log( )-outcome
+                                        exp = `error` ).
 
   ENDMETHOD.
 

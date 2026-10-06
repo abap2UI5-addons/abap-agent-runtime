@@ -11,9 +11,9 @@
 "! the provider class (default z2ui5_cl_agent_llm_anthropic, or a class of
 "! your own implementing z2ui5_if_agent_llm - SAP AI Core, Bedrock, a
 "! gateway), and wraps it. The wrapper fills in the effort and max_tokens
-"! of the settings, refuses an answer that stopped for refusal or
-"! max_tokens (z2ui5_cx_agent_llm - never parsed), parses a structured
-"! answer into json, and writes one audit entry per call into
+"! of the settings, refuses an answer that stopped for refusal, max_tokens
+"! or a full context window (z2ui5_cx_agent_llm - never parsed), parses a
+"! structured answer into json, and writes one audit entry per call into
 "! Z2UI5_T_AG_LOG (operation llm): who, which app, purpose, model, tokens,
 "! duration, outcome - the prompt and the answer only when the setting
 "! log_prompts is on.
@@ -238,6 +238,12 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
             EXPORTING
               kind = z2ui5_cx_agent_llm=>cs_kind-max_tokens
               text = |the answer of the language model was cut off at { ls_request-max_tokens } tokens (stop reason max_tokens)|.
+        ENDIF.
+        IF result-stop_reason = z2ui5_if_agent_llm=>cs_stop-context_window.
+          RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
+            EXPORTING
+              kind = z2ui5_cx_agent_llm=>cs_kind-max_tokens
+              text = |the answer of the language model was cut off - the context window is full (stop reason { result-stop_reason })|.
         ENDIF.
         IF ls_request-schema IS NOT INITIAL AND result-json IS NOT BOUND.
           TRY.

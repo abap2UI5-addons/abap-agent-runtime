@@ -23,7 +23,7 @@
 "!   - raises z2ui5_cx_agent_llm for a failed call (HTTP error, timeout,
 "!     unreadable answer) with retryable set for a transient failure (429,
 "!     5xx, timeout); it need not check stop_reason itself - the wrapper
-"!     refuses a refusal and a max_tokens answer
+"!     refuses a refusal, a max_tokens and a context_window answer
 "!   - never logs the prompt - auditing is the wrapper's job.
 INTERFACE z2ui5_if_agent_llm PUBLIC.
 
@@ -46,12 +46,14 @@ INTERFACE z2ui5_if_agent_llm PUBLIC.
 
   CONSTANTS:
     "! Why the model stopped. Only end_turn (and stop_sequence) is an answer;
-    "! refusal and max_tokens are errors (z2ui5_cx_agent_llm).
+    "! refusal, max_tokens and context_window (the context window filled up
+    "! before the answer was complete) are errors (z2ui5_cx_agent_llm).
     BEGIN OF cs_stop,
-      end_turn      TYPE string VALUE `end_turn`,
-      stop_sequence TYPE string VALUE `stop_sequence`,
-      max_tokens    TYPE string VALUE `max_tokens`,
-      refusal       TYPE string VALUE `refusal`,
+      end_turn       TYPE string VALUE `end_turn`,
+      stop_sequence  TYPE string VALUE `stop_sequence`,
+      max_tokens     TYPE string VALUE `max_tokens`,
+      refusal        TYPE string VALUE `refusal`,
+      context_window TYPE string VALUE `model_context_window_exceeded`,
     END OF cs_stop.
 
   TYPES:

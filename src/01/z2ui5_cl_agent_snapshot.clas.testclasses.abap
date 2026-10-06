@@ -23,6 +23,7 @@ CLASS ltcl_snapshot DEFINITION FINAL
     METHODS message_lists   FOR TESTING.
     METHODS select_dialogs  FOR TESTING.
     METHODS secret_path     FOR TESTING.
+    METHODS named_model_key FOR TESTING.
 
     METHODS synthetic
       IMPORTING
@@ -457,6 +458,21 @@ CLASS ltcl_snapshot IMPLEMENTATION.
     cl_abap_unit_assert=>assert_true( lo_snap->is_secret( `f1` ) ).
     cl_abap_unit_assert=>assert_true( lo_snap->is_secret( `f2` ) ).
     cl_abap_unit_assert=>assert_false( lo_snap->is_secret( `f3` ) ).
+
+  ENDMETHOD.
+
+  METHOD named_model_key.
+
+    " bound to another model by the object syntax's model: neither a field
+    " nor an editable table of the default model, where a value would land
+    DATA(lo_snap) = synthetic( xml   = `<Input value="{path:'/A', model:'other'}"/>` &&
+                                       `<Table items="{path:'/T', model:'other'}"><columns><Column><Text text="N"/></Column></columns>` &&
+                                       `<items><ColumnListItem><cells><Input value="{N}"/></cells></ColumnListItem></items></Table>`
+                               model = `{"A":"a","T":[{"N":1}]}` ).
+    cl_abap_unit_assert=>assert_initial( lo_snap->mt_field ).
+    cl_abap_unit_assert=>assert_initial( lo_snap->mt_table ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*field Input bound to the named model 'other'*`
+                                         act = lo_snap->get_json( ) ).
 
   ENDMETHOD.
 

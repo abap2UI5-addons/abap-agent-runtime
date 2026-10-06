@@ -129,6 +129,15 @@ CLASS ltcl_viewxml IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = `/SUM`
                                         act = ls_b-t_part[ 2 ]-path ).
 
+    " the model of the object syntax names a model too - not the default one
+    ls_b = z2ui5_cl_agent_viewxml=>parse_binding( `{ path: '/A', model: 'other' }` ).
+    cl_abap_unit_assert=>assert_equals( exp = z2ui5_cl_agent_viewxml=>cs_binding-path
+                                        act = ls_b-kind ).
+    cl_abap_unit_assert=>assert_equals( exp = `other`
+                                        act = ls_b-model ).
+    cl_abap_unit_assert=>assert_equals( exp = `/A`
+                                        act = ls_b-path ).
+
     " a formatter makes it one-way
     cl_abap_unit_assert=>assert_equals( exp = z2ui5_cl_agent_viewxml=>cs_binding-composite
                                         act = z2ui5_cl_agent_viewxml=>parse_binding( `{ path: '/D', formatter: 'f.x' }` )-kind ).

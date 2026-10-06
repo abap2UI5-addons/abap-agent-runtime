@@ -1204,6 +1204,14 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       ELSE.
         result-path = lv_path.
       ENDIF.
+      " model: 'name' binds to that model as well as name>/path does - a
+      " value written to the default model's path would land elsewhere
+      DATA(lv_model_key) = key_quoted_value( EXPORTING body  = lv_b
+                                                       key   = `model`
+                                             IMPORTING found = lv_found ).
+      IF lv_found = abap_true AND lv_model_key IS NOT INITIAL.
+        result-model = lv_model_key.
+      ENDIF.
       result-relative = xsdbool( result-path IS INITIAL OR result-path(1) <> `/` ).
       result-type = key_quoted_value( body = lv_b
                                       key  = `type` ).

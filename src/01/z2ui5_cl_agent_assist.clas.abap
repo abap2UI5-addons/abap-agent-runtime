@@ -295,14 +295,17 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
           DATA(lv_columns) = lines( lo_json->members( |{ lv_table }/columns| ) ).
           DO lv_columns TIMES.
             DATA(lv_column) = lo_json->get_string( |{ lv_table }/columns/{ sy-index }/name| ).
-            IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
-                                                         path = |{ lv_path }/{ lv_column }|
-                                                         name = lv_column ) = abap_false.
-              CONTINUE.
-            ENDIF.
+            DATA(lv_column_masked) = z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                                               path = |{ lv_path }/{ lv_column }|
+                                                                               name = lv_column ).
             DATA(lv_rows) = lines( lo_json->members( |{ lv_table }/rows| ) ).
             DO lv_rows TIMES.
-              IF lo_json->exists( |{ lv_table }/rows/{ sy-index }/{ lv_column }| ) = abap_true.
+              " a cell by its model path too (/T_PARTNER/*/IBAN), as the audit log masks it
+              IF lo_json->exists( |{ lv_table }/rows/{ sy-index }/{ lv_column }| ) = abap_true
+                  AND ( lv_column_masked = abap_true
+                        OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                                     path = |{ lv_path }/{ sy-index - 1 }/{ lv_column }|
+                                                                     name = lv_column ) = abap_true ).
                 lo_json->set( iv_path = |{ lv_table }/rows/{ sy-index }/{ lv_column }|
                               iv_val  = c_mask ).
               ENDIF.
@@ -329,8 +332,31 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
   METHOD check_protected.
 
+    DATA lv_index TYPE i.
+
     CLEAR: label, path.
-    LOOP AT io_snap->mt_field INTO DATA(ls_field) WHERE id = field OR path = field OR name = field. "#EC CI_SORTSEQ
+    " the field app_check( ) resolves the key to: by id, by path, by name in
+    " any case - in that order, as the session resolves it
+    LOOP AT io_snap->mt_field INTO DATA(ls_field) WHERE id = field. "#EC CI_SORTSEQ
+      lv_index = sy-tabix.
+      EXIT.
+    ENDLOOP.
+    IF lv_index = 0.
+      LOOP AT io_snap->mt_field INTO ls_field WHERE path = field. "#EC CI_SORTSEQ
+        lv_index = sy-tabix.
+        EXIT.
+      ENDLOOP.
+    ENDIF.
+    IF lv_index = 0.
+      DATA(lv_upper) = to_upper( field ).
+      LOOP AT io_snap->mt_field INTO ls_field.
+        IF to_upper( ls_field-name ) = lv_upper.
+          lv_index = sy-tabix.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+    IF lv_index > 0.
       label = ls_field-label.
       path = ls_field-path.
       IF ls_field-secret = abap_true
@@ -340,14 +366,27 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         result = abap_true.
       ENDIF.
       RETURN.
-    ENDLOOP.
-    " a table cell "<table>/<row>/<COLUMN>": sensitive by its column
+    ENDIF.
+
+    " a table cell "<table path or id>/<row>/<COLUMN>": sensitive by its
+    " column or by its model path, as the audit log judges it
     DATA(lt_part) = VALUE string_table( ).
     SPLIT field AT `/` INTO TABLE lt_part.
-    DATA(lv_column) = VALUE string( lt_part[ lines( lt_part ) ] OPTIONAL ).
-    IF lines( lt_part ) > 1 AND z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
-                                                                          path = field
-                                                                          name = lv_column ) = abap_true.
+    DATA(lv_count) = lines( lt_part ).
+    DATA(lv_column) = VALUE string( lt_part[ lv_count ] OPTIONAL ).
+    DATA(lv_path) = CONV string( field ).
+    IF lv_count >= 3.
+      DATA(lv_row) = VALUE string( lt_part[ lv_count - 1 ] OPTIONAL ).
+      DATA(lv_table) = substring( val = field
+                                  len = strlen( field ) - strlen( lv_row ) - strlen( lv_column ) - 2 ).
+      LOOP AT io_snap->mt_table INTO DATA(ls_table) WHERE id = lv_table OR path = lv_table. "#EC CI_SORTSEQ
+        lv_path = |{ ls_table-path }/{ lv_row }/{ lv_column }|.
+        EXIT.
+      ENDLOOP.
+    ENDIF.
+    IF lv_count > 1 AND z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                                  path = lv_path
+                                                                  name = lv_column ) = abap_true.
       result = abap_true.
     ENDIF.
 

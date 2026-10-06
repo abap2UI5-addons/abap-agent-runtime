@@ -271,6 +271,17 @@ CLASS ltcl_copilot IMPLEMENTATION.
     cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
                                          exp = `*not offered: the field /IBAN is protected*` ).
 
+    " by its name in another case - app_check( ) resolves that to the same field
+    mo_double->add_answer( answer( text    = `Done.`
+                                   wanted  = abap_true
+                                   summary = `change the IBAN`
+                                   values  = `{"field":"iban","value":"DE00"}` ) ).
+    ask( sim      = sim
+         question = `Change my IBAN` ).
+
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
+                                         exp = `*not offered: the field iban is protected*` ).
+
   ENDMETHOD.
 
   METHOD confirm_needs_the_click.

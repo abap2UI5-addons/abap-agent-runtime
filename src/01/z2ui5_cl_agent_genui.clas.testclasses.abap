@@ -28,6 +28,7 @@ CLASS ltcl_genui DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROU
     METHODS tree_shape FOR TESTING RAISING cx_static_check.
     METHODS repair_round FOR TESTING RAISING cx_static_check.
     METHODS model_fails FOR TESTING RAISING cx_static_check.
+    METHODS floor_views FOR TESTING RAISING cx_static_check.
 
     METHODS repair
       IMPORTING
@@ -390,6 +391,42 @@ CLASS ltcl_genui IMPLEMENTATION.
                                         exp = `assistant` ).
     cl_abap_unit_assert=>assert_char_cp( act = lt_message[ 3 ]-content
                                          exp = `The UI tree was rejected:*"PASSWORD" - no field of flights*` ).
+
+  ENDMETHOD.
+
+  METHOD floor_views.
+
+    " visible is no property of an item, ".5" no float to the linter, and a
+    " spacer in a sap.m.Bar hides what follows it at UI5 1.71
+    mo_double->add_answer( valid_tree( VALUE #(
+        ( node( id = `sel` parent = `root` control = `sap.m.Select` ) )
+        ( node( id = `item` parent = `sel` control = `sap.ui.core.Item`
+                props = |{ prop( name = `text` value = `A` ) },{ prop( name = `visible` value = `false` ) }| ) )
+        ( node( id = `pi` parent = `root` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` value = `.5` ) ) )
+        ( node( id = `bar` parent = `root` control = `sap.m.Bar` ) )
+        ( node( id = `sp` parent = `bar` agg = `contentLeft` control = `sap.m.ToolbarSpacer` ) ) ) ) ).
+    DATA(sim) = run( ).
+
+    cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
+    DATA(lv_report) = sim->get_value( `REPORT` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "item" (sap.ui.core.Item): unknown property "visible"*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*percentValue = ".5": a number*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "sp" (sap.m.ToolbarSpacer): a sap.m.ToolbarSpacer belongs in a toolbar*` ).
+
+    " a column has visible, a spacer in a toolbar is laid out
+    mo_double->add_answer( valid_tree( VALUE #(
+        ( node( id = `c3` parent = `table` agg = `columns` control = `sap.m.Column` props = prop( name = `visible` value = `false` ) ) )
+        ( node( id = `tb` parent = `root` control = `sap.m.Toolbar` ) )
+        ( node( id = `sp` parent = `tb` control = `sap.m.ToolbarSpacer` ) )
+        ( node( id = `pi` parent = `root` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` value = `0.5` ) ) ) ) ) ).
+    sim = run( ).
+
+    DATA(lv_popup) = sim->get_popup( ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_popup
+                                         exp = `*<Column visible="false"/>*<Toolbar><ToolbarSpacer/></Toolbar>*percentValue="0.5"*` ).
 
   ENDMETHOD.
 

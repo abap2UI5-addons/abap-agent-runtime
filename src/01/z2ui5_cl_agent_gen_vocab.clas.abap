@@ -52,6 +52,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
 
     " one line per entry - control;kind;name;type;info - in statements
     " every release reads as they are, so the downport has nothing to do
+    APPEND `sap.m.Bar;P;visible;B` TO lt_raw.
     APPEND `sap.m.Bar;A;contentLeft;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Bar;A;contentMiddle;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Bar;A;contentRight;M;sap.ui.core.Control` TO lt_raw.
@@ -65,6 +66,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Button;P;icon;U` TO lt_raw.
     APPEND `sap.m.Button;P;text;S` TO lt_raw.
     APPEND `sap.m.Button;P;type;E;Default|Back|Accept|Reject|Transparent|Ghost|Up|Unstyled|Emphasized` TO lt_raw.
+    APPEND `sap.m.Button;P;visible;B` TO lt_raw.
     APPEND `sap.m.Button;P;width;C` TO lt_raw.
     APPEND `sap.m.Button;E;press` TO lt_raw.
     APPEND `sap.m.Button;T;sap.m.Button` TO lt_raw.
@@ -81,6 +83,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.CheckBox;P;selected;B` TO lt_raw.
     APPEND `sap.m.CheckBox;P;text;S` TO lt_raw.
     APPEND `sap.m.CheckBox;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
+    APPEND `sap.m.CheckBox;P;visible;B` TO lt_raw.
     APPEND `sap.m.CheckBox;P;wrapping;B` TO lt_raw.
     APPEND `sap.m.CheckBox;E;select` TO lt_raw.
     APPEND `sap.m.CheckBox;T;sap.m.CheckBox` TO lt_raw.
@@ -97,6 +100,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Column;P;hAlign;E;Begin|End|Left|Right|Center|Initial` TO lt_raw.
     APPEND `sap.m.Column;P;mergeDuplicates;B` TO lt_raw.
     APPEND `sap.m.Column;P;minScreenWidth;S` TO lt_raw.
+    APPEND `sap.m.Column;P;visible;B` TO lt_raw.
     APPEND `sap.m.Column;P;width;C` TO lt_raw.
     APPEND `sap.m.Column;A;header;S;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Column;T;sap.m.Column` TO lt_raw.
@@ -107,6 +111,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.ColumnListItem;P;selected;B` TO lt_raw.
     APPEND `sap.m.ColumnListItem;P;type;E;Inactive|Detail|Navigation|Active|DetailAndActive` TO lt_raw.
     APPEND `sap.m.ColumnListItem;P;vAlign;E;Bottom|Middle|Top|Inherit` TO lt_raw.
+    APPEND `sap.m.ColumnListItem;P;visible;B` TO lt_raw.
     APPEND `sap.m.ColumnListItem;A;cells;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.ColumnListItem;E;detailPress` TO lt_raw.
     APPEND `sap.m.ColumnListItem;E;press` TO lt_raw.
@@ -123,6 +128,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.ComboBox;P;value;S` TO lt_raw.
     APPEND `sap.m.ComboBox;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
     APPEND `sap.m.ComboBox;P;valueStateText;S` TO lt_raw.
+    APPEND `sap.m.ComboBox;P;visible;B` TO lt_raw.
     APPEND `sap.m.ComboBox;P;width;C` TO lt_raw.
     APPEND `sap.m.ComboBox;A;items;M;sap.ui.core.Item` TO lt_raw.
     APPEND `sap.m.ComboBox;E;change` TO lt_raw.
@@ -140,6 +146,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.ComboBox;T;sap.ui.core.ISemanticFormContent` TO lt_raw.
     APPEND `sap.m.CustomListItem;D;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.CustomListItem;P;selected;B` TO lt_raw.
+    APPEND `sap.m.CustomListItem;P;visible;B` TO lt_raw.
     APPEND `sap.m.CustomListItem;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.CustomListItem;T;sap.m.CustomListItem` TO lt_raw.
     APPEND `sap.m.CustomListItem;T;sap.m.ListItemBase` TO lt_raw.
@@ -156,6 +163,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.DatePicker;P;valueFormat;S` TO lt_raw.
     APPEND `sap.m.DatePicker;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
     APPEND `sap.m.DatePicker;P;valueStateText;S` TO lt_raw.
+    APPEND `sap.m.DatePicker;P;visible;B` TO lt_raw.
     APPEND `sap.m.DatePicker;P;width;C` TO lt_raw.
     APPEND `sap.m.DatePicker;E;change` TO lt_raw.
     APPEND `sap.m.DatePicker;T;sap.m.DatePicker` TO lt_raw.
@@ -178,6 +186,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.DateTimePicker;P;valueFormat;S` TO lt_raw.
     APPEND `sap.m.DateTimePicker;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
     APPEND `sap.m.DateTimePicker;P;valueStateText;S` TO lt_raw.
+    APPEND `sap.m.DateTimePicker;P;visible;B` TO lt_raw.
     APPEND `sap.m.DateTimePicker;P;width;C` TO lt_raw.
     APPEND `sap.m.DateTimePicker;E;change` TO lt_raw.
     APPEND `sap.m.DateTimePicker;T;sap.m.DatePicker` TO lt_raw.
@@ -205,6 +214,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Dialog;P;title;S` TO lt_raw.
     APPEND `sap.m.Dialog;P;type;E;Standard|Message` TO lt_raw.
     APPEND `sap.m.Dialog;P;verticalScrolling;B` TO lt_raw.
+    APPEND `sap.m.Dialog;P;visible;B` TO lt_raw.
     APPEND `sap.m.Dialog;A;beginButton;S;sap.m.Button` TO lt_raw.
     APPEND `sap.m.Dialog;A;buttons;M;sap.m.Button` TO lt_raw.
     APPEND `sap.m.Dialog;A;content;M;sap.ui.core.Control` TO lt_raw.
@@ -225,6 +235,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.FlexBox;P;height;C` TO lt_raw.
     APPEND `sap.m.FlexBox;P;justifyContent;E;Start|End|Center|SpaceBetween|SpaceAround|Inherit` TO lt_raw.
     APPEND `sap.m.FlexBox;P;renderType;E;Div|List|Bare` TO lt_raw.
+    APPEND `sap.m.FlexBox;P;visible;B` TO lt_raw.
     APPEND `sap.m.FlexBox;P;width;C` TO lt_raw.
     APPEND `sap.m.FlexBox;P;wrap;E;NoWrap|Wrap|WrapReverse` TO lt_raw.
     APPEND `sap.m.FlexBox;A;items;M;sap.ui.core.Control` TO lt_raw.
@@ -247,6 +258,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.HBox;P;height;C` TO lt_raw.
     APPEND `sap.m.HBox;P;justifyContent;E;Start|End|Center|SpaceBetween|SpaceAround|Inherit` TO lt_raw.
     APPEND `sap.m.HBox;P;renderType;E;Div|List|Bare` TO lt_raw.
+    APPEND `sap.m.HBox;P;visible;B` TO lt_raw.
     APPEND `sap.m.HBox;P;width;C` TO lt_raw.
     APPEND `sap.m.HBox;P;wrap;E;NoWrap|Wrap|WrapReverse` TO lt_raw.
     APPEND `sap.m.HBox;A;items;M;sap.ui.core.Control` TO lt_raw.
@@ -262,6 +274,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.IconTabBar;P;headerBackgroundDesign;E;Solid|Transparent|Translucent` TO lt_raw.
     APPEND `sap.m.IconTabBar;P;headerMode;E;Standard|Inline` TO lt_raw.
     APPEND `sap.m.IconTabBar;P;selectedKey;S` TO lt_raw.
+    APPEND `sap.m.IconTabBar;P;visible;B` TO lt_raw.
     APPEND `sap.m.IconTabBar;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.IconTabBar;A;items;M;sap.m.IconTab` TO lt_raw.
     APPEND `sap.m.IconTabBar;E;select` TO lt_raw.
@@ -280,6 +293,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.IconTabFilter;P;iconColor;E;Default|Positive|Negative|Critical|Neutral|Contrast` TO lt_raw.
     APPEND `sap.m.IconTabFilter;P;key;S` TO lt_raw.
     APPEND `sap.m.IconTabFilter;P;text;S` TO lt_raw.
+    APPEND `sap.m.IconTabFilter;P;visible;B` TO lt_raw.
     APPEND `sap.m.IconTabFilter;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.IconTabFilter;T;sap.m.IBadge` TO lt_raw.
     APPEND `sap.m.IconTabFilter;T;sap.m.IconTab` TO lt_raw.
@@ -294,6 +308,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Image;P;densityAware;B` TO lt_raw.
     APPEND `sap.m.Image;P;height;C` TO lt_raw.
     APPEND `sap.m.Image;P;src;U` TO lt_raw.
+    APPEND `sap.m.Image;P;visible;B` TO lt_raw.
     APPEND `sap.m.Image;P;width;C` TO lt_raw.
     APPEND `sap.m.Image;T;sap.m.Image` TO lt_raw.
     APPEND `sap.m.Image;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -313,6 +328,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Input;P;valueLiveUpdate;B` TO lt_raw.
     APPEND `sap.m.Input;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
     APPEND `sap.m.Input;P;valueStateText;S` TO lt_raw.
+    APPEND `sap.m.Input;P;visible;B` TO lt_raw.
     APPEND `sap.m.Input;P;width;C` TO lt_raw.
     APPEND `sap.m.Input;A;suggestionItems;M;sap.ui.core.Item` TO lt_raw.
     APPEND `sap.m.Input;E;change` TO lt_raw.
@@ -335,6 +351,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Label;P;required;B` TO lt_raw.
     APPEND `sap.m.Label;P;text;S` TO lt_raw.
     APPEND `sap.m.Label;P;textAlign;E;Begin|End|Left|Right|Center|Initial` TO lt_raw.
+    APPEND `sap.m.Label;P;visible;B` TO lt_raw.
     APPEND `sap.m.Label;P;width;C` TO lt_raw.
     APPEND `sap.m.Label;P;wrapping;B` TO lt_raw.
     APPEND `sap.m.Label;T;sap.m.IHyphenation` TO lt_raw.
@@ -354,6 +371,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Link;P;href;U` TO lt_raw.
     APPEND `sap.m.Link;P;target;S` TO lt_raw.
     APPEND `sap.m.Link;P;text;S` TO lt_raw.
+    APPEND `sap.m.Link;P;visible;B` TO lt_raw.
     APPEND `sap.m.Link;P;wrapping;B` TO lt_raw.
     APPEND `sap.m.Link;E;press` TO lt_raw.
     APPEND `sap.m.Link;T;sap.m.IToolbarInteractiveControl` TO lt_raw.
@@ -376,6 +394,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.List;P;mode;E;None|SingleSelect|SingleSelectLeft|SingleSelectMaster|MultiSelect|Delete` TO lt_raw.
     APPEND `sap.m.List;P;noDataText;S` TO lt_raw.
     APPEND `sap.m.List;P;showSeparators;E;All|Inner|None` TO lt_raw.
+    APPEND `sap.m.List;P;visible;B` TO lt_raw.
     APPEND `sap.m.List;P;width;C` TO lt_raw.
     APPEND `sap.m.List;A;headerToolbar;S;sap.m.Toolbar` TO lt_raw.
     APPEND `sap.m.List;A;items;M;sap.m.ListItemBase` TO lt_raw.
@@ -393,6 +412,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.MessageStrip;P;showIcon;B` TO lt_raw.
     APPEND `sap.m.MessageStrip;P;text;S` TO lt_raw.
     APPEND `sap.m.MessageStrip;P;type;E;Information|Warning|Error|None|Success` TO lt_raw.
+    APPEND `sap.m.MessageStrip;P;visible;B` TO lt_raw.
     APPEND `sap.m.MessageStrip;E;close` TO lt_raw.
     APPEND `sap.m.MessageStrip;T;sap.m.MessageStrip` TO lt_raw.
     APPEND `sap.m.MessageStrip;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -405,6 +425,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.MultiComboBox;P;selectedKeys;O` TO lt_raw.
     APPEND `sap.m.MultiComboBox;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
     APPEND `sap.m.MultiComboBox;P;valueStateText;S` TO lt_raw.
+    APPEND `sap.m.MultiComboBox;P;visible;B` TO lt_raw.
     APPEND `sap.m.MultiComboBox;P;width;C` TO lt_raw.
     APPEND `sap.m.MultiComboBox;A;items;M;sap.ui.core.Item` TO lt_raw.
     APPEND `sap.m.MultiComboBox;E;selectionChange` TO lt_raw.
@@ -428,6 +449,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.MultiInput;P;showValueHelp;B` TO lt_raw.
     APPEND `sap.m.MultiInput;P;value;S` TO lt_raw.
     APPEND `sap.m.MultiInput;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
+    APPEND `sap.m.MultiInput;P;visible;B` TO lt_raw.
     APPEND `sap.m.MultiInput;P;width;C` TO lt_raw.
     APPEND `sap.m.MultiInput;A;suggestionItems;M;sap.ui.core.Item` TO lt_raw.
     APPEND `sap.m.MultiInput;A;tokens;M;sap.m.Token` TO lt_raw.
@@ -449,6 +471,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.ObjectIdentifier;P;text;S` TO lt_raw.
     APPEND `sap.m.ObjectIdentifier;P;title;S` TO lt_raw.
     APPEND `sap.m.ObjectIdentifier;P;titleActive;B` TO lt_raw.
+    APPEND `sap.m.ObjectIdentifier;P;visible;B` TO lt_raw.
     APPEND `sap.m.ObjectIdentifier;E;titlePress` TO lt_raw.
     APPEND `sap.m.ObjectIdentifier;T;sap.m.ObjectIdentifier` TO lt_raw.
     APPEND `sap.m.ObjectIdentifier;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -459,6 +482,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.ObjectNumber;P;number;S` TO lt_raw.
     APPEND `sap.m.ObjectNumber;P;state;E;Error|Warning|Success|Information|None` TO lt_raw.
     APPEND `sap.m.ObjectNumber;P;unit;S` TO lt_raw.
+    APPEND `sap.m.ObjectNumber;P;visible;B` TO lt_raw.
     APPEND `sap.m.ObjectNumber;T;sap.m.ObjectNumber` TO lt_raw.
     APPEND `sap.m.ObjectNumber;T;sap.ui.base.EventProvider` TO lt_raw.
     APPEND `sap.m.ObjectNumber;T;sap.ui.base.ManagedObject` TO lt_raw.
@@ -471,6 +495,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.ObjectStatus;P;state;S` TO lt_raw.
     APPEND `sap.m.ObjectStatus;P;text;S` TO lt_raw.
     APPEND `sap.m.ObjectStatus;P;title;S` TO lt_raw.
+    APPEND `sap.m.ObjectStatus;P;visible;B` TO lt_raw.
     APPEND `sap.m.ObjectStatus;E;press` TO lt_raw.
     APPEND `sap.m.ObjectStatus;T;sap.m.ObjectStatus` TO lt_raw.
     APPEND `sap.m.ObjectStatus;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -482,6 +507,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.OverflowToolbar;D;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.OverflowToolbar;P;height;C` TO lt_raw.
     APPEND `sap.m.OverflowToolbar;P;style;E;Standard|Clear` TO lt_raw.
+    APPEND `sap.m.OverflowToolbar;P;visible;B` TO lt_raw.
     APPEND `sap.m.OverflowToolbar;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.OverflowToolbar;T;sap.m.IBar` TO lt_raw.
     APPEND `sap.m.OverflowToolbar;T;sap.m.OverflowToolbar` TO lt_raw.
@@ -495,6 +521,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.OverflowToolbarButton;P;icon;U` TO lt_raw.
     APPEND `sap.m.OverflowToolbarButton;P;text;S` TO lt_raw.
     APPEND `sap.m.OverflowToolbarButton;P;type;E;Default|Back|Accept|Reject|Transparent|Ghost|Up|Unstyled|Emphasized` TO lt_raw.
+    APPEND `sap.m.OverflowToolbarButton;P;visible;B` TO lt_raw.
     APPEND `sap.m.OverflowToolbarButton;E;press` TO lt_raw.
     APPEND `sap.m.OverflowToolbarButton;T;sap.f.IShellBar` TO lt_raw.
     APPEND `sap.m.OverflowToolbarButton;T;sap.m.Button` TO lt_raw.
@@ -523,6 +550,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Page;P;showNavButton;B` TO lt_raw.
     APPEND `sap.m.Page;P;title;S` TO lt_raw.
     APPEND `sap.m.Page;P;titleLevel;E;Auto|H1|H2|H3|H4|H5|H6` TO lt_raw.
+    APPEND `sap.m.Page;P;visible;B` TO lt_raw.
     APPEND `sap.m.Page;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Page;A;customHeader;S;sap.m.IBar` TO lt_raw.
     APPEND `sap.m.Page;A;footer;S;sap.m.IBar` TO lt_raw.
@@ -540,6 +568,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Panel;P;expanded;B` TO lt_raw.
     APPEND `sap.m.Panel;P;headerText;S` TO lt_raw.
     APPEND `sap.m.Panel;P;height;C` TO lt_raw.
+    APPEND `sap.m.Panel;P;visible;B` TO lt_raw.
     APPEND `sap.m.Panel;P;width;C` TO lt_raw.
     APPEND `sap.m.Panel;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Panel;A;headerToolbar;S;sap.m.Toolbar` TO lt_raw.
@@ -560,6 +589,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND lv_raw TO lt_raw.
     APPEND `sap.m.Popover;P;showHeader;B` TO lt_raw.
     APPEND `sap.m.Popover;P;title;S` TO lt_raw.
+    APPEND `sap.m.Popover;P;visible;B` TO lt_raw.
     APPEND `sap.m.Popover;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Popover;A;footer;S;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Popover;E;afterClose` TO lt_raw.
@@ -574,6 +604,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.ProgressIndicator;P;percentValue;F` TO lt_raw.
     APPEND `sap.m.ProgressIndicator;P;showValue;B` TO lt_raw.
     APPEND `sap.m.ProgressIndicator;P;state;E;Error|Warning|Success|Information|None` TO lt_raw.
+    APPEND `sap.m.ProgressIndicator;P;visible;B` TO lt_raw.
     APPEND `sap.m.ProgressIndicator;P;width;C` TO lt_raw.
     APPEND `sap.m.ProgressIndicator;T;sap.m.ProgressIndicator` TO lt_raw.
     APPEND `sap.m.ProgressIndicator;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -585,6 +616,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.ScrollContainer;P;height;C` TO lt_raw.
     APPEND `sap.m.ScrollContainer;P;horizontal;B` TO lt_raw.
     APPEND `sap.m.ScrollContainer;P;vertical;B` TO lt_raw.
+    APPEND `sap.m.ScrollContainer;P;visible;B` TO lt_raw.
     APPEND `sap.m.ScrollContainer;P;width;C` TO lt_raw.
     APPEND `sap.m.ScrollContainer;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.ScrollContainer;T;sap.m.ScrollContainer` TO lt_raw.
@@ -595,6 +627,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.SearchField;P;placeholder;S` TO lt_raw.
     APPEND `sap.m.SearchField;P;showRefreshButton;B` TO lt_raw.
     APPEND `sap.m.SearchField;P;value;S` TO lt_raw.
+    APPEND `sap.m.SearchField;P;visible;B` TO lt_raw.
     APPEND `sap.m.SearchField;P;width;C` TO lt_raw.
     APPEND `sap.m.SearchField;E;liveChange` TO lt_raw.
     APPEND `sap.m.SearchField;E;search` TO lt_raw.
@@ -610,6 +643,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.SearchField;T;sap.ui.core.IFormContent` TO lt_raw.
     APPEND `sap.m.SegmentedButton;P;enabled;B` TO lt_raw.
     APPEND `sap.m.SegmentedButton;P;selectedKey;S` TO lt_raw.
+    APPEND `sap.m.SegmentedButton;P;visible;B` TO lt_raw.
     APPEND `sap.m.SegmentedButton;P;width;C` TO lt_raw.
     APPEND `sap.m.SegmentedButton;A;items;M;sap.m.SegmentedButtonItem` TO lt_raw.
     APPEND `sap.m.SegmentedButton;E;selectionChange` TO lt_raw.
@@ -625,6 +659,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.SegmentedButtonItem;P;icon;S` TO lt_raw.
     APPEND `sap.m.SegmentedButtonItem;P;key;S` TO lt_raw.
     APPEND `sap.m.SegmentedButtonItem;P;text;S` TO lt_raw.
+    APPEND `sap.m.SegmentedButtonItem;P;visible;B` TO lt_raw.
     APPEND `sap.m.SegmentedButtonItem;P;width;C` TO lt_raw.
     APPEND `sap.m.SegmentedButtonItem;T;sap.m.SegmentedButtonItem` TO lt_raw.
     APPEND `sap.m.SegmentedButtonItem;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -638,6 +673,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Select;P;selectedKey;S` TO lt_raw.
     APPEND `sap.m.Select;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
     APPEND `sap.m.Select;P;valueStateText;S` TO lt_raw.
+    APPEND `sap.m.Select;P;visible;B` TO lt_raw.
     APPEND `sap.m.Select;P;width;C` TO lt_raw.
     APPEND `sap.m.Select;A;items;M;sap.ui.core.Item` TO lt_raw.
     APPEND `sap.m.Select;E;change` TO lt_raw.
@@ -653,6 +689,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Select;T;sap.ui.core.ILabelable` TO lt_raw.
     APPEND `sap.m.Select;T;sap.ui.core.ISemanticFormContent` TO lt_raw.
     APPEND `sap.m.Shell;D;app;S;sap.ui.core.Control` TO lt_raw.
+    APPEND `sap.m.Shell;P;visible;B` TO lt_raw.
     APPEND `sap.m.Shell;A;app;S;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Shell;T;sap.m.Shell` TO lt_raw.
     APPEND `sap.m.Shell;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -670,6 +707,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.StandardListItem;P;selected;B` TO lt_raw.
     APPEND `sap.m.StandardListItem;P;title;S` TO lt_raw.
     APPEND `sap.m.StandardListItem;P;type;E;Inactive|Detail|Navigation|Active|DetailAndActive` TO lt_raw.
+    APPEND `sap.m.StandardListItem;P;visible;B` TO lt_raw.
     APPEND `sap.m.StandardListItem;P;wrapping;B` TO lt_raw.
     APPEND `sap.m.StandardListItem;E;detailPress` TO lt_raw.
     APPEND `sap.m.StandardListItem;E;press` TO lt_raw.
@@ -681,6 +719,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.StandardListItem;T;sap.ui.core.Element` TO lt_raw.
     APPEND `sap.m.StandardTreeItem;P;icon;U` TO lt_raw.
     APPEND `sap.m.StandardTreeItem;P;title;S` TO lt_raw.
+    APPEND `sap.m.StandardTreeItem;P;visible;B` TO lt_raw.
     APPEND `sap.m.StandardTreeItem;T;sap.m.ListItemBase` TO lt_raw.
     APPEND `sap.m.StandardTreeItem;T;sap.m.StandardTreeItem` TO lt_raw.
     APPEND `sap.m.StandardTreeItem;T;sap.m.TreeItemBase` TO lt_raw.
@@ -696,6 +735,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.StepInput;P;step;F` TO lt_raw.
     APPEND `sap.m.StepInput;P;value;F` TO lt_raw.
     APPEND `sap.m.StepInput;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
+    APPEND `sap.m.StepInput;P;visible;B` TO lt_raw.
     APPEND `sap.m.StepInput;P;width;C` TO lt_raw.
     APPEND `sap.m.StepInput;E;change` TO lt_raw.
     APPEND `sap.m.StepInput;T;sap.m.StepInput` TO lt_raw.
@@ -709,6 +749,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Switch;P;enabled;B` TO lt_raw.
     APPEND `sap.m.Switch;P;state;B` TO lt_raw.
     APPEND `sap.m.Switch;P;type;E;Default|AcceptReject` TO lt_raw.
+    APPEND `sap.m.Switch;P;visible;B` TO lt_raw.
     APPEND `sap.m.Switch;E;change` TO lt_raw.
     APPEND `sap.m.Switch;T;sap.m.IOverflowToolbarContent` TO lt_raw.
     APPEND `sap.m.Switch;T;sap.m.IToolbarInteractiveControl` TO lt_raw.
@@ -729,6 +770,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Table;P;noDataText;S` TO lt_raw.
     APPEND `sap.m.Table;P;popinLayout;E;Block|GridSmall|GridLarge` TO lt_raw.
     APPEND `sap.m.Table;P;sticky;O` TO lt_raw.
+    APPEND `sap.m.Table;P;visible;B` TO lt_raw.
     APPEND `sap.m.Table;P;width;C` TO lt_raw.
     APPEND `sap.m.Table;A;columns;M;sap.m.Column` TO lt_raw.
     APPEND `sap.m.Table;A;headerToolbar;S;sap.m.Toolbar` TO lt_raw.
@@ -746,6 +788,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Text;P;renderWhitespace;B` TO lt_raw.
     APPEND `sap.m.Text;P;text;S` TO lt_raw.
     APPEND `sap.m.Text;P;textAlign;E;Begin|End|Left|Right|Center|Initial` TO lt_raw.
+    APPEND `sap.m.Text;P;visible;B` TO lt_raw.
     APPEND `sap.m.Text;P;width;C` TO lt_raw.
     APPEND `sap.m.Text;P;wrapping;B` TO lt_raw.
     APPEND `sap.m.Text;T;sap.m.IHyphenation` TO lt_raw.
@@ -769,6 +812,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.TextArea;P;value;S` TO lt_raw.
     APPEND `sap.m.TextArea;P;valueLiveUpdate;B` TO lt_raw.
     APPEND `sap.m.TextArea;P;valueState;E;Error|Warning|Success|Information|None` TO lt_raw.
+    APPEND `sap.m.TextArea;P;visible;B` TO lt_raw.
     APPEND `sap.m.TextArea;P;width;C` TO lt_raw.
     APPEND `sap.m.TextArea;P;wrapping;E;None|Soft|Hard|Off` TO lt_raw.
     APPEND `sap.m.TextArea;E;liveChange` TO lt_raw.
@@ -786,6 +830,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Title;P;text;S` TO lt_raw.
     APPEND `sap.m.Title;P;textAlign;E;Begin|End|Left|Right|Center|Initial` TO lt_raw.
     APPEND `sap.m.Title;P;titleStyle;E;Auto|H1|H2|H3|H4|H5|H6` TO lt_raw.
+    APPEND `sap.m.Title;P;visible;B` TO lt_raw.
     APPEND `sap.m.Title;P;wrapping;B` TO lt_raw.
     APPEND `sap.m.Title;T;sap.m.IHyphenation` TO lt_raw.
     APPEND `sap.m.Title;T;sap.m.IToolbarInteractiveControl` TO lt_raw.
@@ -801,6 +846,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.ToggleButton;P;pressed;B` TO lt_raw.
     APPEND `sap.m.ToggleButton;P;text;S` TO lt_raw.
     APPEND `sap.m.ToggleButton;P;type;E;Default|Back|Accept|Reject|Transparent|Ghost|Up|Unstyled|Emphasized` TO lt_raw.
+    APPEND `sap.m.ToggleButton;P;visible;B` TO lt_raw.
     APPEND `sap.m.ToggleButton;E;press` TO lt_raw.
     APPEND `sap.m.ToggleButton;T;sap.m.Button` TO lt_raw.
     APPEND `sap.m.ToggleButton;T;sap.m.IToolbarInteractiveControl` TO lt_raw.
@@ -815,6 +861,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Token;P;key;S` TO lt_raw.
     APPEND `sap.m.Token;P;selected;B` TO lt_raw.
     APPEND `sap.m.Token;P;text;S` TO lt_raw.
+    APPEND `sap.m.Token;P;visible;B` TO lt_raw.
     APPEND `sap.m.Token;T;sap.m.Token` TO lt_raw.
     APPEND `sap.m.Token;T;sap.ui.base.EventProvider` TO lt_raw.
     APPEND `sap.m.Token;T;sap.ui.base.ManagedObject` TO lt_raw.
@@ -823,6 +870,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Toolbar;D;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Toolbar;P;height;C` TO lt_raw.
     APPEND `sap.m.Toolbar;P;style;E;Standard|Clear` TO lt_raw.
+    APPEND `sap.m.Toolbar;P;visible;B` TO lt_raw.
     APPEND `sap.m.Toolbar;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Toolbar;T;sap.m.IBar` TO lt_raw.
     APPEND `sap.m.Toolbar;T;sap.m.Toolbar` TO lt_raw.
@@ -831,6 +879,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Toolbar;T;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.m.Toolbar;T;sap.ui.core.Element` TO lt_raw.
     APPEND `sap.m.Toolbar;T;sap.ui.core.Toolbar` TO lt_raw.
+    APPEND `sap.m.ToolbarSpacer;P;visible;B` TO lt_raw.
     APPEND `sap.m.ToolbarSpacer;P;width;C` TO lt_raw.
     APPEND `sap.m.ToolbarSpacer;T;sap.m.ToolbarSpacer` TO lt_raw.
     APPEND `sap.m.ToolbarSpacer;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -841,6 +890,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.Tree;P;headerText;S` TO lt_raw.
     APPEND `sap.m.Tree;P;mode;E;None|SingleSelect|SingleSelectLeft|SingleSelectMaster|MultiSelect|Delete` TO lt_raw.
     APPEND `sap.m.Tree;P;sticky;O` TO lt_raw.
+    APPEND `sap.m.Tree;P;visible;B` TO lt_raw.
     APPEND `sap.m.Tree;A;headerToolbar;S;sap.m.Toolbar` TO lt_raw.
     APPEND `sap.m.Tree;A;items;M;sap.m.ListItemBase` TO lt_raw.
     APPEND `sap.m.Tree;E;toggleOpenState` TO lt_raw.
@@ -855,6 +905,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.VBox;P;height;C` TO lt_raw.
     APPEND `sap.m.VBox;P;justifyContent;E;Start|End|Center|SpaceBetween|SpaceAround|Inherit` TO lt_raw.
     APPEND `sap.m.VBox;P;renderType;E;Div|List|Bare` TO lt_raw.
+    APPEND `sap.m.VBox;P;visible;B` TO lt_raw.
     APPEND `sap.m.VBox;P;width;C` TO lt_raw.
     APPEND `sap.m.VBox;P;wrap;E;NoWrap|Wrap|WrapReverse` TO lt_raw.
     APPEND `sap.m.VBox;A;items;M;sap.ui.core.Control` TO lt_raw.
@@ -866,6 +917,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.m.VBox;T;sap.ui.core.Element` TO lt_raw.
     APPEND `sap.tnt.InfoLabel;P;colorScheme;I` TO lt_raw.
     APPEND `sap.tnt.InfoLabel;P;text;S` TO lt_raw.
+    APPEND `sap.tnt.InfoLabel;P;visible;B` TO lt_raw.
     APPEND `sap.tnt.InfoLabel;T;sap.tnt.InfoLabel` TO lt_raw.
     APPEND `sap.tnt.InfoLabel;T;sap.ui.base.EventProvider` TO lt_raw.
     APPEND `sap.tnt.InfoLabel;T;sap.ui.base.ManagedObject` TO lt_raw.
@@ -881,6 +933,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.ui.core.CustomData;T;sap.ui.core.Element` TO lt_raw.
     APPEND `sap.ui.core.CustomData;L;layoutData` TO lt_raw.
     APPEND `sap.ui.core.HTML;P;content;S` TO lt_raw.
+    APPEND `sap.ui.core.HTML;P;visible;B` TO lt_raw.
     APPEND `sap.ui.core.HTML;T;sap.ui.base.EventProvider` TO lt_raw.
     APPEND `sap.ui.core.HTML;T;sap.ui.base.ManagedObject` TO lt_raw.
     APPEND `sap.ui.core.HTML;T;sap.ui.core.Control` TO lt_raw.
@@ -890,6 +943,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.ui.core.Icon;P;color;S` TO lt_raw.
     APPEND `sap.ui.core.Icon;P;size;C` TO lt_raw.
     APPEND `sap.ui.core.Icon;P;src;U` TO lt_raw.
+    APPEND `sap.ui.core.Icon;P;visible;B` TO lt_raw.
     APPEND `sap.ui.core.Icon;P;width;C` TO lt_raw.
     APPEND `sap.ui.core.Icon;E;press` TO lt_raw.
     APPEND `sap.ui.core.Icon;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -920,6 +974,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.ui.layout.Grid;D;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.ui.layout.Grid;P;defaultSpan;O` TO lt_raw.
     APPEND `sap.ui.layout.Grid;P;hSpacing;F` TO lt_raw.
+    APPEND `sap.ui.layout.Grid;P;visible;B` TO lt_raw.
     APPEND `sap.ui.layout.Grid;P;width;C` TO lt_raw.
     APPEND `sap.ui.layout.Grid;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.ui.layout.Grid;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -937,6 +992,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.ui.layout.GridData;L;layoutData` TO lt_raw.
     APPEND `sap.ui.layout.HorizontalLayout;D;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.ui.layout.HorizontalLayout;P;allowWrapping;B` TO lt_raw.
+    APPEND `sap.ui.layout.HorizontalLayout;P;visible;B` TO lt_raw.
     APPEND `sap.ui.layout.HorizontalLayout;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.ui.layout.HorizontalLayout;T;sap.ui.base.EventProvider` TO lt_raw.
     APPEND `sap.ui.layout.HorizontalLayout;T;sap.ui.base.ManagedObject` TO lt_raw.
@@ -944,6 +1000,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.ui.layout.HorizontalLayout;T;sap.ui.core.Element` TO lt_raw.
     APPEND `sap.ui.layout.HorizontalLayout;T;sap.ui.layout.HorizontalLayout` TO lt_raw.
     APPEND `sap.ui.layout.VerticalLayout;D;content;M;sap.ui.core.Control` TO lt_raw.
+    APPEND `sap.ui.layout.VerticalLayout;P;visible;B` TO lt_raw.
     APPEND `sap.ui.layout.VerticalLayout;P;width;C` TO lt_raw.
     APPEND `sap.ui.layout.VerticalLayout;A;content;M;sap.ui.core.Control` TO lt_raw.
     APPEND `sap.ui.layout.VerticalLayout;T;sap.ui.base.EventProvider` TO lt_raw.
@@ -968,6 +1025,7 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.ui.layout.form.SimpleForm;P;layout;E;ResponsiveLayout|GridLayout|ResponsiveGridLayout|ColumnLayout` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;maxContainerCols;I` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;singleContainerFullSize;B` TO lt_raw.
+    APPEND `sap.ui.layout.form.SimpleForm;P;visible;B` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;width;C` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;A;content;M;sap.ui.core.Element` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;A;title;S;sap.ui.core.Title` TO lt_raw.

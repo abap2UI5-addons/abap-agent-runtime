@@ -111,7 +111,12 @@ function generate(pinText, meta) {
     if (def) {
       rows.push([name, "D", def, defAgg.multiple ? "M" : "S", defAgg.type]);
     }
-    for (const p of (c.properties || []).map((x) => x.name).sort()) {
+    // visible: a universal attribute of the profile, but a property of a
+    // control (and of a few elements such as sap.m.Column) only - an
+    // element like sap.ui.core.Item has none
+    const props = new Set((c.properties || []).map((x) => x.name));
+    if (member(name, "properties", "visible")) props.add("visible");
+    for (const p of [...props].sort()) {
       const m = member(name, "properties", p);
       if (!m || newer(m.since) || m.deprecated) continue;
       const [t, info] = typeClass(m.type);

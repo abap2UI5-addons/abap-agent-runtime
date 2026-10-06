@@ -480,8 +480,8 @@ the tree and builds the XML itself with `z2ui5_cl_ui5_view_builder`:
 | --- | --- |
 | controls | anything outside the **portable view profile v1** of the abap2UI5 protocol (65 controls, `z2ui5_cl_agent_gen_vocab`); also `sap.ui.core.HTML`, `Shell`, `Dialog`, `Popover`, `CustomData` and layout data |
 | tree | no or two roots, a missing parent, a cycle, a duplicate id, more than 200 nodes |
-| aggregations | an aggregation the parent does not have, a child of the wrong type, two children in a single aggregation |
-| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers, CSS sizes, icons only as `sap-icon://...`, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids) |
+| aggregations | an aggregation the parent does not have, a child of the wrong type, two children in a single aggregation, a `sap.m.ToolbarSpacer` in a `sap.m.Bar` or a page's `headerContent` (no flex container before UI5 1.76: it hides what follows it) |
+| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); `visible` on an element that has none (`sap.ui.core.Item`); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers with a digit before the point, CSS sizes, icons only as `sap-icon://...`, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids) |
 | bindings | a field that is not in the data handed over; relative bindings only inside the row template of a list bound to a table, absolute ones only to a structure; formats `integer` and `decimal` (typed bindings) and nothing else - no expressions, no formatters |
 | lists | a list bound to a structure or an unknown dataset, sorting or grouping by an unknown field, not exactly one row template, a list inside a template |
 | events | an event the control does not have, an app event not in the app's list, an argument the app did not allow for it |

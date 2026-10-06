@@ -594,7 +594,7 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
            `app allows for that event (row fields inside a template).` INTO TABLE lt_line.
     INSERT `- Literal values must fit the property type (enum values as listed, true/false, numbers, CSS sizes ` &&
            `such as 10rem, icons only as an icon URI of the SAP icon font, e.g. sap-icon://add). Texts are shown as they are.` INTO TABLE lt_line.
-    INSERT `- Universal properties: visible (boolean), tooltip (text), class (sapUiSmallMargin and the other ` &&
+    INSERT `- Universal properties: tooltip (text), class (sapUiSmallMargin and the other ` &&
            `sapUi margin/padding classes only).` INTO TABLE lt_line.
     INSERT `- Filtering the data is not possible in the view - a filter control can fire an app event that ` &&
            `takes its value only if the app offers one.` INTO TABLE lt_line.
@@ -994,6 +994,14 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
                    text = |the aggregation { node-agg } of { ls_parent-control } takes one child, it has { lv_siblings }| ).
           ENDIF.
         ENDIF.
+        " a sap.m.Bar is no flex container before UI5 1.76: a spacer there
+        " starts a new line and the bar cuts away the controls after it -
+        " so does the Page headerContent, which goes into such a bar
+        IF node-control = `sap.m.ToolbarSpacer` AND ( ls_parent-control = `sap.m.Bar`
+            OR ( ls_parent-control = `sap.m.Page` AND node-agg = `headerContent` ) ).
+          issue( node = node
+                 text = |a sap.m.ToolbarSpacer belongs in a toolbar - in { ls_parent-control } { node-agg } it hides the controls after it| ).
+        ENDIF.
       ENDIF.
     ELSEIF NOT line_exists( mt_vocab[ control = node-control kind = `T` name = `sap.ui.core.Control` ] ). "#EC CI_SORTSEQ
       " the root goes into the content of the view and of the dialog
@@ -1071,8 +1079,6 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
     DATA lv_info TYPE string.
 
     CASE prop-name.
-      WHEN `visible`.
-        lv_type = `B`.
       WHEN `tooltip`.
         lv_type = `S`.
       WHEN `class`.
@@ -1164,7 +1170,8 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
           result = `an integer`.
         ENDIF.
       WHEN `F`.
-        FIND REGEX `^-?[0-9]*\.?[0-9]+$` IN value ##REGEX_POSIX.
+        " digits on both sides of the point - ".5" is no float to the linter
+        FIND REGEX `^-?[0-9]+(\.[0-9]+)?$` IN value ##REGEX_POSIX.
         IF sy-subrc <> 0 OR strlen( value ) > 15.
           result = `a number`.
         ENDIF.

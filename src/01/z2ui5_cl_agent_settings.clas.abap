@@ -176,7 +176,8 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     "! The policy of an event on the screen of app, in a session started
     "! with app_start: the stricter of the app's own rules (describe( ))
-    "! and the EVENT settings matching either class.
+    "! and the EVENT settings matching either class; every event of the
+    "! addon's own apps is forbidden.
     CLASS-METHODS get_policy
       IMPORTING
         app_start     TYPE clike
@@ -552,6 +553,13 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     IF lv_event = c_copilot_event.
       result = VALUE #( policy = z2ui5_if_agent_app=>cs_policy-forbidden
                         source = `the in-app copilot is for people - an agent never opens it` ).
+      RETURN.
+    ENDIF.
+    " the addon's own apps also when an operable app navigated there: an
+    " agent must not change its own rules
+    IF check_own_app( lv_app ) = abap_true.
+      result = VALUE #( policy = z2ui5_if_agent_app=>cs_policy-forbidden
+                        source = |{ lv_app } belongs to the agent addon itself and is never operable by an agent| ).
       RETURN.
     ENDIF.
 

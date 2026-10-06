@@ -274,7 +274,8 @@ nothing.
 - **Disabled by default**; an administrator switches the endpoint on.
 - **Opt-in per app**: only classes implementing `z2ui5_if_agent_app`, or
   allowed by an administrator, can be listed or started. The addon's own apps
-  (`z2ui5_cl_agent_app_*`) are never agent-operable, whatever the settings say.
+  (`z2ui5_cl_agent_app_*`) are never agent-operable, whatever the settings say -
+  every event of theirs is `forbidden`, also when an operable app navigates there.
 - **The real SAP user, always.** Authentication is the logon of the HTTP
   request (Basic, OAuth, certificates, principal propagation) - nothing custom,
   no technical user, no user switch. The app runs as that user, with its

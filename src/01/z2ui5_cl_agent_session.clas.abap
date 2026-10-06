@@ -448,6 +448,12 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RAISING
         z2ui5_cx_ui5_util_error.
 
+    "! Discard what the app left open in the LUW: abap2UI5 rolls back after
+    "! main( ) only when main( ) returns and the app is not stateful - after
+    "! a failed or a stateful roundtrip the session's own entries, and the
+    "! commit that follows them, must not take the app's work with them.
+    CLASS-METHODS app_rollback.
+
     METHODS field_help
       RETURNING
         VALUE(result) TYPE string.
@@ -635,9 +641,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         TRY.
             mo_sim = z2ui5_cl_frontend_simulator=>start( lv_app ).
           CATCH cx_root INTO DATA(lx_start).
+            app_rollback( ).
             fail( |the app { lv_app } failed to start - { lx_start->get_text( ) }| ).
         ENDTRY.
         IF mo_sim->is_sticky( ) = abap_true.
+          app_rollback( ).
           fail( |the app { lv_app } runs in a stateful session (set_session_stateful), which lives in one request only - | &&
                 |the agent endpoint operates draft-based apps, one request per call| ).
         ENDIF.
@@ -885,6 +893,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             mo_sim = z2ui5_cl_frontend_simulator=>resume( id      = lv_copy
                                                           refresh = abap_true ).
           CATCH cx_root INTO DATA(lx_resume).
+            app_rollback( ).
             fail( |the screen of draft { draft } cannot be restored - { lx_resume->get_text( ) }| ).
         ENDTRY.
         DATA(lv_app) = mo_sim->get_app( ).
@@ -893,6 +902,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           fail( lv_reason ).
         ENDIF.
         IF mo_sim->is_sticky( ) = abap_true.
+          app_rollback( ).
           fail( |the app { lv_app } runs in a stateful session (set_session_stateful) - it cannot be continued| ).
         ENDIF.
 
@@ -2492,9 +2502,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                        t_arg = lt_arg
                        layer = lv_model_key ).
       CATCH cx_root INTO DATA(lx).
+        app_rollback( ).
         fail( |the backend refused the roundtrip - { lx->get_text( ) }| ).
     ENDTRY.
     IF mo_sim->is_sticky( ) = abap_true.
+      app_rollback( ).
       DELETE FROM z2ui5_t_ag_ses WHERE id = @ms_row-id.
       fail( |the app switched to a stateful session (set_session_stateful) - such a session lives in one request only, | &&
             |so this agent session ended; app_start { ms_row-app_start } again| ).
@@ -2510,6 +2522,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
     analyze( ).
+
+  ENDMETHOD.
+
+  METHOD app_rollback.
+
+    z2ui5_cl_ui5_util_context=>db_rollback( ).
 
   ENDMETHOD.
 

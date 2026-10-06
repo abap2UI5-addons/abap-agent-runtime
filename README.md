@@ -337,6 +337,8 @@ performed), nested tables, file uploads. On top of that, in this addon:
 - **Stateful apps** (`client->set_session_stateful( )`) cannot be operated: a
   stateful session lives in one HTTP request, an MCP call is one request.
   `app_start` refuses them; an app that switches mid-session ends the session.
+  What such an app - or an app whose `main( )` failed - left open in the LUW
+  is rolled back, never committed with the call's audit entry.
 - **Event arguments travel as text.** Model values go out typed, as the
   browser sends them: every pending value is handed to the simulator's
   `set_json( )` at its model path - a boolean as `true` / `false`, a

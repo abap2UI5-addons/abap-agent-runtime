@@ -204,6 +204,8 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
 
   METHOD z2ui5_if_agent_llm~chat.
 
+    DATA lx TYPE REF TO z2ui5_cx_agent_llm.
+
     DATA(ls_request) = is_request.
     IF ls_request-effort IS INITIAL.
       ls_request-effort = to_lower( z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-effort ) ).
@@ -263,7 +265,21 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
                                  time_from = lv_start
                                  time_to   = z2ui5_cl_ui5_util_context=>time_get_timestampl( ) ) ).
 
-      CATCH z2ui5_cx_agent_llm INTO DATA(lx).
+      CATCH z2ui5_cx_agent_llm INTO lx.
+        audit( is_request  = ls_request
+               is_response = result
+               ms          = z2ui5_cl_ui5_util_context=>time_diff_milliseconds(
+                                 time_from = lv_start
+                                 time_to   = z2ui5_cl_ui5_util_context=>time_get_timestampl( ) )
+               error       = |{ lx->kind }: { lx->get_text( ) }| ).
+        RAISE EXCEPTION lx.
+      CATCH cx_root INTO DATA(lx_provider).
+        " a provider of your own may fail with anything (a conversion,
+        " CX_SY_NO_HANDLER): audited and raised as the one exception the
+        " callers handle - generate( ) of generative UI promises never to raise
+        lx = NEW #( kind     = z2ui5_cx_agent_llm=>cs_kind-response
+                    text     = |the language model provider { mv_provider } failed - { lx_provider->get_text( ) }|
+                    previous = lx_provider ).
         audit( is_request  = ls_request
                is_response = result
                ms          = z2ui5_cl_ui5_util_context=>time_diff_milliseconds(

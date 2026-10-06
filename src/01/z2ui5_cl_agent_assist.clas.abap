@@ -359,7 +359,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     IF lv_index > 0.
       label = ls_field-label.
       path = ls_field-path.
-      IF ls_field-secret = abap_true
+      IF io_snap->is_secret( ls_field-id ) = abap_true
           OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                        path = ls_field-path
                                                        name = ls_field-name ) = abap_true.

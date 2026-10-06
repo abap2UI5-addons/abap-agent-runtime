@@ -287,7 +287,8 @@ nothing.
   draft. Only the current draft id of a session is accepted.
 - **Audit log** (`Z2UI5_T_AG_LOG`, app `z2ui5_cl_agent_app_audit`): timestamp,
   user, session, app, operation, event, arguments (truncated; values masked for
-  password inputs and for fields the app or the settings mark sensitive),
+  password inputs - and any field on the model path of one - and for fields
+  the app or the settings mark sensitive),
   outcome, error text, MCP client name and version. Users see their own
   entries, administrators everybody's. Settings changes are logged too.
 - **AI at runtime** is off by default (no key, no destination, copilot
@@ -433,8 +434,9 @@ and enter `ZCL_LLM_AI_CORE` as the provider class. Unit tests use
   hands over - **no data**; a few sample rows (3) only with *sample rows* on.
 - **The copilot** sends the agent snapshot of the screen - the values the
   user sees, so a question about them can be answered - with every password
-  input and every sensitive field (the app's `t_sensitive`, the settings'
-  `SENSITIVE` rules) masked as `***`, in fields and in table columns, and
+  input (and every other field on its model path) and every sensitive field
+  (the app's `t_sensitive`, the settings' `SENSITIVE` rules) masked as `***`,
+  in fields and in table columns, and
   without the actions agents may never fire. It never proposes to fill a
   masked field.
 - The data goes to the provider you configure; with the shipped one, to the

@@ -22,6 +22,7 @@ CLASS ltcl_snapshot DEFINITION FINAL
     METHODS cgui_popover_07 FOR TESTING.
     METHODS message_lists   FOR TESTING.
     METHODS select_dialogs  FOR TESTING.
+    METHODS secret_path     FOR TESTING.
 
     METHODS synthetic
       IMPORTING
@@ -442,6 +443,20 @@ CLASS ltcl_snapshot IMPLEMENTATION.
     cl_abap_unit_assert=>assert_true( xsdbool( line_exists( lo_snap->mt_unsupported[ table_line = `MessageView (main): 52 messages, the first 50 listed` ] ) ) ). "#EC CI_SORTSEQ
     cl_abap_unit_assert=>assert_true( xsdbool( line_exists(
         lo_snap->mt_unsupported[ table_line = `MessageView bound to the named model 'message' (main) - messages not described` ] ) ) ). "#EC CI_SORTSEQ
+
+  ENDMETHOD.
+
+  METHOD secret_path.
+
+    " a second field on the path of a password input shows the password
+    DATA(lo_snap) = synthetic( xml   = `<Input type="Password" value="{/PW}"/><Input value="{/PW}" editable="false"/>` &&
+                                       `<Input value="{/NAME}"/>`
+                               model = `{"PW":"secret","NAME":"Ann"}` ).
+    cl_abap_unit_assert=>assert_equals( exp = 3
+                                        act = lines( lo_snap->mt_field ) ).
+    cl_abap_unit_assert=>assert_true( lo_snap->is_secret( `f1` ) ).
+    cl_abap_unit_assert=>assert_true( lo_snap->is_secret( `f2` ) ).
+    cl_abap_unit_assert=>assert_false( lo_snap->is_secret( `f3` ) ).
 
   ENDMETHOD.
 

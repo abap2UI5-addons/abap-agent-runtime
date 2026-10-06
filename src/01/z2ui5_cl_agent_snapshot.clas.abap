@@ -241,7 +241,8 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE ty_s_val.
 
-    "! Whether a field is a password input (type Password) - its value is
+    "! Whether a field holds a password: a password input (type Password),
+    "! or any other field bound to the same model path as one - its value is
     "! never written to the audit log.
     METHODS is_secret
       IMPORTING
@@ -941,7 +942,15 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   METHOD is_secret.
 
     READ TABLE mt_field INTO DATA(ls_field) WITH KEY id = field_id. "#EC CI_SORTSEQ
-    result = xsdbool( sy-subrc = 0 AND ls_field-secret = abap_true ).
+    IF sy-subrc <> 0.
+      RETURN.
+    ENDIF.
+    " a Text or a second input showing the password's path shows the password
+    LOOP AT mt_field TRANSPORTING NO FIELDS
+         WHERE model_key = ls_field-model_key AND path = ls_field-path AND secret = abap_true. "#EC CI_SORTSEQ
+      result = abap_true.
+      RETURN.
+    ENDLOOP.
 
   ENDMETHOD.
 

@@ -371,6 +371,19 @@ CLASS ltcl_copilot IMPLEMENTATION.
 ENDCLASS.
 
 
+"! An object an app holds - abap2UI5 binds its attributes as /O_SUB/VALUE.
+CLASS ltd_sub DEFINITION FINAL FOR TESTING.
+
+  PUBLIC SECTION.
+    DATA value TYPE string.
+
+ENDCLASS.
+
+
+CLASS ltd_sub IMPLEMENTATION.
+ENDCLASS.
+
+
 "! An app instance the copilot writes the filled values back into.
 CLASS ltd_app DEFINITION FINAL FOR TESTING.
 
@@ -383,6 +396,7 @@ CLASS ltd_app DEFINITION FINAL FOR TESTING.
     TYPES ty_t_row TYPE STANDARD TABLE OF ty_s_row WITH EMPTY KEY.
 
     DATA t_row TYPE ty_t_row.
+    DATA o_sub TYPE REF TO ltd_sub.
 
 ENDCLASS.
 
@@ -397,6 +411,7 @@ CLASS ltcl_write DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL HARMLESS
   PRIVATE SECTION.
 
     METHODS unknown_column FOR TESTING.
+    METHODS object_attribute FOR TESTING.
 
 ENDCLASS.
 
@@ -422,6 +437,20 @@ CLASS ltcl_write IMPLEMENTATION.
     ENDTRY.
     cl_abap_unit_assert=>assert_equals( exp = VALUE ltd_app=>ty_t_row( ( a = `a1` n = 7 ) )
                                         act = lo_app->t_row ).
+
+  ENDMETHOD.
+
+  METHOD object_attribute.
+
+    " an attribute of an object the app holds: /O_SUB/VALUE is O_SUB->VALUE
+    DATA(lo_app) = NEW ltd_app( ).
+    lo_app->o_sub = NEW #( ).
+
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/O_SUB/VALUE`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `filled` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `filled`
+                                        act = lo_app->o_sub->value ).
 
   ENDMETHOD.
 

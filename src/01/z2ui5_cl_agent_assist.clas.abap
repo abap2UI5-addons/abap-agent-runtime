@@ -604,6 +604,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
   METHOD write.
 
     DATA lt_segment TYPE string_table.
+    DATA lo_object TYPE REF TO object.
     FIELD-SYMBOLS <current> TYPE any.
     FIELD-SYMBOLS <table> TYPE ANY TABLE.
     FIELD-SYMBOLS <next> TYPE any.
@@ -633,6 +634,14 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
               EXIT.
             ENDIF.
           ENDLOOP.
+        ELSEIF lo_type->type_kind = cl_abap_typedescr=>typekind_oref.
+          " an attribute of an object the app holds - abap2UI5 binds
+          " MO_SUB->VALUE as /MO_SUB/VALUE
+          lo_object = <current>.
+          IF lo_object IS BOUND.
+            DATA(lv_member) = to_upper( lv_segment ).
+            ASSIGN lo_object->(lv_member) TO <next>.
+          ENDIF.
         ELSE.
           ASSIGN COMPONENT to_upper( lv_segment ) OF STRUCTURE <current> TO <next>.
         ENDIF.

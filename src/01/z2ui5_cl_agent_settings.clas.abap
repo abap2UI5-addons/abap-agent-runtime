@@ -568,6 +568,8 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     IF lv_matched = abap_false.
       lv_policy = ls_info-default_policy.
     ENDIF.
+    " in any case, as the settings' rules below - FORBIDDEN is forbidden
+    lv_policy = to_lower( condense( lv_policy ) ).
     IF strictest( a = result-policy
                   b = lv_policy ) = abap_true.
       result = VALUE #( policy = lv_policy

@@ -87,8 +87,8 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
         ls_row-mcp_client = is_entry-client.
         ls_row-args = is_entry-args.
         IF strlen( ls_row-args ) > c_max_args.
-          ls_row-args = |{ substring( val = ls_row-args
-                                      len = c_max_args - 3 ) }...|.
+          ls_row-args = |{ z2ui5_cl_agent_viewxml=>cut( val = ls_row-args
+                                                        len = c_max_args - 3 ) }...|.
         ENDIF.
         INSERT z2ui5_t_ag_log FROM @ls_row.
       CATCH cx_root ##NO_HANDLER.

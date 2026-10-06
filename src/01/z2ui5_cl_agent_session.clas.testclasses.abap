@@ -103,6 +103,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
     METHODS audit_cleanup_range FOR TESTING.
+    METHODS cut_surrogate_pair  FOR TESTING.
     METHODS admin_key_not_kept  FOR TESTING.
     METHODS admin_change_kept   FOR TESTING.
     METHODS admin_rule_fits     FOR TESTING.
@@ -618,6 +619,44 @@ CLASS ltcl_session IMPLEMENTATION.
     " delete that old - and no overflow
     cl_abap_unit_assert=>assert_equals( exp = 0
                                         act = z2ui5_cl_agent_audit=>cleanup( z2ui5_cl_agent_audit=>c_max_days + 1 ) ).
+
+  ENDMETHOD.
+
+  METHOD cut_surrogate_pair.
+
+    DATA lv_args TYPE string.
+
+    " U+1F600 is two UTF-16 code units - its first one alone is no character
+    DATA(lv_emoji) = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( `F09F9880` ) ).
+    DATA(lv_high) = substring( val = lv_emoji
+                               len = 1 ).
+
+    " the refusal quotes the value cut to 80 characters - right in the pair
+    DATA(ls_start) = start( ).
+    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+                                        values  = |\{"NAME":\{"k":"{ repeat( val = `a`
+                                                                               occ = 73 ) }{ lv_emoji }"\}\}| ).
+    refused( is_result = ls_act
+             pattern   = `*takes a single value, not {"k":"aaa*` ).
+    cl_abap_unit_assert=>assert_equals( exp = -1
+                                        act = find( val = ls_act-text
+                                                    sub = lv_high ) ).
+
+    " the audit log cuts its arguments to c_max_args characters - in the pair
+    z2ui5_cl_agent_audit=>log( VALUE #( session   = `CUT_SURROGATE_PAIR`
+                                        operation = `app_list`
+                                        args      = |{ repeat( val = `a`
+                                                               occ = z2ui5_cl_agent_audit=>c_max_args - 4 ) }{ lv_emoji }tail|
+                                        outcome   = z2ui5_cl_agent_audit=>cs_outcome-ok
+                                        client    = c_client ) ).
+    COMMIT WORK.
+    SELECT SINGLE args FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND session_id = 'CUT_SURROGATE_PAIR' AND timestampl >= @mv_start
+      INTO @lv_args.
+    cl_abap_unit_assert=>assert_subrc( ).
+    cl_abap_unit_assert=>assert_equals( exp = |{ repeat( val = `a`
+                                                         occ = z2ui5_cl_agent_audit=>c_max_args - 4 ) }...|
+                                        act = lv_args ).
 
   ENDMETHOD.
 

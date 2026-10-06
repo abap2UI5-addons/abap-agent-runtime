@@ -1416,9 +1416,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       RETURN.
     ENDIF.
     IF val-kind = z2ui5_cl_agent_viewxml=>cs_kind-object OR val-kind = z2ui5_cl_agent_viewxml=>cs_kind-array.
-      fail( |{ label } takes a single value, not { substring( val = val-json
-                                                              len = nmin( val1 = 80
-                                                                          val2 = strlen( val-json ) ) ) }| ).
+      fail( |{ label } takes a single value, not { z2ui5_cl_agent_viewxml=>cut( val = val-json
+                                                                                len = 80 ) }| ).
     ENDIF.
     IF current-kind = z2ui5_cl_agent_viewxml=>cs_kind-number.
       DATA(ls_num) = z2ui5_cl_agent_viewxml=>describe_arg( z2ui5_cl_agent_viewxml=>val_to_string( val ) ).

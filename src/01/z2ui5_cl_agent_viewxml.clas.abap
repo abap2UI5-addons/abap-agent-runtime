@@ -297,6 +297,17 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE string.
 
+    "! The first len characters of val - one less when the last of them
+    "! would be the first half of a surrogate pair (an emoji): that half
+    "! alone is no character. For a text cut short in a message or the
+    "! audit log.
+    CLASS-METHODS cut
+      IMPORTING
+        val           TYPE clike
+        len           TYPE i
+      RETURNING
+        VALUE(result) TYPE string.
+
     "! A single- or double-quoted JavaScript string literal -&gt; its value.
     CLASS-METHODS js_string
       IMPORTING
@@ -343,6 +354,15 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
     "! c_json_control_hex as characters, built on first use.
     CLASS-DATA gv_json_controls TYPE string.
     CLASS-DATA gv_json_controls_set TYPE abap_bool.
+
+    "! The UTF-8 bytes of U+10000 and U+10FFFF - as characters the first
+    "! and the last high surrogate, each followed by a low one.
+    CONSTANTS c_surrogate_hex TYPE string VALUE `F0908080F48FBFBF`.
+
+    "! The first and the last high surrogate, built on first use.
+    CLASS-DATA gv_high_first TYPE string.
+    CLASS-DATA gv_high_last TYPE string.
+    CLASS-DATA gv_high_set TYPE abap_bool.
 
     DATA mt_token TYPE ty_t_token.
     DATA mv_pos   TYPE i.
@@ -557,6 +577,47 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     IF strlen( result ) > len.
       result = substring( val = result
                           len = len - 3 ) && `...`.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD cut.
+
+    result = val.
+    IF len <= 0.
+      CLEAR result.
+      RETURN.
+    ENDIF.
+    IF strlen( result ) <= len.
+      RETURN.
+    ENDIF.
+    result = substring( val = result
+                        len = len ).
+
+    IF gv_high_set = abap_false.
+      TRY.
+          DATA(lv_pairs) = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( c_surrogate_hex ) ).
+          IF strlen( lv_pairs ) = 4.
+            gv_high_first = substring( val = lv_pairs
+                                       len = 1 ).
+            gv_high_last = substring( val = lv_pairs
+                                      off = 2
+                                      len = 1 ).
+          ENDIF.
+        CATCH cx_root.
+          CLEAR: gv_high_first, gv_high_last.
+      ENDTRY.
+      gv_high_set = abap_true.
+    ENDIF.
+    IF gv_high_first IS INITIAL.
+      RETURN.
+    ENDIF.
+    DATA(lv_last) = substring( val = result
+                               off = len - 1
+                               len = 1 ).
+    IF lv_last >= gv_high_first AND lv_last <= gv_high_last.
+      result = substring( val = result
+                          len = len - 1 ).
     ENDIF.
 
   ENDMETHOD.

@@ -12,6 +12,7 @@ CLASS ltcl_viewxml DEFINITION FINAL
     METHODS wire_variants           FOR TESTING.
     METHODS name_of_path            FOR TESTING.
     METHODS json_escaping           FOR TESTING.
+    METHODS cut_surrogate_pair      FOR TESTING.
 
     METHODS eval
       IMPORTING
@@ -264,6 +265,27 @@ CLASS ltcl_viewxml IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = `ab...`
                                         act = z2ui5_cl_agent_viewxml=>clip( val = |ab  cd   ef|
                                                                             len = 5 ) ).
+
+  ENDMETHOD.
+
+  METHOD cut_surrogate_pair.
+
+    " U+1F600, two UTF-16 code units: a cut between them keeps neither
+    DATA(lv_emoji) = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( `F09F9880` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 2
+                                        act = strlen( lv_emoji ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `ab`
+                                        act = z2ui5_cl_agent_viewxml=>cut( val = |ab{ lv_emoji }c|
+                                                                           len = 3 ) ).
+    cl_abap_unit_assert=>assert_equals( exp = |ab{ lv_emoji }|
+                                        act = z2ui5_cl_agent_viewxml=>cut( val = |ab{ lv_emoji }c|
+                                                                           len = 4 ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `abc`
+                                        act = z2ui5_cl_agent_viewxml=>cut( val = `abcd`
+                                                                           len = 3 ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `ab`
+                                        act = z2ui5_cl_agent_viewxml=>cut( val = `ab`
+                                                                           len = 3 ) ).
 
   ENDMETHOD.
 

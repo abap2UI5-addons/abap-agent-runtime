@@ -103,6 +103,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS audit_masks         FOR TESTING.
     METHODS audit_cleanup_range FOR TESTING.
     METHODS admin_key_not_kept  FOR TESTING.
+    METHODS admin_change_kept   FOR TESTING.
     METHODS pick_single         FOR TESTING.
     METHODS pick_multi          FOR TESTING.
     METHODS pick_refused        FOR TESTING.
@@ -617,6 +618,30 @@ CLASS ltcl_session IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = -1
                                         act = find( val = lo_sim->get_model( )
                                                     sub = `sk-unit-typed-key` ) ).
+
+  ENDMETHOD.
+
+  METHOD admin_change_kept.
+
+    DATA lv_count TYPE i.
+
+    " abap2UI5 rolls back what main( ) leaves open: a change an
+    " administrator saves in the settings app - and its audit entry - is
+    " committed by the app itself
+    z2ui5_cl_agent_settings=>admin_add( sy-uname ).
+    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    lo_sim->set_value( name  = `URL`
+                       value = `/sap/bc/unit_handover` ).
+    lo_sim->click( `URL_SAVE` ).
+    SELECT SINGLE value FROM z2ui5_t_ag_set WHERE kind = 'URL' INTO @DATA(lv_url).
+    cl_abap_unit_assert=>assert_equals( exp = `/sap/bc/unit_handover`
+                                        act = lv_url ).
+    SELECT COUNT(*) FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start INTO @lv_count.
+    DELETE FROM z2ui5_t_ag_log WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 1
+                                        act = lv_count ).
 
   ENDMETHOD.
 

@@ -104,6 +104,9 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
       " the key is write-only: whatever the event, a typed key is neither
       " kept in the draft of this app nor sent back to the browser
       CLEAR llm_key.
+      " the settings and their audit entries - abap2UI5 rolls back what
+      " main( ) leaves open
+      COMMIT WORK.
     ENDIF.
 
   ENDMETHOD.

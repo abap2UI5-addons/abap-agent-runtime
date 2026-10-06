@@ -228,6 +228,8 @@ CLASS z2ui5_cl_agent_genui DEFINITION PUBLIC FINAL CREATE PRIVATE.
     DATA mt_dataset TYPE ty_t_dataset.
     DATA mt_event TYPE ty_t_event.
     DATA mt_vocab TYPE z2ui5_cl_agent_gen_vocab=>ty_t_entry.
+    "! The icon names of the font at the floor - read on the first icon.
+    DATA mt_icon TYPE SORTED TABLE OF string WITH NON-UNIQUE KEY table_line.
     DATA mt_node TYPE ty_t_node.
     DATA mt_issue TYPE string_table.
 
@@ -306,6 +308,14 @@ CLASS z2ui5_cl_agent_genui DEFINITION PUBLIC FINAL CREATE PRIVATE.
         field         TYPE string
       RETURNING
         VALUE(result) TYPE abap_bool.
+
+    "! The type of a field (ty_s_field-type) - empty when there is none.
+    METHODS type_of
+      IMPORTING
+        dataset       TYPE string
+        field         TYPE string
+      RETURNING
+        VALUE(result) TYPE string.
 
     METHODS build
       IMPORTING
@@ -582,7 +592,8 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
            `parent's default aggregation).` INTO TABLE lt_line.
     INSERT `- properties: a literal in value (field and dataset ""), or a binding: field = a field name. Inside ` &&
            `the template of a list (see list) a field of that list's table; elsewhere set dataset to a structure ` &&
-           `dataset. format "integer" or "decimal" formats a numeric binding; anything else is not possible.` INTO TABLE lt_line.
+           `dataset. format "integer" or "decimal" formats a numeric binding; anything else is not possible. ` &&
+           `A binding fits its property: B a boolean field, I and F a number field, C and E a string field.` INTO TABLE lt_line.
     INSERT `- list binds an aggregation (default: the control's default aggregation) to a table dataset: that ` &&
            `aggregation then has exactly ONE child node, the row template (e.g. sap.m.ColumnListItem in a ` &&
            `sap.m.Table, sap.m.StandardListItem in a sap.m.List, sap.ui.core.Item in a sap.m.Select). sort_by ` &&
@@ -594,7 +605,7 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
            `app allows for that event (row fields inside a template).` INTO TABLE lt_line.
     INSERT `- Literal values must fit the property type (enum values as listed, true/false, numbers, CSS sizes ` &&
            `such as 10rem, icons only as an icon URI of the SAP icon font, e.g. sap-icon://add). Texts are shown as they are.` INTO TABLE lt_line.
-    INSERT `- Universal properties: visible (boolean), tooltip (text), class (sapUiSmallMargin and the other ` &&
+    INSERT `- Universal properties: tooltip (text), class (sapUiSmallMargin and the other ` &&
            `sapUi margin/padding classes only).` INTO TABLE lt_line.
     INSERT `- Filtering the data is not possible in the view - a filter control can fire an app event that ` &&
            `takes its value only if the app offers one.` INTO TABLE lt_line.
@@ -872,6 +883,18 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD type_of.
+
+    READ TABLE mt_dataset INTO DATA(ls_dataset) WITH KEY name = dataset. "#EC CI_SORTSEQ
+    IF sy-subrc = 0.
+      READ TABLE ls_dataset-t_field INTO DATA(ls_field) WITH KEY name = field. "#EC CI_SORTSEQ
+      IF sy-subrc = 0.
+        result = ls_field-type.
+      ENDIF.
+    ENDIF.
+
+  ENDMETHOD.
+
   METHOD validate.
 
     DATA lt_id TYPE string_table.
@@ -994,7 +1017,19 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
                    text = |the aggregation { node-agg } of { ls_parent-control } takes one child, it has { lv_siblings }| ).
           ENDIF.
         ENDIF.
+        " a sap.m.Bar is no flex container before UI5 1.76: a spacer there
+        " starts a new line and the bar cuts away the controls after it -
+        " so does the Page headerContent, which goes into such a bar
+        IF node-control = `sap.m.ToolbarSpacer` AND ( ls_parent-control = `sap.m.Bar`
+            OR ( ls_parent-control = `sap.m.Page` AND node-agg = `headerContent` ) ).
+          issue( node = node
+                 text = |a sap.m.ToolbarSpacer belongs in a toolbar - in { ls_parent-control } { node-agg } it hides the controls after it| ).
+        ENDIF.
       ENDIF.
+    ELSEIF NOT line_exists( mt_vocab[ control = node-control kind = `T` name = `sap.ui.core.Control` ] ). "#EC CI_SORTSEQ
+      " the root goes into the content of the view and of the dialog
+      issue( node = node
+             text = `the root sits in the content of a view - it must be a sap.ui.core.Control` ).
     ENDIF.
 
     " the properties
@@ -1065,10 +1100,9 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
     DATA lv_type TYPE string.
     DATA lv_info TYPE string.
+    DATA lv_dataset TYPE string.
 
     CASE prop-name.
-      WHEN `visible`.
-        lv_type = `B`.
       WHEN `tooltip`.
         lv_type = `S`.
       WHEN `class`.
@@ -1123,20 +1157,43 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
                    field   = prop-field ) = abap_false.
         issue( node = node
                text = |{ prop-name } binds to "{ prop-field }" - no field of { node-scope }, the table of this row| ).
+        RETURN.
       ENDIF.
-      RETURN.
+      lv_dataset = node-scope.
+    ELSE.
+      READ TABLE mt_dataset INTO DATA(ls_dataset) WITH KEY name = prop-dataset. "#EC CI_SORTSEQ
+      IF sy-subrc <> 0 OR prop-dataset IS INITIAL.
+        issue( node = node
+               text = |{ prop-name } binds to "{ prop-field }" outside a row template without a structure dataset| ).
+        RETURN.
+      ELSEIF ls_dataset-is_table = abap_true.
+        issue( node = node
+               text = |{ prop-name } binds to the table { prop-dataset } outside its row template - bind a list instead| ).
+        RETURN.
+      ELSEIF field_of( dataset = prop-dataset
+                       field   = prop-field ) = abap_false.
+        issue( node = node
+               text = |{ prop-name } binds to "{ prop-field }" - no field of { prop-dataset }| ).
+        RETURN.
+      ENDIF.
+      lv_dataset = prop-dataset.
     ENDIF.
-    READ TABLE mt_dataset INTO DATA(ls_dataset) WITH KEY name = prop-dataset. "#EC CI_SORTSEQ
-    IF sy-subrc <> 0 OR prop-dataset IS INITIAL.
+
+    " the value as the property takes it - UI5 throws on a boolean, a
+    " number, a size or an enum value of another type (validateProperty),
+    " and a format formats a number
+    DATA(lv_field_type) = type_of( dataset = lv_dataset
+                                   field   = prop-field ).
+    DATA(lv_takes) = SWITCH string( lv_type
+                                    WHEN `B` THEN `boolean`
+                                    WHEN `I` OR `F` THEN `number`
+                                    WHEN `C` OR `E` THEN `string` ).
+    IF lv_takes IS NOT INITIAL AND lv_field_type <> lv_takes.
       issue( node = node
-             text = |{ prop-name } binds to "{ prop-field }" outside a row template without a structure dataset| ).
-    ELSEIF ls_dataset-is_table = abap_true.
+             text = |{ prop-name } takes a { lv_takes } field - "{ prop-field }" is a { lv_field_type } field| ).
+    ELSEIF prop-format IS NOT INITIAL AND lv_field_type <> `number`.
       issue( node = node
-             text = |{ prop-name } binds to the table { prop-dataset } outside its row template - bind a list instead| ).
-    ELSEIF field_of( dataset = prop-dataset
-                     field   = prop-field ) = abap_false.
-      issue( node = node
-             text = |{ prop-name } binds to "{ prop-field }" - no field of { prop-dataset }| ).
+             text = |{ prop-name }: format { prop-format } formats a number field - "{ prop-field }" is a { lv_field_type } field| ).
     ENDIF.
 
   ENDMETHOD.
@@ -1154,11 +1211,15 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
           result = `true or false`.
         ENDIF.
       WHEN `I`.
-        IF value IS INITIAL OR value CN `-0123456789` OR strlen( value ) > 9.
+        " a sign only in front - "5-" or "-" is no int and the view fails to load
+        FIND REGEX `^-?[0-9]{1,9}$` IN value ##REGEX_POSIX.
+        IF sy-subrc <> 0.
           result = `an integer`.
         ENDIF.
       WHEN `F`.
-        IF value IS INITIAL OR value CN `-0123456789.` OR strlen( value ) > 15.
+        " digits on both sides of the point - ".5" is no float to the linter
+        FIND REGEX `^-?[0-9]+(\.[0-9]+)?$` IN value ##REGEX_POSIX.
+        IF sy-subrc <> 0 OR strlen( value ) > 15.
           result = `a number`.
         ENDIF.
       WHEN `C`.
@@ -1170,6 +1231,16 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
         FIND REGEX `^sap-icon://[a-z0-9-]{1,60}$` IN value ##REGEX_POSIX.
         IF sy-subrc <> 0.
           result = `only an icon URI of the SAP icon font, e.g. sap-icon://add`.
+          RETURN.
+        ENDIF.
+        " a name the font does not have renders no icon at all - silently
+        IF mt_icon IS INITIAL.
+          mt_icon = z2ui5_cl_agent_gen_vocab=>get_icons( ).
+        ENDIF.
+        DATA(lv_icon) = substring_after( val = value
+                                         sub = `sap-icon://` ).
+        IF NOT line_exists( mt_icon[ table_line = lv_icon ] ).
+          result = |no icon of the SAP icon font at UI5 { z2ui5_cl_agent_gen_vocab=>c_floor } - e.g. sap-icon://add|.
         ENDIF.
       WHEN `E`.
         SPLIT info AT `|` INTO TABLE lt_value.

@@ -297,6 +297,17 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE string.
 
+    "! The first len characters of val - one less when the last of them
+    "! would be the first half of a surrogate pair (an emoji): that half
+    "! alone is no character. For a text cut short in a message or the
+    "! audit log.
+    CLASS-METHODS cut
+      IMPORTING
+        val           TYPE clike
+        len           TYPE i
+      RETURNING
+        VALUE(result) TYPE string.
+
     "! A single- or double-quoted JavaScript string literal -&gt; its value.
     CLASS-METHODS js_string
       IMPORTING
@@ -336,6 +347,22 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CONSTANTS c_hex TYPE string VALUE `0123456789abcdefABCDEF`.
     CONSTANTS c_name_chars TYPE string VALUE `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-`.
     CONSTANTS c_path_chars TYPE string VALUE `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_$/.-`.
+    "! The UTF-8 bytes of the control characters json_string( ) writes as
+    "! \u00xx - the ones without a short escape.
+    CONSTANTS c_json_control_hex TYPE string VALUE `0102030405060B0E0F101112131415161718191A1B1C1D1E1F`.
+
+    "! c_json_control_hex as characters, built on first use.
+    CLASS-DATA gv_json_controls TYPE string.
+    CLASS-DATA gv_json_controls_set TYPE abap_bool.
+
+    "! The UTF-8 bytes of U+10000 and U+10FFFF - as characters the first
+    "! and the last high surrogate, each followed by a low one.
+    CONSTANTS c_surrogate_hex TYPE string VALUE `F0908080F48FBFBF`.
+
+    "! The first and the last high surrogate, built on first use.
+    CLASS-DATA gv_high_first TYPE string.
+    CLASS-DATA gv_high_last TYPE string.
+    CLASS-DATA gv_high_set TYPE abap_bool.
 
     DATA mt_token TYPE ty_t_token.
     DATA mv_pos   TYPE i.
@@ -550,6 +577,47 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     IF strlen( result ) > len.
       result = substring( val = result
                           len = len - 3 ) && `...`.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD cut.
+
+    result = val.
+    IF len <= 0.
+      CLEAR result.
+      RETURN.
+    ENDIF.
+    IF strlen( result ) <= len.
+      RETURN.
+    ENDIF.
+    result = substring( val = result
+                        len = len ).
+
+    IF gv_high_set = abap_false.
+      TRY.
+          DATA(lv_pairs) = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( c_surrogate_hex ) ).
+          IF strlen( lv_pairs ) = 4.
+            gv_high_first = substring( val = lv_pairs
+                                       len = 1 ).
+            gv_high_last = substring( val = lv_pairs
+                                      off = 2
+                                      len = 1 ).
+          ENDIF.
+        CATCH cx_root.
+          CLEAR: gv_high_first, gv_high_last.
+      ENDTRY.
+      gv_high_set = abap_true.
+    ENDIF.
+    IF gv_high_first IS INITIAL.
+      RETURN.
+    ENDIF.
+    DATA(lv_last) = substring( val = result
+                               off = len - 1
+                               len = 1 ).
+    IF lv_last >= gv_high_first AND lv_last <= gv_high_last.
+      result = substring( val = result
+                          len = len - 1 ).
     ENDIF.
 
   ENDMETHOD.
@@ -1197,6 +1265,14 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       ELSE.
         result-path = lv_path.
       ENDIF.
+      " model: 'name' binds to that model as well as name>/path does - a
+      " value written to the default model's path would land elsewhere
+      DATA(lv_model_key) = key_quoted_value( EXPORTING body  = lv_b
+                                                       key   = `model`
+                                             IMPORTING found = lv_found ).
+      IF lv_found = abap_true AND lv_model_key IS NOT INITIAL.
+        result-model = lv_model_key.
+      ENDIF.
       result-relative = xsdbool( result-path IS INITIAL OR result-path(1) <> `/` ).
       result-type = key_quoted_value( body = lv_b
                                       key  = `type` ).
@@ -1734,6 +1810,26 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>horizontal_tab IN result WITH `\t`.
     REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>form_feed IN result WITH `\f`.
     REPLACE ALL OCCURRENCES OF cl_abap_char_utilities=>backspace IN result WITH `\b`.
+    " every other control character as \u00xx - unescaped it makes the
+    " whole document invalid JSON (a vertical tab of a long text)
+    IF gv_json_controls_set = abap_false.
+      TRY.
+          gv_json_controls = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( c_json_control_hex ) ).
+        CATCH cx_root.
+          CLEAR gv_json_controls.
+      ENDTRY.
+      gv_json_controls_set = abap_true.
+    ENDIF.
+    IF gv_json_controls IS NOT INITIAL AND result CA gv_json_controls.
+      DATA(lv_off) = 0.
+      WHILE lv_off < strlen( gv_json_controls ).
+        REPLACE ALL OCCURRENCES OF gv_json_controls+lv_off(1) IN result
+                WITH |\\u00{ to_lower( substring( val = c_json_control_hex
+                                                  off = lv_off * 2
+                                                  len = 2 ) ) }|.
+        lv_off = lv_off + 1.
+      ENDWHILE.
+    ENDIF.
     result = `"` && result && `"`.
 
   ENDMETHOD.

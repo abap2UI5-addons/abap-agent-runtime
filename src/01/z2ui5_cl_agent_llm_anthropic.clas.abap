@@ -198,9 +198,8 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
         ENDTRY.
       ENDIF.
       IF lv_message IS INITIAL.
-        lv_message = substring( val = is_response-body
-                                len = nmin( val1 = 200
-                                            val2 = strlen( is_response-body ) ) ).
+        lv_message = z2ui5_cl_agent_viewxml=>cut( val = is_response-body
+                                                  len = 200 ).
       ENDIF.
       RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
         EXPORTING

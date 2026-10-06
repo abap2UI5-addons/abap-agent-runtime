@@ -40,12 +40,14 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
     TYPES ty_t_turn TYPE STANDARD TABLE OF ty_s_turn WITH EMPTY KEY.
 
     TYPES:
-      "! field: as the model named it (id, path or name); label, path: of
-      "! the snapshot's field.
+      "! field: as the model named it (id, path or name); label, path, kind:
+      "! of the snapshot's field (value of a multichoice: its keys,
+      "! separated by commas).
       BEGIN OF ty_s_value,
         field TYPE string,
         label TYPE string,
         path  TYPE string,
+        kind  TYPE string,
         value TYPE string,
       END OF ty_s_value.
     TYPES ty_t_value TYPE STANDARD TABLE OF ty_s_value WITH EMPTY KEY.
@@ -119,11 +121,14 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     "! Write the pending values of the session (filled, not yet sent) into
     "! the app instance - its public attributes by model path. Returns the
-    "! paths written.
+    "! paths written; t_refused: why a value was not (a date that is none,
+    "! a path that is no attribute) - the user enters it.
     CLASS-METHODS apply_pending
       IMPORTING
         session       TYPE clike
         app           TYPE REF TO object
+      EXPORTING
+        t_refused     TYPE string_table
       RETURNING
         VALUE(result) TYPE string_table.
 
@@ -169,6 +174,7 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
       EXPORTING
         label         TYPE string
         path          TYPE string
+        kind          TYPE string
       RETURNING
         VALUE(result) TYPE abap_bool.
 
@@ -190,6 +196,20 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
         app  TYPE REF TO object
         path TYPE string
         val  TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+
+    CLASS-METHODS date_of
+      IMPORTING
+        value         TYPE string
+        path          TYPE string
+      RETURNING
+        VALUE(result) TYPE d.
+
+    CLASS-METHODS time_of
+      IMPORTING
+        value         TYPE string
+        path          TYPE string
+      RETURNING
+        VALUE(result) TYPE t.
 
 ENDCLASS.
 
@@ -249,7 +269,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       INSERT `When the user asks you to do something on this screen, you may propose ONE step: set ` &&
              `proposal.wanted true, describe it in summary, list the fields to fill in values (field = the ` &&
              `field id or path from the snapshot, only editable fields, never a protected one; value as text, ` &&
-             `a choice by its key, a boolean as true or false) and optionally the action to press in event ` &&
+             `a choice by its key, a multichoice by its keys separated by commas, a boolean as true or false) and optionally the action to press in event ` &&
              `(its event name or action id). The user sees the proposal and confirms it with a click before ` &&
              `anything runs. An action marked "policy":"confirm" is never pressed by you: propose the fields, ` &&
              `the user presses it. Otherwise set proposal.wanted false and leave summary, event and values empty.` INTO TABLE lt_line.
@@ -295,14 +315,17 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
           DATA(lv_columns) = lines( lo_json->members( |{ lv_table }/columns| ) ).
           DO lv_columns TIMES.
             DATA(lv_column) = lo_json->get_string( |{ lv_table }/columns/{ sy-index }/name| ).
-            IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
-                                                         path = |{ lv_path }/{ lv_column }|
-                                                         name = lv_column ) = abap_false.
-              CONTINUE.
-            ENDIF.
+            DATA(lv_column_masked) = z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                                               path = |{ lv_path }/{ lv_column }|
+                                                                               name = lv_column ).
             DATA(lv_rows) = lines( lo_json->members( |{ lv_table }/rows| ) ).
             DO lv_rows TIMES.
-              IF lo_json->exists( |{ lv_table }/rows/{ sy-index }/{ lv_column }| ) = abap_true.
+              " a cell by its model path too (/T_PARTNER/*/IBAN), as the audit log masks it
+              IF lo_json->exists( |{ lv_table }/rows/{ sy-index }/{ lv_column }| ) = abap_true
+                  AND ( lv_column_masked = abap_true
+                        OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                                     path = |{ lv_path }/{ sy-index - 1 }/{ lv_column }|
+                                                                     name = lv_column ) = abap_true ).
                 lo_json->set( iv_path = |{ lv_table }/rows/{ sy-index }/{ lv_column }|
                               iv_val  = c_mask ).
               ENDIF.
@@ -329,25 +352,66 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
   METHOD check_protected.
 
-    CLEAR: label, path.
-    LOOP AT io_snap->mt_field INTO DATA(ls_field) WHERE id = field OR path = field OR name = field. "#EC CI_SORTSEQ
+    DATA lv_index TYPE i.
+
+    CLEAR: label, path, kind.
+    " the field app_check( ) resolves the key to: by id, by path, by name in
+    " any case - in that order, as the session resolves it
+    LOOP AT io_snap->mt_field INTO DATA(ls_field) WHERE id = field. "#EC CI_SORTSEQ
+      lv_index = sy-tabix.
+      EXIT.
+    ENDLOOP.
+    IF lv_index = 0.
+      LOOP AT io_snap->mt_field INTO ls_field WHERE path = field. "#EC CI_SORTSEQ
+        lv_index = sy-tabix.
+        EXIT.
+      ENDLOOP.
+    ENDIF.
+    IF lv_index = 0.
+      DATA(lv_upper) = to_upper( field ).
+      LOOP AT io_snap->mt_field INTO ls_field.
+        IF to_upper( ls_field-name ) = lv_upper.
+          lv_index = sy-tabix.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+    IF lv_index > 0.
       label = ls_field-label.
       path = ls_field-path.
-      IF ls_field-secret = abap_true
+      kind = ls_field-kind.
+      IF io_snap->is_secret( ls_field-id ) = abap_true
           OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                        path = ls_field-path
                                                        name = ls_field-name ) = abap_true.
         result = abap_true.
       ENDIF.
       RETURN.
-    ENDLOOP.
-    " a table cell "<table>/<row>/<COLUMN>": sensitive by its column
+    ENDIF.
+
+    " a table cell "<table path or id>/<row>/<COLUMN>": sensitive by its
+    " column or by its model path, as the audit log judges it
     DATA(lt_part) = VALUE string_table( ).
     SPLIT field AT `/` INTO TABLE lt_part.
-    DATA(lv_column) = VALUE string( lt_part[ lines( lt_part ) ] OPTIONAL ).
-    IF lines( lt_part ) > 1 AND z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
-                                                                          path = field
-                                                                          name = lv_column ) = abap_true.
+    DATA(lv_count) = lines( lt_part ).
+    DATA(lv_column) = VALUE string( lt_part[ lv_count ] OPTIONAL ).
+    DATA(lv_path) = CONV string( field ).
+    IF lv_count >= 3.
+      DATA(lv_row) = VALUE string( lt_part[ lv_count - 1 ] OPTIONAL ).
+      DATA(lv_table) = substring( val = field
+                                  len = strlen( field ) - strlen( lv_row ) - strlen( lv_column ) - 2 ).
+      LOOP AT io_snap->mt_table INTO DATA(ls_table) WHERE id = lv_table OR path = lv_table. "#EC CI_SORTSEQ
+        lv_path = |{ ls_table-path }/{ lv_row }/{ lv_column }|.
+        LOOP AT ls_table-t_cellspec INTO DATA(ls_spec) WHERE name = lv_column AND has_field_spec = abap_true. "#EC CI_SORTSEQ
+          kind = ls_spec-field_kind.
+          EXIT.
+        ENDLOOP.
+        EXIT.
+      ENDLOOP.
+    ENDIF.
+    IF lv_count > 1 AND z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                                  path = lv_path
+                                                                  name = lv_column ) = abap_true.
       result = abap_true.
     ENDIF.
 
@@ -356,10 +420,28 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
   METHOD values_json.
 
     DATA lt_member TYPE string_table.
+    DATA lt_key TYPE string_table.
+    DATA lt_json TYPE string_table.
+    DATA lv_json TYPE string.
 
     LOOP AT t_value INTO DATA(ls_value).
-      INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-field ) }:{ z2ui5_cl_agent_viewxml=>json_string( ls_value-value ) }|
-             INTO TABLE lt_member.
+      IF ls_value-kind = `multichoice`.
+        " the proposal's values are text - the session takes a multichoice
+        " as an array of keys
+        SPLIT ls_value-value AT `,` INTO TABLE lt_key.
+        CLEAR lt_json.
+        LOOP AT lt_key INTO DATA(lv_key).
+          lv_key = condense( lv_key ).
+          IF lv_key IS NOT INITIAL.
+            INSERT z2ui5_cl_agent_viewxml=>json_string( lv_key ) INTO TABLE lt_json.
+          ENDIF.
+        ENDLOOP.
+        lv_json = |[{ concat_lines_of( table = lt_json
+                                       sep   = `,` ) }]|.
+      ELSE.
+        lv_json = z2ui5_cl_agent_viewxml=>json_string( ls_value-value ).
+      ENDIF.
+      INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-field ) }:{ lv_json }| INTO TABLE lt_member.
     ENDLOOP.
     IF lt_member IS NOT INITIAL.
       result = |\{{ concat_lines_of( table = lt_member
@@ -452,7 +534,8 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       IF check_protected( EXPORTING io_snap = io_snap
                                     field   = lr_value->field
                           IMPORTING label   = lr_value->label
-                                    path    = lr_value->path ) = abap_true.
+                                    path    = lr_value->path
+                                    kind    = lr_value->kind ) = abap_true.
         cs_proposal-reason = |the field { lr_value->field } is protected (a password or sensitive field) - the copilot never fills it|.
         RETURN.
       ENDIF.
@@ -540,6 +623,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
   METHOD apply_pending.
 
+    CLEAR t_refused.
     TRY.
         DATA(lo_snap) = session_new( )->get_snapshot( session ).
         DATA(lo_json) = z2ui5_cl_ajson=>parse( lo_snap->get_json( ) ).
@@ -555,8 +639,9 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
                  val  = lo_snap->model_value( model_key = z2ui5_cl_agent_snapshot=>cs_model-main
                                               path      = lv_path ) ).
           INSERT lv_path INTO TABLE result.
-        CATCH cx_root ##NO_HANDLER.
+        CATCH cx_root INTO DATA(lx).
           " a value of a popup or of a path that is no attribute: the user enters it
+          INSERT lx->get_text( ) INTO TABLE t_refused.
       ENDTRY.
     ENDDO.
 
@@ -565,6 +650,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
   METHOD write.
 
     DATA lt_segment TYPE string_table.
+    DATA lo_object TYPE REF TO object.
     FIELD-SYMBOLS <current> TYPE any.
     FIELD-SYMBOLS <table> TYPE ANY TABLE.
     FIELD-SYMBOLS <next> TYPE any.
@@ -581,11 +667,12 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         ASSIGN app->(lv_attribute) TO <current>.
       ELSE.
         DATA(lo_type) = cl_abap_typedescr=>describe_by_data( <current> ).
+        " a failed ASSIGN leaves <next> where the last segment put it
+        UNASSIGN <next>.
         IF lo_type->kind = cl_abap_typedescr=>kind_table.
           ASSIGN <current> TO <table>.
           DATA(lv_index) = CONV i( lv_segment ) + 1.
           DATA(lv_tabix) = 0.
-          UNASSIGN <next>.
           LOOP AT <table> ASSIGNING FIELD-SYMBOL(<row>).
             lv_tabix = lv_tabix + 1.
             IF lv_tabix = lv_index.
@@ -593,6 +680,14 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
               EXIT.
             ENDIF.
           ENDLOOP.
+        ELSEIF lo_type->type_kind = cl_abap_typedescr=>typekind_oref.
+          " an attribute of an object the app holds - abap2UI5 binds
+          " MO_SUB->VALUE as /MO_SUB/VALUE
+          lo_object = <current>.
+          IF lo_object IS BOUND.
+            DATA(lv_member) = to_upper( lv_segment ).
+            ASSIGN lo_object->(lv_member) TO <next>.
+          ENDIF.
         ELSE.
           ASSIGN COMPONENT to_upper( lv_segment ) OF STRUCTURE <current> TO <next>.
         ENDIF.
@@ -613,14 +708,125 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         <current> = xsdbool( lv_text = `true` ).
       WHEN z2ui5_cl_agent_viewxml=>cs_kind-number.
         <current> = val-num.
+      WHEN z2ui5_cl_agent_viewxml=>cs_kind-array.
+        " a multichoice: its keys into the table the app binds selectedKeys to
+        IF lo_target->kind <> cl_abap_typedescr=>kind_table.
+          RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path } holds no list - the keys { lv_text } do not fit|.
+        ENDIF.
+        TRY.
+            z2ui5_cl_ajson=>parse( val-json )->to_abap( IMPORTING ev_container = <current> ).
+          CATCH cx_root INTO DATA(lx).
+            RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: the keys { lv_text } do not fit - { lx->get_text( ) }|.
+        ENDTRY.
       WHEN OTHERS.
         IF lo_target->type_kind = cl_abap_typedescr=>typekind_date.
-          REPLACE ALL OCCURRENCES OF `-` IN lv_text WITH ``.
+          <current> = date_of( value = lv_text
+                               path  = path ).
         ELSEIF lo_target->type_kind = cl_abap_typedescr=>typekind_time.
-          REPLACE ALL OCCURRENCES OF `:` IN lv_text WITH ``.
+          <current> = time_of( value = lv_text
+                               path  = path ).
+        ELSE.
+          <current> = lv_text.
         ENDIF.
-        <current> = lv_text.
     ENDCASE.
+
+  ENDMETHOD.
+
+  METHOD date_of.
+
+    " as the model shows a date (2026-10-06) or as ABAP holds it (20261006),
+    " and a day the calendar has - anything else is refused, never written
+    " as a date that is none
+    DATA(lv_date) = condense( value ).
+    IF lv_date IS INITIAL.
+      RETURN.
+    ENDIF.
+    IF strlen( lv_date ) = 10.
+      IF substring( val = lv_date
+                    off = 4
+                    len = 1 ) = `-` AND substring( val = lv_date
+                                                   off = 7
+                                                   len = 1 ) = `-`.
+        lv_date = substring( val = lv_date
+                             len = 4 ) && substring( val = lv_date
+                                                     off = 5
+                                                     len = 2 ) && substring( val = lv_date
+                                                                             off = 8
+                                                                             len = 2 ).
+      ENDIF.
+    ENDIF.
+    IF strlen( lv_date ) <> 8 OR lv_date CN `0123456789`.
+      RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no date (YYYY-MM-DD)|.
+    ENDIF.
+    DATA(lv_year) = CONV i( substring( val = lv_date
+                                       len = 4 ) ).
+    DATA(lv_month) = CONV i( substring( val = lv_date
+                                        off = 4
+                                        len = 2 ) ).
+    DATA(lv_day) = CONV i( substring( val = lv_date
+                                      off = 6
+                                      len = 2 ) ).
+    DATA(lv_last) = 31.
+    IF lv_month = 4 OR lv_month = 6 OR lv_month = 9 OR lv_month = 11.
+      lv_last = 30.
+    ELSEIF lv_month = 2.
+      lv_last = COND #( WHEN ( lv_year MOD 4 = 0 AND lv_year MOD 100 <> 0 ) OR lv_year MOD 400 = 0 THEN 29 ELSE 28 ).
+    ENDIF.
+    IF lv_year < 1 OR lv_month < 1 OR lv_month > 12 OR lv_day < 1 OR lv_day > lv_last.
+      RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no date of the calendar|.
+    ENDIF.
+    result = lv_date.
+
+  ENDMETHOD.
+
+  METHOD time_of.
+
+    DATA lt_part TYPE string_table.
+    DATA lv_time TYPE string.
+    DATA lv_max TYPE i.
+
+    " as the model shows a time (09:30:00), without seconds (9:30) or as
+    " ABAP holds it (093000), and a time the clock has - anything else is
+    " refused, never written as a time that is none
+    DATA(lv_value) = condense( value ).
+    IF lv_value IS INITIAL.
+      RETURN.
+    ENDIF.
+    IF lv_value CA `:`.
+      SPLIT lv_value AT `:` INTO TABLE lt_part.
+    ELSEIF strlen( lv_value ) = 6.
+      INSERT substring( val = lv_value
+                        len = 2 ) INTO TABLE lt_part.
+      INSERT substring( val = lv_value
+                        off = 2
+                        len = 2 ) INTO TABLE lt_part.
+      INSERT substring( val = lv_value
+                        off = 4
+                        len = 2 ) INTO TABLE lt_part.
+    ENDIF.
+    IF lines( lt_part ) = 2.
+      INSERT `00` INTO TABLE lt_part.
+    ENDIF.
+    IF lines( lt_part ) <> 3.
+      RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no time (HH:MM or HH:MM:SS)|.
+    ENDIF.
+    LOOP AT lt_part INTO DATA(lv_part).
+      " the hour in one or two digits, minutes and seconds in two
+      lv_max = 59.
+      IF sy-tabix = 1.
+        lv_max = 23.
+      ELSEIF strlen( lv_part ) <> 2.
+        CLEAR lv_part.
+      ENDIF.
+      IF lv_part IS INITIAL OR lv_part CN `0123456789` OR strlen( lv_part ) > 2.
+        RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no time (HH:MM or HH:MM:SS)|.
+      ENDIF.
+      IF CONV i( lv_part ) > lv_max.
+        RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no time (HH:MM or HH:MM:SS)|.
+      ENDIF.
+      lv_time = |{ lv_time }{ lv_part WIDTH = 2 ALIGN = RIGHT PAD = `0` }|.
+    ENDLOOP.
+    result = lv_time.
 
   ENDMETHOD.
 

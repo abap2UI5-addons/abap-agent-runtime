@@ -232,9 +232,26 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ms_request = is_request.
     DATA(lv_method) = to_upper( is_request-method ).
 
+    " a browser page must not drive the endpoint with the user's SSO
+    " cookies: an Origin (or Referer) of another host is refused, the same
+    " rule abap2UI5 applies to its own POSTs - on every method, the DELETE
+    " that ends an MCP session included
+    IF z2ui5_cl_ui5_http_handler=>_check_csrf_rejected( active  = abap_true
+                                                        origin  = is_request-origin
+                                                        referer = is_request-referer
+                                                        host    = is_request-host ) = abap_true.
+      result = http_error( status = 403
+                           reason = `Forbidden`
+                           code   = cs_error-invalid_request
+                           text   = `cross-origin request refused - the Origin does not match the host of this endpoint` ).
+      RETURN.
+    ENDIF.
+
     IF lv_method = `DELETE`.
-      IF is_request-session_id IS NOT INITIAL.
-        DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( is_request-session_id ).
+      DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( is_request-session_id ).
+      " an id longer than the column is none - cut to it, an id with
+      " anything appended would end the session of its prefix
+      IF is_request-session_id IS NOT INITIAL AND lv_session = is_request-session_id.
         DELETE FROM z2ui5_t_ag_mcp WHERE id = @lv_session AND uname = @sy-uname.
       ENDIF.
       result = VALUE #( status = 200
@@ -249,21 +266,16 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " a browser page must not drive the endpoint with the user's SSO
-    " cookies: an Origin (or Referer) of another host is refused, the same
-    " rule abap2UI5 applies to its own POSTs
-    IF z2ui5_cl_ui5_http_handler=>_check_csrf_rejected( active  = abap_true
-                                                        origin  = is_request-origin
-                                                        referer = is_request-referer
-                                                        host    = is_request-host ) = abap_true.
-      result = http_error( status = 403
-                           reason = `Forbidden`
-                           code   = cs_error-invalid_request
-                           text   = `cross-origin request refused - the Origin does not match the host of this endpoint` ).
-      RETURN.
+    " the media type itself, not a substring: text/plain;application/json
+    " is a simple request a page may send cross-site without a preflight
+    DATA(lv_media_type) = to_lower( is_request-content_type ).
+    DATA(lv_semicolon) = find( val = lv_media_type
+                               sub = `;` ).
+    IF lv_semicolon >= 0.
+      lv_media_type = substring( val = lv_media_type
+                                 len = lv_semicolon ).
     ENDIF.
-    IF find( val  = to_lower( is_request-content_type )
-             sub  = `application/json` ) < 0.
+    IF condense( lv_media_type ) <> `application/json`.
       result = http_error( status = 415
                            reason = `Unsupported Media Type`
                            code   = cs_error-invalid_request
@@ -304,6 +316,10 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       DO lv_count TIMES.
         DATA(lv_out) = message( io_json = lo_json
                                 path    = |/{ sy-index }| ).
+        " each message its own LUW: the app roundtrip of a later tool call
+        " (abap2UI5 rolls back around main( )) would take this one's session
+        " and audit entries with it
+        COMMIT WORK.
         IF lv_out IS NOT INITIAL.
           INSERT lv_out INTO TABLE lt_out.
         ENDIF.
@@ -338,6 +354,10 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       RETURN.
     ENDIF.
     DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( ms_request-session_id ).
+    " a longer id is unknown, never the session of its first 32 characters
+    IF lv_session <> ms_request-session_id.
+      RETURN.
+    ENDIF.
     SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_session AND uname = @sy-uname INTO @DATA(lv_client).
     IF sy-subrc = 0.
       mv_client = lv_client.
@@ -386,6 +406,15 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDIF.
     DATA(lv_method) = io_json->get( |{ path }/method| ).
 
+    IF lv_has_id = abap_false AND io_json->exists( |{ path }/id| ) = abap_true.
+      " an id that is null, a boolean, an object or an array: a request
+      " all the same (MCP ids are strings or numbers) - answered, not
+      " silently taken for a notification
+      result = rpc_error( id   = lv_id
+                          code = cs_error-invalid_request
+                          text = `invalid request - id must be a string or a number` ).
+      RETURN.
+    ENDIF.
     IF lv_has_id = abap_false.
       " a notification (notifications/initialized, notifications/cancelled,
       " ...): accepted and never answered

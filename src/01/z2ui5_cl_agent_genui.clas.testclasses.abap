@@ -28,6 +28,8 @@ CLASS ltcl_genui DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROU
     METHODS tree_shape FOR TESTING RAISING cx_static_check.
     METHODS repair_round FOR TESTING RAISING cx_static_check.
     METHODS model_fails FOR TESTING RAISING cx_static_check.
+    METHODS floor_views FOR TESTING RAISING cx_static_check.
+    METHODS binding_types FOR TESTING RAISING cx_static_check.
 
     METHODS repair
       IMPORTING
@@ -269,10 +271,15 @@ CLASS ltcl_genui IMPLEMENTATION.
 
   METHOD bad_literal.
 
-    " an enum value with markup in it, a URI that is no icon
+    " an enum value with markup in it, a URI that is no icon, an icon name
+    " the font does not have
     mo_double->add_answer( valid_tree( VALUE #( ( node( id = `x` parent = `root` control = `sap.m.Button`
                                                         props = |{ prop( name = `type` value = `Emphasized" press="x` ) },| &&
-                                                                |{ prop( name = `icon` value = `javascript:alert(1)` ) }| ) ) ) ) ).
+                                                                |{ prop( name = `icon` value = `javascript:alert(1)` ) }| ) )
+                                                ( node( id = `y` parent = `root` control = `sap.m.Input`
+                                                        props = prop( name = `maxLength` value = `5-` ) ) )
+                                                ( node( id = `z` parent = `root` control = `sap.m.Button`
+                                                        props = prop( name = `icon` value = `sap-icon://a` ) ) ) ) ) ).
     DATA(sim) = run( ).
 
     cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
@@ -281,6 +288,10 @@ CLASS ltcl_genui IMPLEMENTATION.
                                          exp = `*type = "Emphasized" press="x": one of Default, Back, *` ).
     cl_abap_unit_assert=>assert_char_cp( act = lv_report
                                          exp = `*icon = "javascript:alert(1)": only an icon URI of the SAP icon font*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*maxLength = "5-": an integer*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*icon = "sap-icon://a": no icon of the SAP icon font at UI5 1.71*` ).
 
   ENDMETHOD.
 
@@ -355,6 +366,13 @@ CLASS ltcl_genui IMPLEMENTATION.
     cl_abap_unit_assert=>assert_char_cp( act = sim->get_value( `REPORT` )
                                          exp = `*a list needs exactly one row template in items, it has 2*` ).
 
+    " an element that is no control cannot be the content of the view
+    mo_double->add_answer( tree( VALUE #( ( node( id = `root` parent = `` control = `sap.m.Column` ) ) ) ) ).
+    sim = run( ).
+    cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_value( `REPORT` )
+                                         exp = `*node "root" (sap.m.Column): the root sits in the content of a view*` ).
+
   ENDMETHOD.
 
   METHOD repair_round.
@@ -379,6 +397,74 @@ CLASS ltcl_genui IMPLEMENTATION.
                                         exp = `assistant` ).
     cl_abap_unit_assert=>assert_char_cp( act = lt_message[ 3 ]-content
                                          exp = `The UI tree was rejected:*"PASSWORD" - no field of flights*` ).
+
+  ENDMETHOD.
+
+  METHOD floor_views.
+
+    " visible is no property of an item, ".5" no float to the linter, and a
+    " spacer in a sap.m.Bar hides what follows it at UI5 1.71
+    mo_double->add_answer( valid_tree( VALUE #(
+        ( node( id = `sel` parent = `root` control = `sap.m.Select` ) )
+        ( node( id = `item` parent = `sel` control = `sap.ui.core.Item`
+                props = |{ prop( name = `text` value = `A` ) },{ prop( name = `visible` value = `false` ) }| ) )
+        ( node( id = `pi` parent = `root` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` value = `.5` ) ) )
+        ( node( id = `bar` parent = `root` control = `sap.m.Bar` ) )
+        ( node( id = `sp` parent = `bar` agg = `contentLeft` control = `sap.m.ToolbarSpacer` ) ) ) ) ).
+    DATA(sim) = run( ).
+
+    cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
+    DATA(lv_report) = sim->get_value( `REPORT` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "item" (sap.ui.core.Item): unknown property "visible"*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*percentValue = ".5": a number*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "sp" (sap.m.ToolbarSpacer): a sap.m.ToolbarSpacer belongs in a toolbar*` ).
+
+    " a column has visible, a spacer in a toolbar is laid out, an icon of
+    " the font is shown
+    mo_double->add_answer( valid_tree( VALUE #(
+        ( node( id = `c3` parent = `table` agg = `columns` control = `sap.m.Column` props = prop( name = `visible` value = `false` ) ) )
+        ( node( id = `tb` parent = `root` control = `sap.m.Toolbar` ) )
+        ( node( id = `sp` parent = `tb` control = `sap.m.ToolbarSpacer` ) )
+        ( node( id = `pi` parent = `root` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` value = `0.5` ) ) )
+        ( node( id = `ic` parent = `root` control = `sap.m.Button` props = prop( name = `icon` value = `sap-icon://add` ) ) ) ) ) ).
+    sim = run( ).
+
+    DATA(lv_popup) = sim->get_popup( ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_popup
+                                         exp = `*<Column visible="false"/>*<Toolbar><ToolbarSpacer/></Toolbar>*percentValue="0.5"*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_popup
+                                         exp = `*<Button icon="sap-icon://add"/>*` ).
+
+  ENDMETHOD.
+
+  METHOD binding_types.
+
+    " a boolean property bound to a text, a number property bound to a text,
+    " a format on a text: UI5 throws on the first two, the third is no number
+    mo_double->add_answer( valid_tree( VALUE #(
+        ( node( id = `b1` parent = `row` control = `sap.m.CheckBox` props = prop( name = `selected` field = `STATUS` ) ) )
+        ( node( id = `b2` parent = `row` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` field = `CARRID` ) ) )
+        ( node( id = `b3` parent = `row` control = `sap.m.Text` props = prop( name = `text` field = `CARRID` format = `integer` ) ) ) ) ) ).
+    DATA(sim) = run( ).
+
+    cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
+    DATA(lv_report) = sim->get_value( `REPORT` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "b1" (sap.m.CheckBox): selected takes a boolean field - "STATUS" is a string field*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "b2" (sap.m.ProgressIndicator): percentValue takes a number field - "CARRID" is a string field*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*node "b3" (sap.m.Text): text: format integer formats a number field*` ).
+
+    " a number property bound to a number field
+    mo_double->add_answer( valid_tree( VALUE #(
+        ( node( id = `b2` parent = `row` control = `sap.m.ProgressIndicator` props = prop( name = `percentValue` field = `SEATSOCC` ) ) ) ) ) ).
+    sim = run( ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_popup( )
+                                         exp = `*<ProgressIndicator percentValue="{SEATSOCC}"/>*` ).
 
   ENDMETHOD.
 

@@ -275,6 +275,9 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
 
     DATA lv_ts TYPE string.
 
+    " asked on every search, not remembered in the draft: an administrator
+    " removed meanwhile sees only the own calls again
+    is_admin = z2ui5_cl_agent_settings=>check_admin( ).
     DATA(lt_log) = COND z2ui5_cl_agent_audit=>ty_t_log( WHEN is_admin = abap_true AND all_users = abap_true
                                                        THEN z2ui5_cl_agent_audit=>read( )
                                                        ELSE z2ui5_cl_agent_audit=>read( uname = sy-uname ) ).
@@ -315,7 +318,6 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
 
   METHOD model_init.
 
-    is_admin = z2ui5_cl_agent_settings=>check_admin( ).
     outcome = `all`.
     load( ).
 

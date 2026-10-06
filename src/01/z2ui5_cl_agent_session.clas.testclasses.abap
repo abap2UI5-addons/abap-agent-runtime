@@ -91,6 +91,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS list_and_opt_in     FOR TESTING.
     METHODS act_values_event    FOR TESTING.
     METHODS earlier_session     FOR TESTING.
+    METHODS long_session_id     FOR TESTING.
     METHODS validation          FOR TESTING.
     METHODS policy              FOR TESTING.
     METHODS pending_values      FOR TESTING.
@@ -101,6 +102,12 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS structure_table     FOR TESTING.
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
+    METHODS audit_cleanup_range FOR TESTING.
+    METHODS cut_surrogate_pair  FOR TESTING.
+    METHODS admin_key_not_kept  FOR TESTING.
+    METHODS admin_change_kept   FOR TESTING.
+    METHODS admin_rule_fits     FOR TESTING.
+    METHODS audit_admin_revoked FOR TESTING.
     METHODS pick_single         FOR TESTING.
     METHODS pick_multi          FOR TESTING.
     METHODS pick_refused        FOR TESTING.
@@ -249,6 +256,11 @@ CLASS ltcl_session IMPLEMENTATION.
                                                  max_rows = `1` ) ).
     cl_abap_unit_assert=>assert_equals( exp = abap_true
                                         act = lo_two->get_boolean( `/tables/1/truncated` ) ).
+    " beyond any integer: clamped to the limit like any number above it
+    DATA(lo_many) = ok( mo_session->app_describe( session  = ls_result-session
+                                                  max_rows = `10000000000` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = abap_false
+                                        act = lo_many->get_boolean( `/tables/1/truncated` ) ).
 
   ENDMETHOD.
 
@@ -321,6 +333,24 @@ CLASS ltcl_session IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD long_session_id.
+
+    " an id longer than the column is unknown - not the session of its first
+    " 32 characters, nor an earlier state of it
+    DATA(ls_start) = start( ).
+    refused( is_result = mo_session->app_describe( |{ ls_start-session }X| )
+             pattern   = |*unknown session '{ ls_start-session }X'*| ).
+    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+                                        values  = `{"NAME":"Eve"}`
+                                        event   = `ADD` ).
+    COMMIT WORK.
+    ok( ls_act ).
+    refused( is_result = mo_session->app_describe( |{ ls_start-session }X| )
+             pattern   = `*unknown session*` ).
+    ok( mo_session->app_describe( ls_act-session ) ).
+
+  ENDMETHOD.
+
   METHOD validation.
 
     DATA(ls_start) = start( ).
@@ -345,6 +375,10 @@ CLASS ltcl_session IMPLEMENTATION.
     refused( is_result = mo_session->app_act( session  = ls_start-session
                                               max_rows = `lots` )
              pattern   = `*max_rows must be a number*` ).
+    " a row beyond any integer is no cell - refused, also by the audit entry
+    refused( is_result = mo_session->app_act( session = ls_start-session
+                                              values  = `{"/T_REQUEST/99999999999999999999/SELKZ":true}` )
+             pattern   = `*no field '/T_REQUEST/99999999999999999999/SELKZ' on this screen*` ).
     " a refused act changes nothing
     cl_abap_unit_assert=>assert_equals( exp = ls_start-text
                                         act = mo_session->app_describe( ls_start-session )-text ).
@@ -579,6 +613,139 @@ CLASS ltcl_session IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD audit_cleanup_range.
+
+    " days beyond what days * 86400 seconds holds as an integer: nothing to
+    " delete that old - and no overflow
+    cl_abap_unit_assert=>assert_equals( exp = 0
+                                        act = z2ui5_cl_agent_audit=>cleanup( z2ui5_cl_agent_audit=>c_max_days + 1 ) ).
+
+  ENDMETHOD.
+
+  METHOD cut_surrogate_pair.
+
+    DATA lv_args TYPE string.
+
+    " U+1F600 is two UTF-16 code units - its first one alone is no character
+    DATA(lv_emoji) = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( `F09F9880` ) ).
+    DATA(lv_high) = substring( val = lv_emoji
+                               len = 1 ).
+
+    " the refusal quotes the value cut to 80 characters - right in the pair
+    DATA(ls_start) = start( ).
+    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+                                        values  = |\{"NAME":\{"k":"{ repeat( val = `a`
+                                                                               occ = 73 ) }{ lv_emoji }"\}\}| ).
+    refused( is_result = ls_act
+             pattern   = `*takes a single value, not {"k":"aaa*` ).
+    cl_abap_unit_assert=>assert_equals( exp = -1
+                                        act = find( val = ls_act-text
+                                                    sub = lv_high ) ).
+
+    " the audit log cuts its arguments to c_max_args characters - in the pair
+    z2ui5_cl_agent_audit=>log( VALUE #( session   = `CUT_SURROGATE_PAIR`
+                                        operation = `app_list`
+                                        args      = |{ repeat( val = `a`
+                                                               occ = z2ui5_cl_agent_audit=>c_max_args - 4 ) }{ lv_emoji }tail|
+                                        outcome   = z2ui5_cl_agent_audit=>cs_outcome-ok
+                                        client    = c_client ) ).
+    COMMIT WORK.
+    SELECT SINGLE args FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND session_id = 'CUT_SURROGATE_PAIR' AND timestampl >= @mv_start
+      INTO @lv_args.
+    cl_abap_unit_assert=>assert_subrc( ).
+    cl_abap_unit_assert=>assert_equals( exp = |{ repeat( val = `a`
+                                                         occ = z2ui5_cl_agent_audit=>c_max_args - 4 ) }...|
+                                        act = lv_args ).
+
+  ENDMETHOD.
+
+  METHOD admin_key_not_kept.
+
+    " a key typed into the settings app and sent with another event than
+    " Save (here by a user who may not change anything) is not kept in the
+    " app's draft, nor sent back to the browser
+    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    lo_sim->set_value( name  = `LLM_KEY`
+                       value = `sk-unit-typed-key` ).
+    lo_sim->click( `LLM_TEST` ).
+    LOOP AT mo_store->mt_db INTO DATA(ls_db).
+      cl_abap_unit_assert=>assert_equals( exp = -1
+                                          act = find( val = ls_db-data
+                                                      sub = `sk-unit-typed-key` )
+                                          msg = |the typed key is in draft { ls_db-id }| ).
+    ENDLOOP.
+    cl_abap_unit_assert=>assert_equals( exp = -1
+                                        act = find( val = lo_sim->get_model( )
+                                                    sub = `sk-unit-typed-key` ) ).
+
+  ENDMETHOD.
+
+  METHOD admin_change_kept.
+
+    DATA lv_count TYPE i.
+
+    " abap2UI5 rolls back what main( ) leaves open: a change an
+    " administrator saves in the settings app - and its audit entry - is
+    " committed by the app itself
+    z2ui5_cl_agent_settings=>admin_add( sy-uname ).
+    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    lo_sim->set_value( name  = `URL`
+                       value = `/sap/bc/unit_handover` ).
+    lo_sim->click( `URL_SAVE` ).
+    SELECT SINGLE value FROM z2ui5_t_ag_set WHERE kind = 'URL' INTO @DATA(lv_url).
+    cl_abap_unit_assert=>assert_equals( exp = `/sap/bc/unit_handover`
+                                        act = lv_url ).
+    SELECT COUNT(*) FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start INTO @lv_count.
+    DELETE FROM z2ui5_t_ag_log WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 1
+                                        act = lv_count ).
+
+  ENDMETHOD.
+
+  METHOD admin_rule_fits.
+
+    DATA lv_count TYPE i.
+
+    " a rule longer than the settings table holds is refused, not cut: a
+    " SENSITIVE pattern cut to 60 characters masks nothing
+    z2ui5_cl_agent_settings=>admin_add( sy-uname ).
+    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    lo_sim->set_value( name  = `NEW_KIND`
+                       value = `SENSITIVE` ).
+    lo_sim->set_value( name  = `NEW_APP`
+                       value = `*` ).
+    lo_sim->set_value( name  = `NEW_ITEM`
+                       value = `/MS_ORDER/S_PAYMENT/T_ACCOUNT/*/INTERNATIONAL_BANK_ACCOUNT_NUMBER` ).
+    lo_sim->click( `RULE_ADD` ).
+    SELECT COUNT(*) FROM z2ui5_t_ag_set WHERE kind = 'SENSITIVE' INTO @lv_count.
+    DELETE FROM z2ui5_t_ag_log WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 0
+                                        act = lv_count ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `The rule is too long: 65 characters*at most 60*`
+                                         act = lo_sim->get_message( ) ).
+
+  ENDMETHOD.
+
+  METHOD audit_admin_revoked.
+
+    " the audit log app shows everybody's calls only while the user is an
+    " agent administrator - not as long as its draft remembers that he was
+    z2ui5_cl_agent_settings=>admin_add( sy-uname ).
+    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_AUDIT` ).
+    z2ui5_cl_agent_settings=>remove( kind = z2ui5_cl_agent_settings=>cs_kind-admin
+                                     app  = sy-uname ).
+    COMMIT WORK.
+    lo_sim->set_bool( `ALL_USERS` ).
+    lo_sim->click( `SEARCH` ).
+    cl_abap_unit_assert=>assert_char_cp( exp = |*, user { sy-uname }*|
+                                         act = lo_sim->get_model( ) ).
+
+  ENDMETHOD.
+
   METHOD pick_single.
 
     " a SelectDialog value help: the pick selects the row (SELKZ), clears
@@ -716,6 +883,8 @@ CLASS ltcl_args DEFINITION FINAL
     METHODS pick_none      FOR TESTING.
     METHODS pick_unknown   FOR TESTING.
     METHODS table_events   FOR TESTING.
+    METHODS action_hidden  FOR TESTING.
+    METHODS action_disabled FOR TESTING.
 
     METHODS screen
       IMPORTING
@@ -957,6 +1126,68 @@ CLASS ltcl_args IMPLEMENTATION.
                                                    row   = `0` ) ).
     " a table row event selects nothing by itself
     cl_abap_unit_assert=>assert_initial( pending( ) ).
+
+  ENDMETHOD.
+
+  METHOD action_disabled.
+
+    " the values disable the action - the browser cannot press it then, so
+    " the act does not fire it either
+    DATA(lv_xml) = `<CheckBox selected="{/OPEN}"/><Button text="Delete" enabled="{/OPEN}" press=".eB(['DEL'])"/>`.
+    screen( xml   = lv_xml
+            model = `{"OPEN":true}` ).
+    DATA(ls_action) = mo_cut->find_action( event   = `DEL`
+                                           has_row = abap_false ).
+    cl_abap_unit_assert=>assert_true( ls_action-enabled ).
+    screen( xml       = lv_xml
+            model     = `{"OPEN":true}`
+            t_pending = VALUE #( ( model_key = `MAIN`
+                                   path      = `/OPEN`
+                                   val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_false ) ) ) ).
+    TRY.
+        mo_cut->action_again( id      = ls_action-id
+                              event   = `DEL`
+                              refusal = `refused` ).
+        cl_abap_unit_assert=>fail( `an action the values disabled was not refused` ).
+      CATCH z2ui5_cx_ui5_util_error INTO DATA(lx).
+        cl_abap_unit_assert=>assert_char_cp( exp = `action a1 (Delete) is disabled once the values are filled*`
+                                             act = lx->get_text( ) ).
+    ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD action_hidden.
+
+    " the action checked before the values: still there, it is fired ...
+    DATA(lv_xml) = `<CheckBox selected="{/SHOW}"/><Button text="Go" visible="{/SHOW}" press=".eB(['GO'])"/>`.
+    screen( xml   = lv_xml
+            model = `{"SHOW":true}` ).
+    DATA(ls_action) = mo_cut->find_action( event   = `GO`
+                                           has_row = abap_false ).
+    TRY.
+        cl_abap_unit_assert=>assert_equals( exp = `GO`
+                                            act = mo_cut->action_again( id      = ls_action-id
+                                                                        event   = `GO`
+                                                                        refusal = `refused` )-event ).
+      CATCH z2ui5_cx_ui5_util_error INTO DATA(lx).
+        cl_abap_unit_assert=>fail( lx->get_text( ) ).
+    ENDTRY.
+
+    " ... hidden by the values, it is gone - refused, not fired as it was
+    screen( xml       = lv_xml
+            model     = `{"SHOW":true}`
+            t_pending = VALUE #( ( model_key = `MAIN`
+                                   path      = `/SHOW`
+                                   val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_false ) ) ) ).
+    TRY.
+        mo_cut->action_again( id      = ls_action-id
+                              event   = `GO`
+                              refusal = `refused` ).
+        cl_abap_unit_assert=>fail( `an action the values hid was not refused` ).
+      CATCH z2ui5_cx_ui5_util_error INTO lx.
+        cl_abap_unit_assert=>assert_equals( exp = `refused`
+                                            act = lx->get_text( ) ).
+    ENDTRY.
 
   ENDMETHOD.
 

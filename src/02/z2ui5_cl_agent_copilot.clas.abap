@@ -283,8 +283,17 @@ CLASS z2ui5_cl_agent_copilot IMPLEMENTATION.
     ENDIF.
     session = ls_done-session.
     changed = abap_true.
+    " a filled value the app cannot take (a date that is none) is left out
+    " when the copilot closes - said now, on a copy of the app
+    DATA(lt_refused) = VALUE string_table( ).
+    z2ui5_cl_agent_assist=>apply_pending( EXPORTING session   = session
+                                                    app       = client->get_app( session )
+                                          IMPORTING t_refused = lt_refused ).
     turn_add( role = `note`
-              text = ls_done-text ).
+              text = ls_done-text && COND #( WHEN lt_refused IS NOT INITIAL
+                                             THEN | Not filled - the app does not take it, enter it on the screen yourself: | &&
+                                                  |{ concat_lines_of( table = lt_refused
+                                                                      sep   = `; ` ) }| ) ).
 
   ENDMETHOD.
 

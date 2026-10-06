@@ -307,6 +307,19 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RAISING
         z2ui5_cx_ui5_util_error.
 
+    "! The checked action once more, from the snapshot the values or the
+    "! pick changed - refused when it is gone or no longer the event whose
+    "! policy was checked.
+    METHODS action_again
+      IMPORTING
+        id            TYPE string
+        event         TYPE string
+        refusal       TYPE string
+      RETURNING
+        VALUE(result) TYPE z2ui5_cl_agent_snapshot=>ty_s_action
+      RAISING
+        z2ui5_cx_ui5_util_error.
+
     METHODS event_args
       IMPORTING
         is_action     TYPE z2ui5_cl_agent_snapshot=>ty_s_action
@@ -435,6 +448,12 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RAISING
         z2ui5_cx_ui5_util_error.
 
+    "! Discard what the app left open in the LUW: abap2UI5 rolls back after
+    "! main( ) only when main( ) returns and the app is not stateful - after
+    "! a failed or a stateful roundtrip the session's own entries, and the
+    "! commit that follows them, must not take the app's work with them.
+    CLASS-METHODS app_rollback.
+
     METHODS field_help
       RETURNING
         VALUE(result) TYPE string.
@@ -540,11 +559,13 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     IF ls_arg-static = abap_false OR ls_arg-val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-number.
       fail( |max_rows must be a number, not '{ val }' - leaving it out means { default }| ).
     ENDIF.
-    result = trunc( ls_arg-val-num ).
-    IF result < 0.
+    " clamped before it becomes an integer - 10000000000 does not fit one
+    IF ls_arg-val-num < 0.
       result = 0.
-    ELSEIF result > z2ui5_cl_agent_snapshot=>c_max_rows_limit.
+    ELSEIF ls_arg-val-num > z2ui5_cl_agent_snapshot=>c_max_rows_limit.
       result = z2ui5_cl_agent_snapshot=>c_max_rows_limit.
+    ELSE.
+      result = trunc( ls_arg-val-num ).
     ENDIF.
 
   ENDMETHOD.
@@ -620,9 +641,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         TRY.
             mo_sim = z2ui5_cl_frontend_simulator=>start( lv_app ).
           CATCH cx_root INTO DATA(lx_start).
+            app_rollback( ).
             fail( |the app { lv_app } failed to start - { lx_start->get_text( ) }| ).
         ENDTRY.
         IF mo_sim->is_sticky( ) = abap_true.
+          app_rollback( ).
           fail( |the app { lv_app } runs in a stateful session (set_session_stateful), which lives in one request only - | &&
                 |the agent endpoint operates draft-based apps, one request per call| ).
         ENDIF.
@@ -760,7 +783,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             analyze( ).
             IF lv_event IS NOT INITIAL.
               DATA(lv_action_id) = ls_action-id.
-              READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
+              DATA(lv_action_event) = ls_action-event.
+              ls_action = action_again( id      = lv_action_id
+                                        event   = lv_action_event
+                                        refusal = |the values change the screen - action { lv_action_id } is no longer { lv_action_event }; | &&
+                                                  |fill the values without an event first, then fire it from the next snapshot| ).
             ENDIF.
             IF mv_dry_run = abap_true.
               " checked: the action, its policy, every value - the arguments
@@ -789,7 +816,9 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                 lt_picked = apply_pick( is_action = ls_action
                                         row_raw   = lv_row ).
                 analyze( ).
-                READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
+                ls_action = action_again( id      = lv_action_id
+                                          event   = lv_action_event
+                                          refusal = |the pick changes the screen - action { lv_action_id } is no longer { lv_action_event }| ).
               ENDIF.
               DATA(lt_tval) = event_args( is_action = ls_action
                                           t_given   = lt_arg
@@ -864,6 +893,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             mo_sim = z2ui5_cl_frontend_simulator=>resume( id      = lv_copy
                                                           refresh = abap_true ).
           CATCH cx_root INTO DATA(lx_resume).
+            app_rollback( ).
             fail( |the screen of draft { draft } cannot be restored - { lx_resume->get_text( ) }| ).
         ENDTRY.
         DATA(lv_app) = mo_sim->get_app( ).
@@ -872,6 +902,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           fail( lv_reason ).
         ENDIF.
         IF mo_sim->is_sticky( ) = abap_true.
+          app_rollback( ).
           fail( |the app { lv_app } runs in a stateful session (set_session_stateful) - it cannot be continued| ).
         ENDIF.
 
@@ -941,18 +972,27 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       fail( `pass session - the session the last snapshot carried (app_start returns the first)` ).
     ENDIF.
     lv_id = condense( session ).
-    SELECT SINGLE * FROM z2ui5_t_ag_ses WHERE id = @lv_id AND uname = @sy-uname INTO @ms_row.
-    IF sy-subrc <> 0.
-      SELECT SINGLE id FROM z2ui5_t_ag_ses WHERE id_prev = @lv_id AND uname = @sy-uname INTO @DATA(lv_current).
-      IF sy-subrc = 0.
-        fail( |session '{ lv_id }' is an earlier state of this app session - continue with the current one: | &&
-              |'{ lv_current }' (app_describe shows it)| ).
+    " an id longer than the column is unknown - cut to it, an id with
+    " anything appended would continue the session of its prefix
+    DATA(lv_fits) = xsdbool( lv_id = condense( session ) ).
+    DATA(lv_found) = abap_false.
+    IF lv_fits = abap_true.
+      SELECT SINGLE * FROM z2ui5_t_ag_ses WHERE id = @lv_id AND uname = @sy-uname INTO @ms_row.
+      lv_found = xsdbool( sy-subrc = 0 ).
+    ENDIF.
+    IF lv_found = abap_false.
+      IF lv_fits = abap_true.
+        SELECT SINGLE id FROM z2ui5_t_ag_ses WHERE id_prev = @lv_id AND uname = @sy-uname INTO @DATA(lv_current).
+        IF sy-subrc = 0.
+          fail( |session '{ lv_id }' is an earlier state of this app session - continue with the current one: | &&
+                |'{ lv_current }' (app_describe shows it)| ).
+        ENDIF.
       ENDIF.
       SELECT id, app FROM z2ui5_t_ag_ses WHERE uname = @sy-uname ORDER BY changed_at DESCENDING INTO TABLE @DATA(lt_session).
       LOOP AT lt_session INTO DATA(ls_session).
         INSERT |{ ls_session-id } ({ ls_session-app })| INTO TABLE lt_open.
       ENDLOOP.
-      fail( |unknown session '{ lv_id }' - start one with app_start{ COND #( WHEN lt_open IS NOT INITIAL
+      fail( |unknown session '{ condense( session ) }' - start one with app_start{ COND #( WHEN lt_open IS NOT INITIAL
                                                                               THEN |; open sessions: { list_of( lt_open ) }| ) }| ).
     ENDIF.
 
@@ -1317,7 +1357,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDIF.
     DATA(lv_column) = lt_seg[ lv_count ].
     DATA(lv_row) = lt_seg[ lv_count - 1 ].
-    IF lv_row IS INITIAL OR lv_row CN `0123456789` OR lv_column IS INITIAL
+    " at most 9 digits - a longer row does not fit the integer it becomes
+    IF lv_row IS INITIAL OR lv_row CN `0123456789` OR strlen( lv_row ) > 9 OR lv_column IS INITIAL
         OR lv_column(1) CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`
         OR lv_column CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-`.
       RETURN.
@@ -1375,9 +1416,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       RETURN.
     ENDIF.
     IF val-kind = z2ui5_cl_agent_viewxml=>cs_kind-object OR val-kind = z2ui5_cl_agent_viewxml=>cs_kind-array.
-      fail( |{ label } takes a single value, not { substring( val = val-json
-                                                              len = nmin( val1 = 80
-                                                                          val2 = strlen( val-json ) ) ) }| ).
+      fail( |{ label } takes a single value, not { z2ui5_cl_agent_viewxml=>cut( val = val-json
+                                                                                len = 80 ) }| ).
     ENDIF.
     IF current-kind = z2ui5_cl_agent_viewxml=>cs_kind-number.
       DATA(ls_num) = z2ui5_cl_agent_viewxml=>describe_arg( z2ui5_cl_agent_viewxml=>val_to_string( val ) ).
@@ -1538,6 +1578,25 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ENDIF.
     ENDIF.
     result = lt_pool[ 1 ].
+
+  ENDMETHOD.
+
+  METHOD action_again.
+
+    " ids follow the document order: a value that shows or hides a control
+    " renumbers them - the id must still name the event whose policy was
+    " checked, and an action the values hid is no longer there to fire
+    READ TABLE mo_snap->mt_action INTO result WITH KEY id = id. "#EC CI_SORTSEQ
+    IF sy-subrc <> 0 OR result-event <> event
+        OR result-policy = z2ui5_if_agent_app=>cs_policy-forbidden
+        OR result-policy = z2ui5_if_agent_app=>cs_policy-confirm.
+      fail( refusal ).
+    ENDIF.
+    " a value that disables it (enabled="{/OPEN}") leaves a control the
+    " browser cannot press any more
+    IF result-enabled = abap_false.
+      fail( |action { id } ({ result-label }) is disabled once the values are filled - { action_help( ) }| ).
+    ENDIF.
 
   ENDMETHOD.
 
@@ -2456,9 +2515,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                        t_arg = lt_arg
                        layer = lv_model_key ).
       CATCH cx_root INTO DATA(lx).
+        app_rollback( ).
         fail( |the backend refused the roundtrip - { lx->get_text( ) }| ).
     ENDTRY.
     IF mo_sim->is_sticky( ) = abap_true.
+      app_rollback( ).
       DELETE FROM z2ui5_t_ag_ses WHERE id = @ms_row-id.
       fail( |the app switched to a stateful session (set_session_stateful) - such a session lives in one request only, | &&
             |so this agent session ended; app_start { ms_row-app_start } again| ).
@@ -2474,6 +2535,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
     analyze( ).
+
+  ENDMETHOD.
+
+  METHOD app_rollback.
+
+    z2ui5_cl_ui5_util_context=>db_rollback( ).
 
   ENDMETHOD.
 

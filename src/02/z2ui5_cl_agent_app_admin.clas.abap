@@ -101,6 +101,12 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
       view_display( ).
     ELSEIF client->check_on_event( ).
       on_event( ).
+      " the key is write-only: whatever the event, a typed key is neither
+      " kept in the draft of this app nor sent back to the browser
+      CLEAR llm_key.
+      " the settings and their audit entries - abap2UI5 rolls back what
+      " main( ) leaves open
+      COMMIT WORK.
     ENDIF.
 
   ENDMETHOD.
@@ -429,6 +435,12 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         IF check_change( ) = abap_false.
           RETURN.
         ENDIF.
+        DATA(lv_long) = z2ui5_cl_agent_settings=>check_fits( value = url ).
+        IF lv_long IS NOT INITIAL.
+          client->message_box_display( text = |The handover page is too long: { lv_long }|
+                                       type = `error` ).
+          RETURN.
+        ENDIF.
         z2ui5_cl_agent_settings=>save( kind  = z2ui5_cl_agent_settings=>cs_kind-url
                                        app   = `*`
                                        value = url ).
@@ -534,6 +546,16 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         RETURN.
     ENDCASE.
 
+    " cut to the table's length, a pattern would match another field or event
+    DATA(lv_long) = z2ui5_cl_agent_settings=>check_fits( app   = lv_app
+                                                         item  = lv_item
+                                                         value = lv_value ).
+    IF lv_long IS NOT INITIAL.
+      client->message_box_display( text = |The rule is too long: { lv_long }|
+                                   type = `error` ).
+      RETURN.
+    ENDIF.
+
     z2ui5_cl_agent_settings=>save( kind  = lv_kind
                                    app   = lv_app
                                    item  = lv_item
@@ -548,6 +570,16 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
   METHOD llm_save.
 
     DATA(lt_item) = VALUE string_table( ).
+    " nothing is saved when a value does not fit - a key cut short is none
+    LOOP AT VALUE string_table( ( llm_provider ) ( llm_model ) ( llm_effort ) ( llm_max_tokens ) ( llm_timeout )
+                                ( llm_url ) ( llm_destination ) ( llm_beta ) ( llm_key ) ) INTO DATA(lv_value).
+      DATA(lv_long) = z2ui5_cl_agent_settings=>check_fits( value = condense( lv_value ) ).
+      IF lv_long IS NOT INITIAL.
+        client->message_box_display( text = |Not saved - a setting is too long: { lv_long }|
+                                     type = `error` ).
+        RETURN.
+      ENDIF.
+    ENDLOOP.
     z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-provider
                                       value = to_upper( condense( llm_provider ) ) ).
     z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-model

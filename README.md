@@ -155,6 +155,8 @@ until an administrator enables it.
    your usual abap2UI5 ICF node or launchpad tile) and switch *Agents may
    operate apps* on. Here you also allow or deny app classes, classify events,
    mark sensitive fields, set the handover page and clean up the audit log.
+   A rule longer than the settings table holds (60 characters for the app
+   and the event or field, 255 for a value) is refused, not cut short.
 3. **Make the HTTP endpoint reachable:**
    - **ABAP Standard:** abapGit creates the ICF node `/sap/bc/z2ui5_agent`
      with the handler `Z2UI5_CL_AGENT_HTTP`. In transaction `SICF`, activate
@@ -260,16 +262,23 @@ confirm's `selectedItem` / `selectedItems` / `selectedContexts` are the
 selected rows. A multi-select dialog confirms what is ticked (tick rows
 through `values`, `row` adds one); a single-select dialog with nothing
 selected refuses an act without `row`. `@CLOSE_POPUP` /
-`@CLOSE_POPOVER` close a dialog locally, as the browser does. Every refusal is
-a tool result with `isError: true` and a sentence naming what was wrong and
-what is allowed - and a refused act sends nothing and changes nothing.
+`@CLOSE_POPOVER` close a dialog locally, as the browser does. Action ids
+follow the document order, so values that show or hide a control can renumber
+them: an act whose values make its action id name another event, or hide its
+action, is refused - fill the values without an event first, then fire it from
+the next snapshot. So is an act whose values disable its action
+(`enabled="{/OPEN}"`): the browser cannot press a disabled control.
+Every refusal is a tool result with `isError: true` and a sentence naming what
+was wrong and what is allowed - and a refused act sends nothing and changes
+nothing.
 
 ## Security model
 
 - **Disabled by default**; an administrator switches the endpoint on.
 - **Opt-in per app**: only classes implementing `z2ui5_if_agent_app`, or
   allowed by an administrator, can be listed or started. The addon's own apps
-  (`z2ui5_cl_agent_app_*`) are never agent-operable, whatever the settings say.
+  (`z2ui5_cl_agent_app_*`) are never agent-operable, whatever the settings say -
+  every event of theirs is `forbidden`, also when an operable app navigates there.
 - **The real SAP user, always.** Authentication is the logon of the HTTP
   request (Basic, OAuth, certificates, principal propagation) - nothing custom,
   no technical user, no user switch. The app runs as that user, with its
@@ -280,10 +289,12 @@ what is allowed - and a refused act sends nothing and changes nothing.
   to a human (below).
 - **Sessions belong to their user**: every read filters by `sy-uname`, the
   draft service binds drafts to their creator, and a session expires with its
-  draft. Only the current draft id of a session is accepted.
+  draft. Only the current draft id of a session is accepted - as it was
+  answered: an id with anything appended is unknown, never its prefix.
 - **Audit log** (`Z2UI5_T_AG_LOG`, app `z2ui5_cl_agent_app_audit`): timestamp,
   user, session, app, operation, event, arguments (truncated; values masked for
-  password inputs and for fields the app or the settings mark sensitive),
+  password inputs - and any field on the model path of one - and for fields
+  the app or the settings mark sensitive),
   outcome, error text, MCP client name and version. Users see their own
   entries, administrators everybody's. Settings changes are logged too.
 - **AI at runtime** is off by default (no key, no destination, copilot
@@ -291,7 +302,8 @@ what is allowed - and a refused act sends nothing and changes nothing.
   validated against a closed vocabulary, its proposals against the same
   policy as every agent - see [AI at runtime](#ai-at-runtime).
 - **Browser-side abuse is refused**: a request with an `Origin` (or `Referer`)
-  of another host gets 403 - the check abap2UI5 applies to its own POSTs - and
+  of another host gets 403, whatever its method - the check abap2UI5 applies
+  to its own POSTs - and
   only `Content-Type: application/json` is accepted, so a web page cannot drive
   the endpoint with the user's SSO cookies.
 
@@ -330,6 +342,8 @@ performed), nested tables, file uploads. On top of that, in this addon:
 - **Stateful apps** (`client->set_session_stateful( )`) cannot be operated: a
   stateful session lives in one HTTP request, an MCP call is one request.
   `app_start` refuses them; an app that switches mid-session ends the session.
+  What such an app - or an app whose `main( )` failed - left open in the LUW
+  is rolled back, never committed with the call's audit entry.
 - **Event arguments travel as text.** Model values go out typed, as the
   browser sends them: every pending value is handed to the simulator's
   `set_json( )` at its model path - a boolean as `true` / `false`, a
@@ -374,7 +388,7 @@ administrators only - every change is audited):
 
 | Setting | |
 | --- | --- |
-| API key | sent as `x-api-key`. Write-only: the app shows *set* / *not set*, never the key; *Remove key* deletes it. Stored in `Z2UI5_T_AG_SET` (kind `LLM`) - protect the table like any credential store, or leave the key empty and let the destination authenticate |
+| API key | sent as `x-api-key`. Write-only: the app shows *set* / *not set*, never the key; *Remove key* deletes it. A typed key is cleared after every event, so it never stays in the app's draft - only *Save* stores it. Stored in `Z2UI5_T_AG_SET` (kind `LLM`) - protect the table like any credential store, or leave the key empty and let the destination authenticate |
 | Destination | **ABAP Standard:** an SM59 destination of type G (host `api.anthropic.com`, port 443, SSL active, client identity `ANONYM` or `DFAULT`, proxy if your landscape needs one); the URL field is then the path (default `/v1/messages`). **ABAP Cloud:** a communication arrangement as `SCENARIO/SERVICE_ID` (or `SCENARIO/SERVICE_ID/COMM_SYSTEM`) - a customer communication scenario with an outbound HTTP service whose system points at `https://api.anthropic.com` (*to verify on your system*) |
 | URL | without a destination the full URL, default `https://api.anthropic.com/v1/messages` (ABAP Standard: the server certificate chain must be in the `ANONYM` PSE, `STRUST`; ABAP Cloud: `cl_http_destination_provider=>create_by_url`) |
 | Model / effort | default `claude-opus-5-5` / `low` (thinking is always on for this model and is never configured; `output_config.effort` is the only control - `low` keeps generated views and answers interactive) |
@@ -391,9 +405,10 @@ tokens. The request is the Messages API, non-streaming:
 `anthropic-version: 2023-06-01` (+ `anthropic-beta` for the fallback), body
 `{"model","max_tokens","system","messages","output_config":{"effort","format":{"type":"json_schema","schema"}},"fallbacks":"default"}`.
 The answer is the first `text` block; `stop_reason` is checked first - a
-`refusal` and a `max_tokens` answer raise `z2ui5_cx_agent_llm` and are never
-parsed. HTTP 408, 429, 5xx and 529 raise it with `retryable = abap_true`,
-other errors without; the addon does not retry on its own.
+`refusal`, a `max_tokens` and a `model_context_window_exceeded` answer raise
+`z2ui5_cx_agent_llm` and are never parsed. HTTP 408, 429, 5xx and 529 raise
+it with `retryable = abap_true`, other errors without; the addon does not
+retry on its own.
 
 **Your own provider:**
 
@@ -428,8 +443,9 @@ and enter `ZCL_LLM_AI_CORE` as the provider class. Unit tests use
   hands over - **no data**; a few sample rows (3) only with *sample rows* on.
 - **The copilot** sends the agent snapshot of the screen - the values the
   user sees, so a question about them can be answered - with every password
-  input and every sensitive field (the app's `t_sensitive`, the settings'
-  `SENSITIVE` rules) masked as `***`, in fields and in table columns, and
+  input (and every other field on its model path) and every sensitive field
+  (the app's `t_sensitive`, the settings' `SENSITIVE` rules) masked as `***`,
+  in fields and in table columns, and
   without the actions agents may never fire. It never proposes to fill a
   masked field.
 - The data goes to the provider you configure; with the shipped one, to the
@@ -469,9 +485,9 @@ the tree and builds the XML itself with `z2ui5_cl_ui5_view_builder`:
 | --- | --- |
 | controls | anything outside the **portable view profile v1** of the abap2UI5 protocol (65 controls, `z2ui5_cl_agent_gen_vocab`); also `sap.ui.core.HTML`, `Shell`, `Dialog`, `Popover`, `CustomData` and layout data |
 | tree | no or two roots, a missing parent, a cycle, a duplicate id, more than 200 nodes |
-| aggregations | an aggregation the parent does not have, a child of the wrong type, two children in a single aggregation |
-| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers, CSS sizes, icons only as `sap-icon://...`, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids) |
-| bindings | a field that is not in the data handed over; relative bindings only inside the row template of a list bound to a table, absolute ones only to a structure; formats `integer` and `decimal` (typed bindings) and nothing else - no expressions, no formatters |
+| aggregations | an aggregation the parent does not have, a child of the wrong type, two children in a single aggregation, a `sap.m.ToolbarSpacer` in a `sap.m.Bar` or a page's `headerContent` (no flex container before UI5 1.76: it hides what follows it) |
+| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); `visible` on an element that has none (`sap.ui.core.Item`); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers with a digit before the point, CSS sizes, icons only as `sap-icon://...` with a name the SAP icon font has at UI5 1.71 and no later release removed, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids) |
+| bindings | a field that is not in the data handed over; relative bindings only inside the row template of a list bound to a table, absolute ones only to a structure; formats `integer` and `decimal` (typed bindings) and nothing else - no expressions, no formatters; a field the property cannot take (UI5 throws on it): a boolean property takes a boolean field, an integer or number property a number field, a CSS size or enum property a string field, a format only a number field |
 | lists | a list bound to a structure or an unknown dataset, sorting or grouping by an unknown field, not exactly one row template, a list inside a template |
 | events | an event the control does not have, an app event not in the app's list, an argument the app did not allow for it |
 | texts | never rejected - always rendered as literals (`t` of the builder: `{` and `\` escaped, XML escaped), so `<script>`, `"/><core:HTML ...>` or `{/OTHER/PATH}` in a text show as text |
@@ -483,7 +499,7 @@ second answer is validated the same way. `render( json )` validates and builds
 a tree an app stored. The vocabulary is generated: `.github/genui/portable-v1.json`
 is a pinned copy of `profiles/portable-v1.json` of
 [abap2UI5/protocol](https://github.com/abap2UI5/protocol), typed with the UI5
-metadata of the abap2UI5 linter; `npm run genui:check` fails when
+metadata of the abap2UI5 linter, the icon names from its icon data; `npm run genui:check` fails when
 `z2ui5_cl_agent_gen_vocab` is not what the pins generate, `npm run
 genui:drift` when the pin is no longer upstream's (the `genui-vocab`
 workflow runs both, weekly as well).
@@ -495,7 +511,7 @@ view may fire `ROW_SELECT` (carrier, connection, date) and `REFRESH`.
 **Limits:** no filtering in the view (a filter control can fire an app event
 that takes its value); no nested lists, no NEST slots, no formatters beyond
 the two number formats; enum values and icon names are checked against the
-1.71 floor and the icon URI pattern, not against the icon font; the model
+1.71 floor (icon names against the font in the linter's icon data); the model
 can still build a poor layout - the validation guarantees safety, not taste.
 
 ### In-app copilot
@@ -543,7 +559,10 @@ the answer. A **proposal** (fields to fill, an action to press - only with
   reason;
 - everything else exactly as the MCP endpoint's `app_act` validates it -
   `app_check( )` runs the same code without sending (unknown field, a field
-  that is not editable, a choice outside its values, a wrong type);
+  that is not editable, a choice outside its values, a wrong type). The
+  values of a proposal are text: a `multichoice` names its keys separated by
+  commas, and the copilot hands them over as the array of keys `app_act`
+  takes;
 - nothing runs until the user clicks *Do it* / *Fill in*. An **allowed**
   action then runs through the app's own `main( )` in the session
   (`app_act`); for an action classified **confirm** the copilot only fills
@@ -553,9 +572,12 @@ the answer. A **proposal** (fields to fill, an action to press - only with
 *Close* returns to the app (`nav_app_leave`): unchanged when nothing ran;
 otherwise in the state the confirmed steps left it (the session's draft,
 `client->get_app( )`), with values that were only filled written into the
-app's public attributes by their model path. The copilot app itself is never
-agent-operable, and the copilot event is classified forbidden on every
-screen - an agent cannot open it.
+app's public attributes by their model path - a date (`D`) taken as
+`YYYY-MM-DD` or `YYYYMMDD`, a time (`T`) as `HH:MM`, `HH:MM:SS` or `HHMMSS`;
+a value that is no day of the calendar or time of the clock is not written,
+the user enters it - the copilot names such a value when it fills it. The
+copilot app itself is never agent-operable, and the copilot event is
+classified forbidden on every screen - an agent cannot open it.
 
 **Why this integration.** abap2UI5 routes every event to the app's own
 `main( )` (only `nav_app_leave` is framework-handled), so an app has to hand

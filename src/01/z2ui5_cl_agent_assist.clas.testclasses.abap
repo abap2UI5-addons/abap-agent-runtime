@@ -1,3 +1,6 @@
+CLASS ltcl_write DEFINITION DEFERRED.
+CLASS z2ui5_cl_agent_assist DEFINITION LOCAL FRIENDS ltcl_write.
+
 "! The in-app copilot end to end, on the headless frontend simulator: the
 "! agent demo app (z2ui5_cl_agent_demo, two lines of copilot opt-in) is
 "! started, its copilot button pressed, the copilot popup asked - with a
@@ -25,6 +28,8 @@ CLASS ltcl_copilot DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGER
     METHODS act_off_answers_only FOR TESTING RAISING cx_static_check.
     METHODS switched_off FOR TESTING RAISING cx_static_check.
     METHODS agents_never_open_it FOR TESTING RAISING cx_static_check.
+    METHODS multichoice_filled FOR TESTING RAISING cx_static_check.
+    METHODS date_not_taken FOR TESTING RAISING cx_static_check.
 
     METHODS setting
       IMPORTING
@@ -271,6 +276,17 @@ CLASS ltcl_copilot IMPLEMENTATION.
     cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
                                          exp = `*not offered: the field /IBAN is protected*` ).
 
+    " by its name in another case - app_check( ) resolves that to the same field
+    mo_double->add_answer( answer( text    = `Done.`
+                                   wanted  = abap_true
+                                   summary = `change the IBAN`
+                                   values  = `{"field":"iban","value":"DE00"}` ) ).
+    ask( sim      = sim
+         question = `Change my IBAN` ).
+
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
+                                         exp = `*not offered: the field iban is protected*` ).
+
   ENDMETHOD.
 
   METHOD confirm_needs_the_click.
@@ -351,6 +367,256 @@ CLASS ltcl_copilot IMPLEMENTATION.
                                                    event     = z2ui5_cl_agent_copilot=>c_event )-policy
         exp = z2ui5_if_agent_app=>cs_policy-forbidden ).
     cl_abap_unit_assert=>assert_false( z2ui5_cl_agent_settings=>check_app( `Z2UI5_CL_AGENT_COPILOT` ) ).
+
+  ENDMETHOD.
+
+  METHOD multichoice_filled.
+
+    " the values of a proposal are text: a multichoice names its keys
+    " separated by commas - offered, filled, and on the screen after close
+    DATA(sim) = open( ).
+    mo_double->add_answer( answer( text    = `I tag the trip.`
+                                   wanted  = abap_true
+                                   summary = `tag the trip as fair and meeting`
+                                   values  = `{"field":"/TAGS","value":"FAIR, MEET"}` ) ).
+    ask( sim      = sim
+         question = `Tag it as fair and meeting` ).
+
+    cl_abap_unit_assert=>assert_equals( act = sim->get_value( name  = `HAS_PROPOSAL`
+                                                              layer = c_popup )
+                                        exp = `true` ).
+    sim->click( event = `DO`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
+                                         exp = `*Filled 1 field(s)*` ).
+    sim->click( event = `CLOSE`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_app( )
+                                        exp = c_demo ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( )
+                                         exp = `*"TAGS":["FAIR","MEET"]*` ).
+    " and the model is told so
+    cl_abap_unit_assert=>assert_char_cp( act = z2ui5_cl_agent_assist=>get_system( abap_true )
+                                         exp = `*a multichoice by its keys separated by commas*` ).
+
+  ENDMETHOD.
+
+  METHOD date_not_taken.
+
+    " a date the app cannot take is told when the copilot fills it - on
+    " close it is left out, the other values are on the screen
+    DATA(sim) = open( ).
+    mo_double->add_answer( answer( text    = `I fill it in.`
+                                   wanted  = abap_true
+                                   summary = `Dora, leaving on 6 October`
+                                   values  = `{"field":"/NAME","value":"Dora"},{"field":"/DEPARTURE","value":"06.10.2026"}` ) ).
+    ask( sim      = sim
+         question = `Dora leaves on 6 October` ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_value( name  = `HAS_PROPOSAL`
+                                                              layer = c_popup )
+                                        exp = `true` ).
+    sim->click( event = `DO`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
+                                         exp = `*Not filled*/DEPARTURE: '06.10.2026' is no date (YYYY-MM-DD)*` ).
+
+    sim->click( event = `CLOSE`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_app( )
+                                        exp = c_demo ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_value( `NAME` )
+                                        exp = `Dora` ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( )
+                                         exp = `*"DEPARTURE":""*` ).
+
+  ENDMETHOD.
+
+ENDCLASS.
+
+
+"! An object an app holds - abap2UI5 binds its attributes as /O_SUB/VALUE.
+CLASS ltd_sub DEFINITION FINAL FOR TESTING.
+
+  PUBLIC SECTION.
+    DATA value TYPE string.
+
+ENDCLASS.
+
+
+CLASS ltd_sub IMPLEMENTATION.
+ENDCLASS.
+
+
+"! An app instance the copilot writes the filled values back into.
+CLASS ltd_app DEFINITION FINAL FOR TESTING.
+
+  PUBLIC SECTION.
+    TYPES:
+      BEGIN OF ty_s_row,
+        a TYPE string,
+        n TYPE i,
+      END OF ty_s_row.
+    TYPES ty_t_row TYPE STANDARD TABLE OF ty_s_row WITH EMPTY KEY.
+
+    DATA t_row TYPE ty_t_row.
+    DATA o_sub TYPE REF TO ltd_sub.
+    DATA start_time TYPE t.
+    DATA start_date TYPE d.
+    DATA tags TYPE string_table.
+
+ENDCLASS.
+
+
+CLASS ltd_app IMPLEMENTATION.
+ENDCLASS.
+
+
+"! write( ): a model path of the screen into the attribute of the app.
+CLASS ltcl_write DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL HARMLESS.
+
+  PRIVATE SECTION.
+
+    METHODS unknown_column FOR TESTING.
+    METHODS object_attribute FOR TESTING.
+    METHODS time_value FOR TESTING.
+    METHODS date_value FOR TESTING.
+    METHODS multichoice_value FOR TESTING.
+
+    METHODS refused
+      IMPORTING
+        io_app TYPE REF TO ltd_app
+        path   TYPE string
+        value  TYPE string.
+
+ENDCLASS.
+
+
+CLASS ltcl_write IMPLEMENTATION.
+
+  METHOD unknown_column.
+
+    DATA(lo_app) = NEW ltd_app( ).
+    lo_app->t_row = VALUE #( ( a = `a0` n = 7 ) ).
+
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/T_ROW/0/A`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `a1` ) ).
+    " a column the row does not have is no path of the app - refused, and
+    " the value never lands in the row it would have been a column of
+    TRY.
+        z2ui5_cl_agent_assist=>write( app  = lo_app
+                                      path = `/T_ROW/0/NOPE`
+                                      val  = z2ui5_cl_agent_viewxml=>val_string( `x` ) ).
+        cl_abap_unit_assert=>fail( `a column the row does not have was written` ).
+      CATCH z2ui5_cx_ui5_util_error ##NO_HANDLER.
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( exp = VALUE ltd_app=>ty_t_row( ( a = `a1` n = 7 ) )
+                                        act = lo_app->t_row ).
+
+  ENDMETHOD.
+
+  METHOD object_attribute.
+
+    " an attribute of an object the app holds: /O_SUB/VALUE is O_SUB->VALUE
+    DATA(lo_app) = NEW ltd_app( ).
+    lo_app->o_sub = NEW #( ).
+
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/O_SUB/VALUE`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `filled` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `filled`
+                                        act = lo_app->o_sub->value ).
+
+  ENDMETHOD.
+
+  METHOD time_value.
+
+    " as the model shows a time, without seconds, or as ABAP holds it
+    DATA(lo_app) = NEW ltd_app( ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_TIME`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `09:30:15` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV t( '093015' )
+                                        act = lo_app->start_time ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_TIME`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `9:30` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV t( '093000' )
+                                        act = lo_app->start_time ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_TIME`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `174500` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV t( '174500' )
+                                        act = lo_app->start_time ).
+
+    " no time of the clock: refused, the attribute keeps its value
+    refused( io_app = lo_app
+             path   = `/START_TIME`
+             value  = `25:00` ).
+    refused( io_app = lo_app
+             path   = `/START_TIME`
+             value  = `9.30` ).
+    refused( io_app = lo_app
+             path   = `/START_TIME`
+             value  = `9:5` ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV t( '174500' )
+                                        act = lo_app->start_time ).
+
+  ENDMETHOD.
+
+  METHOD date_value.
+
+    DATA(lo_app) = NEW ltd_app( ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_DATE`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `2026-10-06` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV d( '20261006' )
+                                        act = lo_app->start_date ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/START_DATE`
+                                  val  = z2ui5_cl_agent_viewxml=>val_string( `20280229` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV d( '20280229' )
+                                        act = lo_app->start_date ).
+
+    " no day of the calendar, or another notation: refused
+    refused( io_app = lo_app
+             path   = `/START_DATE`
+             value  = `2026-02-30` ).
+    refused( io_app = lo_app
+             path   = `/START_DATE`
+             value  = `06.10.2026` ).
+    refused( io_app = lo_app
+             path   = `/START_DATE`
+             value  = `2026-13-01` ).
+    cl_abap_unit_assert=>assert_equals( exp = CONV d( '20280229' )
+                                        act = lo_app->start_date ).
+
+  ENDMETHOD.
+
+  METHOD multichoice_value.
+
+    " the keys of a multichoice into the table its selectedKeys is bound to
+    DATA(lo_app) = NEW ltd_app( ).
+    lo_app->tags = VALUE #( ( `OLD` ) ).
+    z2ui5_cl_agent_assist=>write( app  = lo_app
+                                  path = `/TAGS`
+                                  val  = VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-array
+                                                  json = `["FAIR","MEET"]`
+                                                  num  = 2 ) ).
+    cl_abap_unit_assert=>assert_equals( exp = VALUE string_table( ( `FAIR` ) ( `MEET` ) )
+                                        act = lo_app->tags ).
+
+  ENDMETHOD.
+
+  METHOD refused.
+
+    TRY.
+        z2ui5_cl_agent_assist=>write( app  = io_app
+                                      path = path
+                                      val  = z2ui5_cl_agent_viewxml=>val_string( value ) ).
+        cl_abap_unit_assert=>fail( |{ value } was written to { path }| ).
+      CATCH z2ui5_cx_ui5_util_error ##NO_HANDLER.
+    ENDTRY.
 
   ENDMETHOD.
 

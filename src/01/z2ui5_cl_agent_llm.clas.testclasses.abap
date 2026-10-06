@@ -1,3 +1,26 @@
+"! A provider of a customer's own that fails with something else than
+"! z2ui5_cx_agent_llm - a bug of its own, a dynamic check.
+CLASS ltd_failing_llm DEFINITION FINAL FOR TESTING.
+
+  PUBLIC SECTION.
+    INTERFACES z2ui5_if_agent_llm.
+
+ENDCLASS.
+
+
+CLASS ltd_failing_llm IMPLEMENTATION.
+
+  METHOD z2ui5_if_agent_llm~chat.
+
+    RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error
+      EXPORTING
+        val = `the gateway of the provider is gone`.
+
+  ENDMETHOD.
+
+ENDCLASS.
+
+
 "! The wrapper around every language model call: settings applied, stop
 "! reasons refused, structured answers parsed, every call audited - the
 "! prompt only when the setting says so. With the double, no real model.
@@ -16,12 +39,14 @@ CLASS ltcl_llm DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROUS.
     METHODS defaults_and_json FOR TESTING RAISING cx_static_check.
     METHODS refusal_refused FOR TESTING RAISING cx_static_check.
     METHODS max_tokens_refused FOR TESTING RAISING cx_static_check.
+    METHODS context_window_refused FOR TESTING RAISING cx_static_check.
     METHODS not_the_json FOR TESTING RAISING cx_static_check.
     METHODS audit_without_prompt FOR TESTING RAISING cx_static_check.
     METHODS audit_with_prompt FOR TESTING RAISING cx_static_check.
     METHODS not_configured FOR TESTING RAISING cx_static_check.
     METHODS custom_provider FOR TESTING RAISING cx_static_check.
     METHODS key_never_shown FOR TESTING RAISING cx_static_check.
+    METHODS provider_failure FOR TESTING RAISING cx_static_check.
 
     METHODS last_log
       RETURNING
@@ -136,6 +161,23 @@ CLASS ltcl_llm IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD context_window_refused.
+
+    " cut off by the full context window - valid JSON or not, never an answer
+    mo_double->add_answer( text        = `{"a":"cut"}`
+                           stop_reason = z2ui5_if_agent_llm=>cs_stop-context_window ).
+    TRY.
+        z2ui5_cl_agent_llm=>create( )->chat( request( ) ).
+        cl_abap_unit_assert=>fail( `model_context_window_exceeded must raise` ).
+      CATCH z2ui5_cx_agent_llm INTO DATA(lx).
+        cl_abap_unit_assert=>assert_equals( act = lx->kind
+                                            exp = z2ui5_cx_agent_llm=>cs_kind-max_tokens ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( act = last_log( )-outcome
+                                        exp = `error` ).
+
+  ENDMETHOD.
+
   METHOD not_the_json.
 
     mo_double->add_answer( `Sure! Here is your view:` ).
@@ -236,6 +278,25 @@ CLASS ltcl_llm IMPLEMENTATION.
       cl_abap_unit_assert=>assert_differs( act = ls_setting-value
                                            exp = `test-key-123` ).
     ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD provider_failure.
+
+    " whatever a provider raises: one exception for the callers (generate( )
+    " never raises), and the call is audited like every other
+    z2ui5_cl_agent_llm=>set_double( NEW ltd_failing_llm( ) ).
+    TRY.
+        z2ui5_cl_agent_llm=>create( )->chat( request( ) ).
+        cl_abap_unit_assert=>fail( `a failed provider must raise` ).
+      CATCH z2ui5_cx_agent_llm INTO DATA(lx).
+        cl_abap_unit_assert=>assert_equals( act = lx->kind
+                                            exp = z2ui5_cx_agent_llm=>cs_kind-response ).
+        cl_abap_unit_assert=>assert_char_cp( act = lx->get_text( )
+                                             exp = `*the gateway of the provider is gone*` ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( act = last_log( )-outcome
+                                        exp = `error` ).
 
   ENDMETHOD.
 

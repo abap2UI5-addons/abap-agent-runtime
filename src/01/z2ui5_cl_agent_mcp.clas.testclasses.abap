@@ -80,8 +80,11 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS get_not_allowed     FOR TESTING.
     METHODS content_type        FOR TESTING.
     METHODS cross_origin        FOR TESTING.
+    METHODS delete_cross_origin FOR TESTING.
+    METHODS long_session_id     FOR TESTING.
     METHODS parse_error         FOR TESTING.
     METHODS invalid_request     FOR TESTING.
+    METHODS invalid_id          FOR TESTING.
     METHODS notification        FOR TESTING.
     METHODS ping                FOR TESTING.
     METHODS initialize          FOR TESTING.
@@ -92,6 +95,7 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS tool_argument_types FOR TESTING.
     METHODS tool_call_session   FOR TESTING.
     METHODS batch               FOR TESTING.
+    METHODS batch_audit         FOR TESTING.
 
     METHODS post
       IMPORTING
@@ -177,6 +181,13 @@ CLASS ltcl_mcp IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = 415
                                         act = ls_response-status ).
 
+    " a simple request of a page - the media type is text/plain
+    ls_response = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                              body         = `{}`
+                                                              content_type = `text/plain;application/json` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 415
+                                        act = ls_response-status ).
+
   ENDMETHOD.
 
   METHOD cross_origin.
@@ -189,6 +200,62 @@ CLASS ltcl_mcp IMPLEMENTATION.
                                                                     host         = `sap.example:443` ) ).
     cl_abap_unit_assert=>assert_equals( exp = 403
                                         act = ls_response-status ).
+
+  ENDMETHOD.
+
+  METHOD delete_cross_origin.
+
+    DATA(ls_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",` &&
+                          `"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
+    DATA(lv_session) = ls_init-t_header[ name = `Mcp-Session-Id` ]-value. "#EC CI_SORTSEQ
+    DATA(lv_id) = CONV z2ui5_t_ag_mcp-id( lv_session ).
+
+    " a page of another host ends no MCP session either
+    DATA(ls_response) = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method     = `DELETE`
+                                                                    session_id = lv_session
+                                                                    origin     = `https://evil.example`
+                                                                    host       = `sap.example:443` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 403
+                                        act = ls_response-status ).
+    SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_id INTO @DATA(lv_client).
+    cl_abap_unit_assert=>assert_subrc( exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( exp = `unit-test 1.0`
+                                        act = lv_client ).
+
+  ENDMETHOD.
+
+  METHOD long_session_id.
+
+    DATA lv_count TYPE i.
+
+    DATA(ls_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",` &&
+                          `"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
+    DATA(lv_session) = ls_init-t_header[ name = `Mcp-Session-Id` ]-value. "#EC CI_SORTSEQ
+    DATA(lv_id) = CONV z2ui5_t_ag_mcp-id( lv_session ).
+
+    " an id longer than the column is none: it names no client in the audit
+    " log ...
+    NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                content_type = `application/json`
+                                                session_id   = |{ lv_session }X|
+                                                body         = `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":` &&
+                                                               `{"name":"app_list","arguments":{"filter":"long_session_id"}}}` ) ).
+    COMMIT WORK.
+    SELECT COUNT(*) FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND operation = 'app_list' AND mcp_client = 'unit-test 1.0' AND timestampl >= @mv_start
+      INTO @lv_count.
+    DELETE FROM z2ui5_t_ag_log WHERE uname = @sy-uname AND operation = 'app_list' AND timestampl >= @mv_start.
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 0
+                                        act = lv_count ).
+
+    " ... and ends no session of its first 32 characters
+    NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method     = `DELETE`
+                                                session_id = |{ lv_session }X| ) ).
+    SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_id INTO @DATA(lv_client).
+    cl_abap_unit_assert=>assert_subrc( exp = 0 ).
+    cl_abap_unit_assert=>assert_equals( exp = `unit-test 1.0`
+                                        act = lv_client ).
 
   ENDMETHOD.
 
@@ -209,6 +276,22 @@ CLASS ltcl_mcp IMPLEMENTATION.
                                         act = lo_json->get_integer( `/error/code` ) ).
     cl_abap_unit_assert=>assert_equals( exp = 7
                                         act = lo_json->get_integer( `/id` ) ).
+
+  ENDMETHOD.
+
+  METHOD invalid_id.
+
+    " an id that is neither a string nor a number makes no notification of
+    " the request: it is answered - with id null - and nothing runs
+    LOOP AT VALUE string_table( ( `null` ) ( `true` ) ( `{"n":1}` ) ( `[1]` ) ) INTO DATA(lv_id).
+      DATA(lo_json) = rpc( |\{"jsonrpc":"2.0","id":{ lv_id },"method":"tools/call","params":\{"name":"app_list"\}\}| ).
+      cl_abap_unit_assert=>assert_equals( exp = -32600
+                                          act = lo_json->get_integer( `/error/code` )
+                                          msg = |id { lv_id }| ).
+      cl_abap_unit_assert=>assert_equals( exp = z2ui5_if_ajson_types=>node_type-null
+                                          act = lo_json->get_node_type( `/id` ) ).
+      cl_abap_unit_assert=>assert_false( lo_json->exists( `/result` ) ).
+    ENDLOOP.
 
   ENDMETHOD.
 
@@ -349,6 +432,33 @@ CLASS ltcl_mcp IMPLEMENTATION.
     SELECT SINGLE mcp_client FROM z2ui5_t_ag_log WHERE session_id = @lv_session AND operation = 'app_start' INTO @DATA(lv_client).
     cl_abap_unit_assert=>assert_equals( exp = `unit-test 1.0`
                                         act = lv_client ).
+
+  ENDMETHOD.
+
+  METHOD batch_audit.
+
+    DATA lv_count TYPE i.
+
+    " every call of a batch is audited: the roundtrip of a later call (here
+    " app_start) rolls back what the earlier ones left uncommitted
+    DATA(lo_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26",` &&
+                          `"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
+    DATA(lv_mcp_session) = lo_init-t_header[ name = `Mcp-Session-Id` ]-value. "#EC CI_SORTSEQ
+    DATA(ls_response) = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #(
+        method       = `POST`
+        content_type = `application/json`
+        session_id   = lv_mcp_session
+        body         = `[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"app_list","arguments":{}}},` &&
+                       `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":` &&
+                       `{"name":"app_start","arguments":{"app":"z2ui5_cl_agent_demo","max_rows":1}}}]` ) ).
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"id":3*`
+                                         act = ls_response-body ).
+    SELECT COUNT(*) FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND operation = 'app_list' AND mcp_client = 'unit-test 1.0' AND timestampl >= @mv_start
+      INTO @lv_count.
+    cl_abap_unit_assert=>assert_equals( exp = 1
+                                        act = lv_count ).
 
   ENDMETHOD.
 

@@ -1,12 +1,12 @@
 "! An abap2UI5 app that opts in for agents - the example of the agent addon
-"! and what its unit tests drive. A travel request: a form, a table with a
-"! row action and row selection, a popup that closes in the browser, a
-"! trip plan with tags (a multichoice) and a structure that holds a table of
-"! stops, two value helps - a SelectDialog for the destination (one row is
-"! picked) and a TableSelectDialog for the tags (several rows) - and three
-"! events of each policy: ADD and PLAN are allowed, SUBMIT
-"! needs a human (confirm), DELETE_ALL is forbidden for agents. The IBAN is
-"! sensitive - the audit log masks it.
+"! and what its unit tests drive. A travel request: a form with a departure
+"! date, a table with a row action and row selection, a popup that closes
+"! in the browser, a trip plan with tags (a multichoice) and a structure
+"! that holds a table of stops, two value helps - a SelectDialog for the
+"! destination (one row is picked) and a TableSelectDialog for the tags
+"! (several rows) - and three events of each policy: ADD and PLAN are
+"! allowed, SUBMIT needs a human (confirm), DELETE_ALL is forbidden for
+"! agents. The IBAN is sensitive - the audit log masks it.
 "!
 "! Start it in the browser with ?app_start=z2ui5_cl_agent_demo, or as an
 "! agent with app_start { "app": "z2ui5_cl_agent_demo" }. The button in the
@@ -61,6 +61,7 @@ CLASS z2ui5_cl_agent_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA t_request   TYPE ty_t_request.
     DATA tags        TYPE string_table.
     DATA trip        TYPE ty_s_trip.
+    DATA departure   TYPE d.
     DATA t_dest      TYPE ty_t_choice.
     DATA t_tag       TYPE ty_t_choice.
 
@@ -201,7 +202,12 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
             )->tag( `Label`
                 )->a( n = `text` v = `Purpose`
             )->tag( `Input`
-                )->a( n = `value` v = client->_bind( trip-purpose ) ).
+                )->a( n = `value` v = client->_bind( trip-purpose )
+            )->tag( `Label`
+                )->a( n = `text` v = `Departure`
+            )->tag( `DatePicker`
+                )->a( n = `value`       v = client->_bind( departure )
+                )->a( n = `valueFormat` v = `yyyy-MM-dd` ).
 
     page->ele( `Table`
         )->a( n = `headerText` v = `Requests`

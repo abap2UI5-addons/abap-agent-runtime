@@ -112,11 +112,7 @@ arguments, message lists among them): **110 of 110 snapshots
 byte-identical**. One deliberate extension: an
 action the app or the settings classify `confirm` or `forbidden` carries
 `"policy"` - without such a classification the output is the reference's,
-key for key. One deliberate deviation: a binding in object syntax that names
-its model with the `model` key (`{path:'/A', model:'other'}`) is read as bound
-to that model, like `{other>/A}` - not editable, no table rows - where the
-reference takes `/A` of the default model, a path an agent's value would be
-written to.
+key for key.
 
 ## Install
 

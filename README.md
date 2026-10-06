@@ -264,7 +264,8 @@ selected refuses an act without `row`. `@CLOSE_POPUP` /
 follow the document order, so values that show or hide a control can renumber
 them: an act whose values make its action id name another event, or hide its
 action, is refused - fill the values without an event first, then fire it from
-the next snapshot.
+the next snapshot. So is an act whose values disable its action
+(`enabled="{/OPEN}"`): the browser cannot press a disabled control.
 Every refusal is a tool result with `isError: true` and a sentence naming what
 was wrong and what is allowed - and a refused act sends nothing and changes
 nothing.

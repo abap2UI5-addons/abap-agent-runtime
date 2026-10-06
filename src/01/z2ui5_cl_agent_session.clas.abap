@@ -1584,6 +1584,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         OR result-policy = z2ui5_if_agent_app=>cs_policy-confirm.
       fail( refusal ).
     ENDIF.
+    " a value that disables it (enabled="{/OPEN}") leaves a control the
+    " browser cannot press any more
+    IF result-enabled = abap_false.
+      fail( |action { id } ({ result-label }) is disabled once the values are filled - { action_help( ) }| ).
+    ENDIF.
 
   ENDMETHOD.
 

@@ -800,6 +800,7 @@ CLASS ltcl_args DEFINITION FINAL
     METHODS pick_unknown   FOR TESTING.
     METHODS table_events   FOR TESTING.
     METHODS action_hidden  FOR TESTING.
+    METHODS action_disabled FOR TESTING.
 
     METHODS screen
       IMPORTING
@@ -1041,6 +1042,33 @@ CLASS ltcl_args IMPLEMENTATION.
                                                    row   = `0` ) ).
     " a table row event selects nothing by itself
     cl_abap_unit_assert=>assert_initial( pending( ) ).
+
+  ENDMETHOD.
+
+  METHOD action_disabled.
+
+    " the values disable the action - the browser cannot press it then, so
+    " the act does not fire it either
+    DATA(lv_xml) = `<CheckBox selected="{/OPEN}"/><Button text="Delete" enabled="{/OPEN}" press=".eB(['DEL'])"/>`.
+    screen( xml   = lv_xml
+            model = `{"OPEN":true}` ).
+    DATA(ls_action) = mo_cut->find_action( event   = `DEL`
+                                           has_row = abap_false ).
+    cl_abap_unit_assert=>assert_true( ls_action-enabled ).
+    screen( xml       = lv_xml
+            model     = `{"OPEN":true}`
+            t_pending = VALUE #( ( model_key = `MAIN`
+                                   path      = `/OPEN`
+                                   val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_false ) ) ) ).
+    TRY.
+        mo_cut->action_again( id      = ls_action-id
+                              event   = `DEL`
+                              refusal = `refused` ).
+        cl_abap_unit_assert=>fail( `an action the values disabled was not refused` ).
+      CATCH z2ui5_cx_ui5_util_error INTO DATA(lx).
+        cl_abap_unit_assert=>assert_char_cp( exp = `action a1 (Delete) is disabled once the values are filled*`
+                                             act = lx->get_text( ) ).
+    ENDTRY.
 
   ENDMETHOD.
 

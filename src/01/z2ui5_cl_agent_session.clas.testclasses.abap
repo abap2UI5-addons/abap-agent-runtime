@@ -345,6 +345,10 @@ CLASS ltcl_session IMPLEMENTATION.
     refused( is_result = mo_session->app_act( session  = ls_start-session
                                               max_rows = `lots` )
              pattern   = `*max_rows must be a number*` ).
+    " a row beyond any integer is no cell - refused, also by the audit entry
+    refused( is_result = mo_session->app_act( session = ls_start-session
+                                              values  = `{"/T_REQUEST/99999999999999999999/SELKZ":true}` )
+             pattern   = `*no field '/T_REQUEST/99999999999999999999/SELKZ' on this screen*` ).
     " a refused act changes nothing
     cl_abap_unit_assert=>assert_equals( exp = ls_start-text
                                         act = mo_session->app_describe( ls_start-session )-text ).

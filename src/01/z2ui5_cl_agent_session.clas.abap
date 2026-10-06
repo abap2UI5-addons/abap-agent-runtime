@@ -760,7 +760,17 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             analyze( ).
             IF lv_event IS NOT INITIAL.
               DATA(lv_action_id) = ls_action-id.
+              DATA(lv_action_event) = ls_action-event.
               READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
+              " ids follow the document order: a value that shows or hides a
+              " control renumbers them - the id must still name the event whose
+              " policy was checked above
+              IF sy-subrc = 0 AND ( ls_action-event <> lv_action_event
+                  OR ls_action-policy = z2ui5_if_agent_app=>cs_policy-forbidden
+                  OR ls_action-policy = z2ui5_if_agent_app=>cs_policy-confirm ).
+                fail( |the values change the screen - action { lv_action_id } is no longer { lv_action_event }; | &&
+                      |fill the values without an event first, then fire it from the next snapshot| ).
+              ENDIF.
             ENDIF.
             IF mv_dry_run = abap_true.
               " checked: the action, its policy, every value - the arguments
@@ -790,6 +800,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                                         row_raw   = lv_row ).
                 analyze( ).
                 READ TABLE mo_snap->mt_action INTO ls_action WITH KEY id = lv_action_id. "#EC CI_SORTSEQ
+                IF sy-subrc = 0 AND ( ls_action-event <> lv_action_event
+                    OR ls_action-policy = z2ui5_if_agent_app=>cs_policy-forbidden
+                    OR ls_action-policy = z2ui5_if_agent_app=>cs_policy-confirm ).
+                  fail( |the pick changes the screen - action { lv_action_id } is no longer { lv_action_event }| ).
+                ENDIF.
               ENDIF.
               DATA(lt_tval) = event_args( is_action = ls_action
                                           t_given   = lt_arg
@@ -1317,7 +1332,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDIF.
     DATA(lv_column) = lt_seg[ lv_count ].
     DATA(lv_row) = lt_seg[ lv_count - 1 ].
-    IF lv_row IS INITIAL OR lv_row CN `0123456789` OR lv_column IS INITIAL
+    " at most 9 digits - a longer row does not fit the integer it becomes
+    IF lv_row IS INITIAL OR lv_row CN `0123456789` OR strlen( lv_row ) > 9 OR lv_column IS INITIAL
         OR lv_column(1) CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`
         OR lv_column CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-`.
       RETURN.

@@ -260,9 +260,13 @@ confirm's `selectedItem` / `selectedItems` / `selectedContexts` are the
 selected rows. A multi-select dialog confirms what is ticked (tick rows
 through `values`, `row` adds one); a single-select dialog with nothing
 selected refuses an act without `row`. `@CLOSE_POPUP` /
-`@CLOSE_POPOVER` close a dialog locally, as the browser does. Every refusal is
-a tool result with `isError: true` and a sentence naming what was wrong and
-what is allowed - and a refused act sends nothing and changes nothing.
+`@CLOSE_POPOVER` close a dialog locally, as the browser does. Action ids
+follow the document order, so values that show or hide a control can renumber
+them: an act whose values make its action id name another event is refused -
+fill the values without an event first, then fire it from the next snapshot.
+Every refusal is a tool result with `isError: true` and a sentence naming what
+was wrong and what is allowed - and a refused act sends nothing and changes
+nothing.
 
 ## Security model
 

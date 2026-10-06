@@ -93,6 +93,7 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS tool_argument_types FOR TESTING.
     METHODS tool_call_session   FOR TESTING.
     METHODS batch               FOR TESTING.
+    METHODS batch_audit         FOR TESTING.
 
     METHODS post
       IMPORTING
@@ -373,6 +374,33 @@ CLASS ltcl_mcp IMPLEMENTATION.
     SELECT SINGLE mcp_client FROM z2ui5_t_ag_log WHERE session_id = @lv_session AND operation = 'app_start' INTO @DATA(lv_client).
     cl_abap_unit_assert=>assert_equals( exp = `unit-test 1.0`
                                         act = lv_client ).
+
+  ENDMETHOD.
+
+  METHOD batch_audit.
+
+    DATA lv_count TYPE i.
+
+    " every call of a batch is audited: the roundtrip of a later call (here
+    " app_start) rolls back what the earlier ones left uncommitted
+    DATA(lo_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26",` &&
+                          `"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
+    DATA(lv_mcp_session) = lo_init-t_header[ name = `Mcp-Session-Id` ]-value. "#EC CI_SORTSEQ
+    DATA(ls_response) = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #(
+        method       = `POST`
+        content_type = `application/json`
+        session_id   = lv_mcp_session
+        body         = `[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"app_list","arguments":{}}},` &&
+                       `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":` &&
+                       `{"name":"app_start","arguments":{"app":"z2ui5_cl_agent_demo","max_rows":1}}}]` ) ).
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"id":3*`
+                                         act = ls_response-body ).
+    SELECT COUNT(*) FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND operation = 'app_list' AND mcp_client = 'unit-test 1.0' AND timestampl >= @mv_start
+      INTO @lv_count.
+    cl_abap_unit_assert=>assert_equals( exp = 1
+                                        act = lv_count ).
 
   ENDMETHOD.
 

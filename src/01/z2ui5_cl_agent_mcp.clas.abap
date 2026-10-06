@@ -312,6 +312,10 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       DO lv_count TIMES.
         DATA(lv_out) = message( io_json = lo_json
                                 path    = |/{ sy-index }| ).
+        " each message its own LUW: the app roundtrip of a later tool call
+        " (abap2UI5 rolls back around main( )) would take this one's session
+        " and audit entries with it
+        COMMIT WORK.
         IF lv_out IS NOT INITIAL.
           INSERT lv_out INTO TABLE lt_out.
         ENDIF.

@@ -29,6 +29,7 @@ CLASS ltcl_copilot DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGER
     METHODS switched_off FOR TESTING RAISING cx_static_check.
     METHODS agents_never_open_it FOR TESTING RAISING cx_static_check.
     METHODS multichoice_filled FOR TESTING RAISING cx_static_check.
+    METHODS date_not_taken FOR TESTING RAISING cx_static_check.
 
     METHODS setting
       IMPORTING
@@ -397,6 +398,36 @@ CLASS ltcl_copilot IMPLEMENTATION.
     " and the model is told so
     cl_abap_unit_assert=>assert_char_cp( act = z2ui5_cl_agent_assist=>get_system( abap_true )
                                          exp = `*a multichoice by its keys separated by commas*` ).
+
+  ENDMETHOD.
+
+  METHOD date_not_taken.
+
+    " a date the app cannot take is told when the copilot fills it - on
+    " close it is left out, the other values are on the screen
+    DATA(sim) = open( ).
+    mo_double->add_answer( answer( text    = `I fill it in.`
+                                   wanted  = abap_true
+                                   summary = `Dora, leaving on 6 October`
+                                   values  = `{"field":"/NAME","value":"Dora"},{"field":"/DEPARTURE","value":"06.10.2026"}` ) ).
+    ask( sim      = sim
+         question = `Dora leaves on 6 October` ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_value( name  = `HAS_PROPOSAL`
+                                                              layer = c_popup )
+                                        exp = `true` ).
+    sim->click( event = `DO`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
+                                         exp = `*Not filled*/DEPARTURE: '06.10.2026' is no date (YYYY-MM-DD)*` ).
+
+    sim->click( event = `CLOSE`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_app( )
+                                        exp = c_demo ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_value( `NAME` )
+                                        exp = `Dora` ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( )
+                                         exp = `*"DEPARTURE":""*` ).
 
   ENDMETHOD.
 

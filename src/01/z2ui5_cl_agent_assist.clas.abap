@@ -121,11 +121,14 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     "! Write the pending values of the session (filled, not yet sent) into
     "! the app instance - its public attributes by model path. Returns the
-    "! paths written.
+    "! paths written; t_refused: why a value was not (a date that is none,
+    "! a path that is no attribute) - the user enters it.
     CLASS-METHODS apply_pending
       IMPORTING
         session       TYPE clike
         app           TYPE REF TO object
+      EXPORTING
+        t_refused     TYPE string_table
       RETURNING
         VALUE(result) TYPE string_table.
 
@@ -620,6 +623,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
   METHOD apply_pending.
 
+    CLEAR t_refused.
     TRY.
         DATA(lo_snap) = session_new( )->get_snapshot( session ).
         DATA(lo_json) = z2ui5_cl_ajson=>parse( lo_snap->get_json( ) ).
@@ -635,8 +639,9 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
                  val  = lo_snap->model_value( model_key = z2ui5_cl_agent_snapshot=>cs_model-main
                                               path      = lv_path ) ).
           INSERT lv_path INTO TABLE result.
-        CATCH cx_root ##NO_HANDLER.
+        CATCH cx_root INTO DATA(lx).
           " a value of a popup or of a path that is no attribute: the user enters it
+          INSERT lx->get_text( ) INTO TABLE t_refused.
       ENDTRY.
     ENDDO.
 

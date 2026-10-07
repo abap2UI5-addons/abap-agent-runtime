@@ -481,8 +481,13 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         " the last administrator stays: without one nobody may change these
         " settings, and only a developer in the system could add one again
         IF ls_rule-kind = z2ui5_cl_agent_settings=>cs_kind-admin.
+          " counted as stored, not as this form last showed them: two
+          " administrators each removing themselves from a stale list left none
+          z2ui5_cl_agent_settings=>refresh( ).
           DATA(lv_admins) = 0.
-          LOOP AT t_rule TRANSPORTING NO FIELDS WHERE kind = z2ui5_cl_agent_settings=>cs_kind-admin. "#EC CI_SORTSEQ
+          DATA(lt_stored) = z2ui5_cl_agent_settings=>get_all( ).
+          LOOP AT lt_stored TRANSPORTING NO FIELDS
+               WHERE kind = z2ui5_cl_agent_settings=>cs_kind-admin. "#EC CI_SORTSEQ
             lv_admins = lv_admins + 1.
           ENDLOOP.
           IF lv_admins <= 1.
@@ -623,7 +628,9 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     " the key goes where the address says: sent to a new URL, destination
     " or provider, it is the key of a host an administrator just named -
     " who may never have seen the key. Kept only with a key typed anew.
-    IF llm_key IS INITIAL AND z2ui5_cl_agent_settings=>check_llm_key( ) = abap_true
+    " (not on a form opened before this was remembered - mt_llm_shown empty,
+    " every item counts as changed there and the key would go unasked)
+    IF llm_key IS INITIAL AND mt_llm_shown IS NOT INITIAL AND z2ui5_cl_agent_settings=>check_llm_key( ) = abap_true
         AND ( line_exists( lt_changed[ table_line = z2ui5_cl_agent_settings=>cs_llm-url ] )
            OR line_exists( lt_changed[ table_line = z2ui5_cl_agent_settings=>cs_llm-destination ] )
            OR line_exists( lt_changed[ table_line = z2ui5_cl_agent_settings=>cs_llm-provider ] ) ).

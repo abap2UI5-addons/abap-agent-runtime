@@ -399,6 +399,8 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       IF lv_changed < z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = lv_now
                                                                         seconds = 3600 ).
         UPDATE z2ui5_t_ag_mcp SET changed_at = @lv_now WHERE id = @lv_session AND uname = @sy-uname.
+        " at once: an app start's roundtrip rolls back before main( )
+        COMMIT WORK.
       ENDIF.
     ENDIF.
 

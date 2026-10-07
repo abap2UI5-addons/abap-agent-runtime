@@ -324,22 +324,49 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
             DATA(lv_column_masked) = z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                                                path = |{ lv_path }/{ lv_column }|
                                                                                name = lv_column ).
-            " a cell bound to several fields or an expression ("{IBAN} ({BANK})")
-            " is a column COL<n> - judged by the fields its binding reads
+            " a cell bound to several fields or an expression ("{IBAN} ({BANK})",
+            " "{= ${IBAN} }") is a column COL<n> - judged by the fields its
+            " binding reads, by table path and by row path alike
             DATA(ls_cellspec) = VALUE z2ui5_cl_agent_snapshot=>ty_s_cellspec( ).
             READ TABLE ls_snap_table-t_cellspec INTO ls_cellspec WITH KEY name = lv_column. "#EC CI_SORTSEQ
-            LOOP AT ls_cellspec-binding-t_part INTO DATA(ls_part) WHERE is_path = abap_true. "#EC CI_SORTSEQ
+            DATA(lt_read) = z2ui5_cl_agent_snapshot=>binding_paths( ls_cellspec-binding ).
+            DELETE lt_read WHERE table_line = lv_column.
+            LOOP AT lt_read INTO DATA(lv_read).
+              DATA(lv_read_index) = sy-tabix.
+              " an absolute path inside a row is judged as it is
+              IF strlen( lv_read ) > 0 AND lv_read(1) = `/`.
+                DATA(lv_read_name) = lv_read.
+                WHILE lv_read_name CS `/`.
+                  lv_read_name = substring_after( val = lv_read_name
+                                                  sub = `/` ).
+                ENDWHILE.
+                IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                             path = lv_read
+                                                             name = lv_read_name ) = abap_true.
+                  lv_column_masked = abap_true.
+                ENDIF.
+                DELETE lt_read INDEX lv_read_index.
+                CONTINUE.
+              ENDIF.
               IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
-                                                           path = |{ lv_path }/{ ls_part-path }|
-                                                           name = ls_part-path ) = abap_true.
+                                                           path = |{ lv_path }/{ lv_read }|
+                                                           name = lv_read ) = abap_true.
                 lv_column_masked = abap_true.
               ENDIF.
             ENDLOOP.
             DATA(lv_rows) = lines( lo_json->members( |{ lv_table }/rows| ) ).
             DO lv_rows TIMES.
+              DATA(lv_row_masked) = lv_column_masked.
+              LOOP AT lt_read INTO lv_read.
+                IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                             path = |{ lv_path }/{ sy-index - 1 }/{ lv_read }|
+                                                             name = lv_read ) = abap_true.
+                  lv_row_masked = abap_true.
+                ENDIF.
+              ENDLOOP.
               " a cell by its model path too (/T_PARTNER/*/IBAN), as the audit log masks it
               IF lo_json->exists( |{ lv_table }/rows/{ sy-index }/{ lv_column }| ) = abap_true
-                  AND ( lv_column_masked = abap_true
+                  AND ( lv_row_masked = abap_true
                         OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                                      path = |{ lv_path }/{ sy-index - 1 }/{ lv_column }|
                                                                      name = lv_column ) = abap_true ).

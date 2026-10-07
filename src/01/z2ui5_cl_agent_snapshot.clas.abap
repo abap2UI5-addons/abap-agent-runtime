@@ -318,6 +318,22 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE string.
 
+    "! The model paths a binding reads - a path, the parts of a composite
+    "! binding, the references of an expression (the copilot masks a cell
+    "! or a text by them).
+    CLASS-METHODS binding_paths
+      IMPORTING
+        binding       TYPE z2ui5_cl_agent_viewxml=>ty_s_binding
+      RETURNING
+        VALUE(result) TYPE string_table.
+
+    "! binding_paths( ) of a raw attribute value.
+    CLASS-METHODS text_paths
+      IMPORTING
+        raw           TYPE string
+      RETURNING
+        VALUE(result) TYPE string_table.
+
   PROTECTED SECTION.
 
   PRIVATE SECTION.
@@ -434,14 +450,6 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
     METHODS note
       IMPORTING
         val TYPE string.
-
-    "! The model paths a binding reads - a path, the parts of a composite
-    "! binding, the references of an expression.
-    CLASS-METHODS text_paths
-      IMPORTING
-        raw           TYPE string
-      RETURNING
-        VALUE(result) TYPE string_table.
 
     METHODS add_text
       IMPORTING
@@ -1005,7 +1013,13 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD text_paths.
 
-    DATA(ls_binding) = z2ui5_cl_agent_viewxml=>parse_binding( raw ).
+    result = binding_paths( z2ui5_cl_agent_viewxml=>parse_binding( raw ) ).
+
+  ENDMETHOD.
+
+  METHOD binding_paths.
+
+    DATA(ls_binding) = binding.
     CASE ls_binding-kind.
       WHEN z2ui5_cl_agent_viewxml=>cs_binding-literal.
         RETURN.

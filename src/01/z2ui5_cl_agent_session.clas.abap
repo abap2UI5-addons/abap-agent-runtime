@@ -202,6 +202,11 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA mv_dry_run TYPE abap_bool.
     DATA mo_sim TYPE REF TO z2ui5_cl_frontend_simulator.
     DATA ms_row TYPE z2ui5_t_ag_ses.
+    "! changed_at before and after claim( ), for release( ).
+    DATA mv_claimed_from TYPE z2ui5_t_ag_ses-changed_at.
+    DATA mv_claimed_until TYPE z2ui5_t_ag_ses-changed_at.
+    "! How long a claim holds a session - longer than any request runs.
+    CONSTANTS c_claim_seconds TYPE i VALUE 600.
     DATA mt_custom TYPE string_table.
     DATA mt_pending TYPE z2ui5_cl_agent_snapshot=>ty_t_pending.
     DATA mo_snap TYPE REF TO z2ui5_cl_agent_snapshot.
@@ -231,6 +236,19 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
         session TYPE clike
       RAISING
         z2ui5_cx_ui5_util_error.
+
+    "! Takes the session for this act: two calls on one session (an MCP
+    "! client calls tools in parallel) both ran the app's main( ) and both
+    "! fired the event - a document posted twice, two forks of the session.
+    "! The second finds changed_at moved and is refused before anything
+    "! runs. Committed at once: abap2UI5 rolls back around main( ), which
+    "! would take the claim and its row lock with it.
+    METHODS claim
+      RAISING
+        z2ui5_cx_ui5_util_error.
+
+    "! Gives a claimed session back after a refused act - as it was.
+    METHODS release.
 
     METHODS save
       IMPORTING
@@ -557,7 +575,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDIF.
     DATA(ls_arg) = z2ui5_cl_agent_viewxml=>describe_arg( val ).
     IF ls_arg-static = abap_false OR ls_arg-val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-number.
-      fail( |max_rows must be a number, not '{ val }' - leaving it out means { default }| ).
+      fail( |max_rows must be a number, not '{ z2ui5_cl_agent_viewxml=>echo( val ) }' - leaving it out means { default }| ).
     ENDIF.
     " clamped before it becomes an integer - 10000000000 does not fit one
     IF ls_arg-val-num < 0.
@@ -600,7 +618,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         DATA(lv_hint) = COND string( WHEN lt_app IS NOT INITIAL
                                      THEN `app_start { app } starts one and answers with its agent snapshot`
                                      WHEN filter IS NOT INITIAL
-                                     THEN |no app enabled for agents contains '{ filter }'|
+                                     THEN |no app enabled for agents contains '{ z2ui5_cl_agent_viewxml=>echo( filter ) }'|
                                      ELSE `no app is enabled for agents on this system - an app opts in by implementing ` &&
                                           `z2ui5_if_agent_app, or an administrator allows it in Z2UI5_CL_AGENT_APP_ADMIN` ).
         result-text = |\{"count":{ lines( lt_app ) },"apps":[{ concat_lines_of( table = lt_item
@@ -721,9 +739,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DATA ls_action TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
     DATA lv_event TYPE string.
     DATA lv_row TYPE string.
+    DATA lv_values_audit TYPE string.
 
     lv_event = event.
     lv_row = row.
+    CLEAR: mv_claimed_from, mv_claimed_until.
     TRY.
         check_enabled( ).
         load( session ).
@@ -741,6 +761,14 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             fail( |session '{ ms_row-id }' cannot be continued - { lx_resume->get_text( ) }; app_start { ms_row-app_start } again| ).
         ENDTRY.
         analyze( ).
+        " masked for the audit against THIS screen - the one the values are
+        " typed into. Masked after the act, they were judged against the next
+        " screen: a popup or another app without the field, an id f3 naming
+        " something else, and a sensitive value went into the log as it was.
+        IF values IS NOT INITIAL.
+          lv_values_audit = mask_values( t_value = lt_value
+                                         app     = ms_row-app ).
+        ENDIF.
 
         " validate everything before anything changes
         IF lv_event IS NOT INITIAL.
@@ -775,6 +803,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         ELSEIF lv_row IS NOT INITIAL.
           fail( `row belongs to an event - pass event too` ).
         ENDIF.
+        " a layer closed in the browser reads nothing: a row or args given to
+        " it were taken without a word
+        IF lv_event IS NOT INITIAL AND ls_action-frontend IS NOT INITIAL AND ( lv_row IS NOT INITIAL OR lt_arg IS NOT INITIAL ).
+          fail( |{ ls_action-event } closes the { ls_action-frontend } in the browser - it takes no row and no args| ).
+        ENDIF.
 
         DATA(lt_pending_before) = mt_pending.
         TRY.
@@ -802,10 +835,18 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                                 session = ms_row-id ).
               mt_pending = lt_pending_before.
             ELSEIF lv_event IS INITIAL.
+              " values only: claimed too - saved over a session another act
+              " moved on from meanwhile, it brought the old one back
+              IF mv_mode <> cs_mode-copilot.
+                claim( ).
+              ENDIF.
               save( ).
             ELSEIF ls_action-frontend IS NOT INITIAL.
               " performed here, as the browser performs it: the slot closes,
               " its unsent edits go with it, no roundtrip
+              IF mv_mode <> cs_mode-copilot.
+                claim( ).
+              ENDIF.
               close_layer( ls_action-frontend ).
               save( ).
             ELSE.
@@ -825,6 +866,9 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                                           row_raw   = lv_row
                                           t_picked  = lt_picked ).
               DATA(lv_id_old) = ms_row-id.
+              IF mv_mode <> cs_mode-copilot.
+                claim( ).
+              ENDIF.
               send( is_action = ls_action
                     t_arg     = lt_tval ).
               save( lv_id_old ).
@@ -836,10 +880,13 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           CATCH z2ui5_cx_ui5_util_error INTO DATA(lx_act).
             " a refused act changes nothing: neither the pending edits nor the session
             mt_pending = lt_pending_before.
+            release( ).
             RAISE EXCEPTION lx_act.
         ENDTRY.
 
       CATCH cx_root INTO DATA(lx).
+        " whatever failed after the claim - the session is free again
+        release( ).
         result = VALUE #( is_error = abap_true
                           text     = lx->get_text( )
                           session  = ms_row-id ).
@@ -847,8 +894,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     DATA(lv_args) = |\{"session":{ z2ui5_cl_agent_viewxml=>json_string( session ) }|.
     IF values IS NOT INITIAL.
-      lv_args = |{ lv_args },"values":{ mask_values( t_value = lt_value
-                                                     app     = ms_row-app ) }|.
+      IF lv_values_audit IS INITIAL.
+        " the session was never loaded: judged by the keys alone
+        lv_values_audit = mask_values( t_value = lt_value
+                                       app     = ms_row-app ).
+      ENDIF.
+      lv_args = |{ lv_args },"values":{ lv_values_audit }|.
     ENDIF.
     IF args IS NOT INITIAL.
       lv_args = |{ lv_args },"args":{ args }|.
@@ -899,6 +950,10 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         DATA(lv_app) = mo_sim->get_app( ).
         IF z2ui5_cl_agent_settings=>check_app( EXPORTING app    = lv_app
                                                IMPORTING reason = lv_reason ) = abap_false.
+          " the restore ran the app's main( ) - what it left open goes, as
+          " for a screen that cannot be continued (a stateful app is not
+          " rolled back by abap2UI5, and the caller's commit kept it)
+          app_rollback( ).
           fail( lv_reason ).
         ENDIF.
         IF mo_sim->is_sticky( ) = abap_true.
@@ -992,7 +1047,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       LOOP AT lt_session INTO DATA(ls_session).
         INSERT |{ ls_session-id } ({ ls_session-app })| INTO TABLE lt_open.
       ENDLOOP.
-      fail( |unknown session '{ condense( session ) }' - start one with app_start{ COND #( WHEN lt_open IS NOT INITIAL
+      fail( |unknown session '{ z2ui5_cl_agent_viewxml=>echo( condense( session ) ) }' - start one with app_start{ COND #( WHEN lt_open IS NOT INITIAL
                                                                               THEN |; open sessions: { list_of( lt_open ) }| ) }| ).
     ENDIF.
 
@@ -1029,6 +1084,44 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD claim.
+
+    " changed_at in the future marks the session as taken - for as long as
+    " a request may run; save( ) writes the present back and so releases
+    " it, release( ) does on a refusal, and a request that dumps leaves it
+    " blocked for that long at most. Taken by a call that loaded the row
+    " before, or after the claim, the next is refused either way.
+    DATA(lv_now) = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
+    IF ms_row-changed_at > lv_now.
+      fail( |session '{ ms_row-id }' is being continued by another call - wait for its answer and act on the session it returns| ).
+    ENDIF.
+    DATA(lv_until) = z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = lv_now
+                                                                       seconds = 0 - c_claim_seconds ).
+    UPDATE z2ui5_t_ag_ses SET changed_at = @lv_until
+      WHERE id = @ms_row-id AND uname = @sy-uname AND changed_at = @ms_row-changed_at.
+    IF sy-dbcnt = 0.
+      fail( |session '{ ms_row-id }' is being continued by another call - wait for its answer and act on the session it returns| ).
+    ENDIF.
+    COMMIT WORK.
+    mv_claimed_from = ms_row-changed_at.
+    mv_claimed_until = lv_until.
+    ms_row-changed_at = lv_until.
+
+  ENDMETHOD.
+
+  METHOD release.
+
+    IF mv_claimed_until IS INITIAL.
+      RETURN.
+    ENDIF.
+    UPDATE z2ui5_t_ag_ses SET changed_at = @mv_claimed_from
+      WHERE id = @ms_row-id AND uname = @sy-uname AND changed_at = @mv_claimed_until.
+    COMMIT WORK.
+    ms_row-changed_at = mv_claimed_from.
+    CLEAR: mv_claimed_from, mv_claimed_until.
+
+  ENDMETHOD.
+
   METHOD save.
 
     DATA lt_pending_db TYPE ty_t_pending_db.
@@ -1055,6 +1148,9 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     ms_row-state = mo_sim->get_state( ).
     ms_row-snapshot = mo_snap->get_json( ).
+    " the rows the stored snapshot was built with: an act's max_rows was
+    " not kept, and app_describe answered it for any max_rows asked
+    ms_row-max_rows = mv_max_rows.
     ms_row-app = mo_sim->get_app( ).
     ms_row-uname = sy-uname.
     ms_row-changed_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
@@ -1388,7 +1484,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ELSEIF val-kind = z2ui5_cl_agent_viewxml=>cs_kind-string AND ( val-str = `true` OR val-str = `false` ).
         result = z2ui5_cl_agent_viewxml=>val_boolean( xsdbool( val-str = `true` ) ).
       ELSE.
-        fail( |{ label } is a boolean - pass true or false, not { val_json_quoted( val ) }| ).
+        fail( |{ label } is a boolean - pass true or false, not { z2ui5_cl_agent_viewxml=>echo( val_json_quoted( val ) ) }| ).
       ENDIF.
       RETURN.
     ENDIF.
@@ -1427,7 +1523,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           AND ls_num-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-number.
         result = ls_num-val.
       ELSE.
-        fail( |{ label } holds a number - { val_json_quoted( val ) } is none| ).
+        fail( |{ label } holds a number - { z2ui5_cl_agent_viewxml=>echo( val_json_quoted( val ) ) } is none| ).
       ENDIF.
       RETURN.
     ENDIF.
@@ -1461,7 +1557,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       DATA(ls_target) = resolve_target( EXPORTING key   = ls_value-key
                                         IMPORTING found = lv_found ).
       IF lv_found = abap_false.
-        fail( |no field '{ ls_value-key }' on this screen - { field_help( ) }| ).
+        fail( |no field '{ z2ui5_cl_agent_viewxml=>echo( ls_value-key ) }' on this screen - { field_help( ) }| ).
       ENDIF.
 
       IF ls_target-is_cell = abap_false.
@@ -1498,7 +1594,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           ENDIF.
           LOOP AT lt_given INTO DATA(lv_one).
             IF NOT line_exists( lt_keys[ table_line = lv_one ] ). "#EC CI_SORTSEQ
-              fail( |{ lv_label }: '{ lv_one }' is not one of its values - allowed keys: { list_of( lt_quoted ) }| ).
+              fail( |{ lv_label }: '{ z2ui5_cl_agent_viewxml=>echo( lv_one ) }' is not one of its values - allowed keys: { list_of( lt_quoted ) }| ).
             ENDIF.
           ENDLOOP.
           " a choice keyed by index (RadioButtonGroup) keeps its number
@@ -1568,7 +1664,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
     IF lt_named IS INITIAL.
-      fail( |no action '{ event }' on this screen - { action_help( ) }| ).
+      fail( |no action '{ z2ui5_cl_agent_viewxml=>echo( event ) }' on this screen - { action_help( ) }| ).
     ENDIF.
     DATA(lt_pool) = COND z2ui5_cl_agent_snapshot=>ty_t_action( WHEN lt_enabled IS NOT INITIAL THEN lt_enabled ELSE lt_named ).
     IF has_row = abap_true.
@@ -1576,6 +1672,13 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       IF sy-subrc = 0.
         RETURN.
       ENDIF.
+    ELSE.
+      " without a row, a screen action of that name before a row action -
+      " a "delete selected" button after a table with a DELETE per row was
+      " reachable by its id only (mcp-server lib/appclient.mjs findAction)
+      LOOP AT lt_pool INTO result WHERE scope <> `row`. "#EC CI_SORTSEQ
+        RETURN.
+      ENDLOOP.
     ENDIF.
     result = lt_pool[ 1 ].
 
@@ -1682,7 +1785,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       IF lv_explicit = abap_true.
         IF ls_desc-kind = `action` AND is_action-has_choices = abap_true
             AND NOT line_exists( is_action-t_choice[ table_line = z2ui5_cl_agent_viewxml=>val_to_string( ls_explicit ) ] ). "#EC CI_SORTSEQ
-          fail( |argument { lv_index } of { is_action-event }: '{ z2ui5_cl_agent_viewxml=>val_to_string( ls_explicit ) }' | &&
+          fail( |argument { lv_index } of { is_action-event }: '{ z2ui5_cl_agent_viewxml=>echo( z2ui5_cl_agent_viewxml=>val_to_string( ls_explicit ) ) }' | &&
                 |is not one of { list_of( is_action-t_choice ) }| ).
         ENDIF.
         INSERT ls_explicit INTO TABLE result.
@@ -1759,7 +1862,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DATA(ls_row) = z2ui5_cl_agent_viewxml=>describe_arg( row_raw ).
     IF ls_row-static = abap_false OR ls_row-val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-number
         OR ls_row-val-num <> trunc( ls_row-val-num ) OR ls_row-val-num < 0 OR ls_row-val-num >= count.
-      fail( |table { table_id } has { count } row(s) - row { row_raw } does not exist (rows are 0-based)| ).
+      fail( |table { table_id } has { count } row(s) - row { z2ui5_cl_agent_viewxml=>echo( row_raw ) } does not exist (rows are 0-based)| ).
     ENDIF.
     result = ls_row-val-num.
 
@@ -2573,9 +2676,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       DATA(lv_app) = COND string( WHEN mo_sim IS BOUND THEN mo_sim->get_app( ) ELSE app ).
       IF mo_snap IS NOT BOUND.
         " no screen to resolve the key against: judged by the key alone
-        lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                              path = ls_value-key
-                                                              name = ls_value-key ).
+        lv_masked = xsdbool( z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                       path = ls_value-key
+                                                                       name = ls_value-key ) = abap_true
+                          OR z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                       path = |/{ ls_value-key }|
+                                                                       name = ls_value-key ) = abap_true ).
       ELSE.
         DATA(ls_target) = resolve_target( EXPORTING key   = ls_value-key
                                           IMPORTING found = lv_found ).
@@ -2591,9 +2697,14 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                                                                 path = |{ ls_table-path }/{ ls_target-row }/{ ls_target-column }|
                                                                 name = ls_target-column ).
         ELSE.
-          lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                path = ls_value-key
-                                                                name = ls_value-key ).
+          " a key the screen does not know: a name like IBAN is checked as
+          " the path /IBAN as well, the shape the sensitive rules are written in
+          lv_masked = xsdbool( z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                         path = ls_value-key
+                                                                         name = ls_value-key ) = abap_true
+                            OR z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                         path = |/{ ls_value-key }|
+                                                                         name = ls_value-key ) = abap_true ).
         ENDIF.
       ENDIF.
       INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-key ) }:| &&

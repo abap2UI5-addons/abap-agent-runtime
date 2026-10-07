@@ -403,10 +403,15 @@ administrators only - every change is audited):
 tokens. The request is the Messages API, non-streaming:
 `POST /v1/messages` with `content-type: application/json`, `x-api-key`,
 `anthropic-version: 2023-06-01` (+ `anthropic-beta` for the fallback), body
-`{"model","max_tokens","system","messages","output_config":{"effort","format":{"type":"json_schema","schema"}},"fallbacks":"default"}`.
-The answer is the first `text` block; `stop_reason` is checked first - a
-`refusal`, a `max_tokens` and a `model_context_window_exceeded` answer raise
-`z2ui5_cx_agent_llm` and are never parsed. HTTP 408, 429, 5xx and 529 raise
+`{"model","max_tokens","system":[{"type":"text","text","cache_control":{"type":"ephemeral"}}],"messages","output_config":{"effort","format":{"type":"json_schema","schema"}},"fallbacks":"default"}`
+- the system prompt as a cached block (the generative UI's vocabulary is the
+same on every call); `effort` only for a model that takes it (not Claude
+Haiku 4.5, Sonnet 4.5 or older), `fallbacks` and its header only for the
+Fable, Mythos, Opus 5 and Sonnet 5.5 lines.
+The answer is the first `text` block; `stop_reason` is checked first - only
+`end_turn` and `stop_sequence` are an answer: a `refusal`, a `max_tokens`, a
+`model_context_window_exceeded` or any other reason raises
+`z2ui5_cx_agent_llm` and is never parsed. HTTP 408, 429, 5xx and 529 raise
 it with `retryable = abap_true`, other errors without; the addon does not
 retry on its own.
 
@@ -438,14 +443,17 @@ and enter `ZCL_LLM_AI_CORE` as the provider class. Unit tests use
   `test`), provider, model, effort, stop reason, input and output tokens,
   duration in ms, outcome, the error text. **No prompt and no answer** -
   unless an administrator switches *Audit keeps prompts and answers* on
-  (then both are kept, cut to 2000 characters like every audit entry).
+  (then both are kept - the answer first, it and every prompt cut to 400
+  characters, so the entry's 2000 never lose the answer; cache tokens are
+  kept too).
 - **Generative UI** sends the names, types and labels of the fields the app
   hands over - **no data**; a few sample rows (3) only with *sample rows* on.
 - **The copilot** sends the agent snapshot of the screen - the values the
   user sees, so a question about them can be answered - with every password
   input (and every other field on its model path) and every sensitive field
   (the app's `t_sensitive`, the settings' `SENSITIVE` rules) masked as `***`,
-  in fields and in table columns, and
+  in fields, in table columns (a cell bound to several fields or an
+  expression by every field it reads) and in the texts that show one, and
   without the actions agents may never fire. It never proposes to fill a
   masked field.
 - The data goes to the provider you configure; with the shipped one, to the
@@ -486,10 +494,10 @@ the tree and builds the XML itself with `z2ui5_cl_ui5_view_builder`:
 | controls | anything outside the **portable view profile v1** of the abap2UI5 protocol (65 controls, `z2ui5_cl_agent_gen_vocab`); also `sap.ui.core.HTML`, `Shell`, `Dialog`, `Popover`, `CustomData` and layout data |
 | tree | no or two roots, a missing parent, a cycle, a duplicate id, more than 200 nodes |
 | aggregations | an aggregation the parent does not have, a child of the wrong type, two children in a single aggregation, a `sap.m.ToolbarSpacer` in a `sap.m.Bar` or a page's `headerContent` (no flex container before UI5 1.76: it hides what follows it) |
-| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); `visible` on an element that has none (`sap.ui.core.Item`); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers with a digit before the point, CSS sizes, icons only as `sap-icon://...` with a name the SAP icon font has at UI5 1.71 and no later release removed, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids) |
+| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); `visible` on an element that has none (`sap.ui.core.Item`); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers with a digit before the point, CSS sizes, icons only as `sap-icon://...` with a name the SAP icon font has at UI5 1.71 and no later release removed, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids); `icon`, `src` and `href` only as icon URIs, whatever the profile types them; a line break or a brace in any literal but a text |
 | bindings | a field that is not in the data handed over; relative bindings only inside the row template of a list bound to a table, absolute ones only to a structure; formats `integer` and `decimal` (typed bindings) and nothing else - no expressions, no formatters; a field the property cannot take (UI5 throws on it): a boolean property takes a boolean field, an integer or number property a number field, a CSS size or enum property a string field, a format only a number field |
 | lists | a list bound to a structure or an unknown dataset, sorting or grouping by an unknown field, not exactly one row template, a list inside a template |
-| events | an event the control does not have, an app event not in the app's list, an argument the app did not allow for it |
+| events | an event the control does not have, an app event not in the app's list, an argument the app did not allow for it, arguments out of the app's order (an app reads them by position: leave out only from the end) |
 | texts | never rejected - always rendered as literals (`t` of the builder: `{` and `\` escaped, XML escaped), so `<script>`, `"/><core:HTML ...>` or `{/OTHER/PATH}` in a text show as text |
 
 Ids, custom data, frontend actions (`.eF`), custom controls and expression

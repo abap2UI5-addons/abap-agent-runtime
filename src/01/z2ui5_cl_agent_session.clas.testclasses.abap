@@ -97,11 +97,15 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS pending_values      FOR TESTING.
     METHODS popup_flow          FOR TESTING.
     METHODS row_action          FOR TESTING.
+    METHODS max_rows_kept       FOR TESTING.
+    METHODS copilot_dialog      FOR TESTING.
     METHODS row_selection       FOR TESTING.
     METHODS typed_values        FOR TESTING.
     METHODS structure_table     FOR TESTING.
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
+    METHODS audit_masks_act     FOR TESTING.
+    METHODS claimed_session     FOR TESTING.
     METHODS audit_cleanup_range FOR TESTING.
     METHODS cut_surrogate_pair  FOR TESTING.
     METHODS admin_key_not_kept  FOR TESTING.
@@ -407,6 +411,15 @@ CLASS ltcl_session IMPLEMENTATION.
                                               event   = `ADD` )
              pattern   = `*the setting EVENT Z2UI5_CL_AGENT_* ADD classifies it confirm*` ).
 
+    " an app denied after the session started - or reached by navigation -
+    " is denied for every event, not only at app_start
+    z2ui5_cl_agent_settings=>save( kind  = z2ui5_cl_agent_settings=>cs_kind-app
+                                   app   = c_app
+                                   value = z2ui5_cl_agent_settings=>cs_app_rule-deny ).
+    refused( is_result = mo_session->app_act( session = ls_start-session
+                                              event   = `POPUP_OPEN` )
+             pattern   = |*{ c_app } is denied for agents by the setting APP*| ).
+
   ENDMETHOD.
 
   METHOD pending_values.
@@ -454,6 +467,12 @@ CLASS ltcl_session IMPLEMENTATION.
                                               values  = `{"NAME":"x"}` )
              pattern   = `*(a popup is open: only its fields and actions count until it closes)*` ).
 
+    " a layer closed in the browser reads nothing: a row or args are refused
+    refused( is_result = mo_session->app_act( session = ls_open-session
+                                              event   = `@CLOSE_POPUP`
+                                              row     = `7` )
+             pattern   = `*takes no row and no args*` ).
+
     " closed in the browser: no roundtrip, the draft stays
     DATA(ls_close) = mo_session->app_act( session = ls_open-session
                                           event   = `@CLOSE_POPUP` ).
@@ -479,6 +498,64 @@ CLASS ltcl_session IMPLEMENTATION.
                                         act = lo_snap->get_string( `/layer` ) ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Note: back on Friday","source":"strip"*`
                                          act = ls_ok-text ).
+
+  ENDMETHOD.
+
+  METHOD copilot_dialog.
+
+    " a value typed into a dialog is not written to the app on close: it was
+    " read from the main model - the stale value there written over the
+    " user's, and the path reported as filled
+    DATA lt_refused TYPE string_table.
+
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-copilot
+                                      value = `on` ).
+    COMMIT WORK.
+    DATA(ls_start) = NEW z2ui5_cl_agent_session( client = c_client
+                                                 mode   = z2ui5_cl_agent_session=>cs_mode-copilot )->app_start( c_app ).
+    COMMIT WORK.
+    DATA(ls_open) = NEW z2ui5_cl_agent_session( client = c_client
+                                                mode   = z2ui5_cl_agent_session=>cs_mode-copilot )->app_act( session = ls_start-session
+                                                                                                         event   = `POPUP_OPEN` ).
+    COMMIT WORK.
+    DATA(ls_typed) = NEW z2ui5_cl_agent_session( client = c_client
+                                                 mode   = z2ui5_cl_agent_session=>cs_mode-copilot )->app_act( session = ls_open-session
+                                                                                                          values  = `{"/NOTE":"back on Friday"}` ).
+    COMMIT WORK.
+    ok( ls_typed ).
+    DATA(lo_demo) = NEW z2ui5_cl_agent_demo( ).
+    lo_demo->note = `typed by the user`.
+    DATA(lt_written) = z2ui5_cl_agent_assist=>apply_pending( EXPORTING session   = ls_typed-session
+                                                                       app       = lo_demo
+                                                             IMPORTING t_refused = lt_refused ).
+    cl_abap_unit_assert=>assert_equals( exp = `typed by the user`
+                                        act = lo_demo->note ).
+    cl_abap_unit_assert=>assert_initial( lt_written ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `/NOTE was typed into a dialog*`
+                                         act = concat_lines_of( lt_refused ) ).
+
+  ENDMETHOD.
+
+  METHOD max_rows_kept.
+
+    " an act's max_rows is the session's from then on - app_describe
+    " answered the stored snapshot for any max_rows asked
+    DATA(ls_start) = mo_session->app_start( app      = c_app
+                                            max_rows = `1` ).
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 1
+                                        act = lines( ok( ls_start )->members( `/tables/1/rows` ) ) ).
+    DATA(ls_act) = mo_session->app_act( session  = ls_start-session
+                                        values   = `{"NAME":"x"}`
+                                        max_rows = `2` ).
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 2
+                                        act = lines( ok( ls_act )->members( `/tables/1/rows` ) ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 1
+                                        act = lines( ok( mo_session->app_describe( session  = ls_act-session
+                                                                                   max_rows = `1` ) )->members( `/tables/1/rows` ) ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 2
+                                        act = lines( ok( mo_session->app_describe( ls_act-session ) )->members( `/tables/1/rows` ) ) ).
 
   ENDMETHOD.
 
@@ -610,6 +687,54 @@ CLASS ltcl_session IMPLEMENTATION.
                                          act = lv_args ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"NAME":"Gus"*`
                                          act = lv_args ).
+
+  ENDMETHOD.
+
+  METHOD audit_masks_act.
+
+    " typed with an event that opens a popup: the next screen has no IBAN
+    " field, and the value is still masked - judged against the screen it
+    " was typed into
+    DATA(ls_start) = start( ).
+    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+                                        values  = `{"IBAN":"DE02100100109307118603"}`
+                                        event   = `POPUP_OPEN` ).
+    COMMIT WORK.
+    ok( ls_act ).
+    SELECT SINGLE args FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND session_id = @ls_act-session AND operation = 'app_act'
+      INTO @DATA(lv_args).
+    cl_abap_unit_assert=>assert_subrc( ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"IBAN":"***"*`
+                                         act = lv_args ).
+    cl_abap_unit_assert=>assert_equals( exp = -1
+                                        act = find( val = lv_args
+                                                    sub = `DE02100100109307118603` ) ).
+
+  ENDMETHOD.
+
+  METHOD claimed_session.
+
+    " another call holds the session (its claim puts changed_at ahead):
+    " an act on it is refused before anything runs, and the row is left
+    " as it was
+    DATA(ls_start) = start( ).
+    DATA(lv_id) = CONV z2ui5_t_ag_ses-id( ls_start-session ).
+    DATA(lv_ahead) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
+                         time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
+                         seconds = -300 ).
+    UPDATE z2ui5_t_ag_ses SET changed_at = @lv_ahead WHERE id = @lv_id.
+    COMMIT WORK.
+    refused( is_result = mo_session->app_act( session = ls_start-session
+                                              event   = `POPUP_OPEN` )
+             pattern   = `*being continued by another call*` ).
+    refused( is_result = mo_session->app_act( session = ls_start-session
+                                              values  = `{"NAME":"x"}` )
+             pattern   = `*being continued by another call*` ).
+    SELECT SINGLE id FROM z2ui5_t_ag_ses WHERE id = @lv_id INTO @DATA(lv_still).
+    cl_abap_unit_assert=>assert_subrc( ).
+    cl_abap_unit_assert=>assert_equals( exp = lv_id
+                                        act = lv_still ).
 
   ENDMETHOD.
 
@@ -883,6 +1008,7 @@ CLASS ltcl_args DEFINITION FINAL
     METHODS pick_none      FOR TESTING.
     METHODS pick_unknown   FOR TESTING.
     METHODS table_events   FOR TESTING.
+    METHODS screen_before_row FOR TESTING.
     METHODS action_hidden  FOR TESTING.
     METHODS action_disabled FOR TESTING.
 
@@ -1094,6 +1220,22 @@ CLASS ltcl_args IMPLEMENTATION.
                                           act = act( event = `OK`
                                                      row   = `0` ) ).
     ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD screen_before_row.
+
+    " without row, the screen action of that name fires before a row action
+    " of the same name that comes first in the view
+    screen( xml   = `<Table items="{/T}"><columns><Column/></columns><items><ColumnListItem><cells>` &&
+                    `<Button text="Del" press=".eB(['DELETE'], ${A})"/></cells></ColumnListItem></items></Table>` &&
+                    `<Button text="Delete selected" press=".eB(['DELETE'])"/>`
+            model = rows( ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `[]`
+                                        act = act( `DELETE` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `["a1"]`
+                                        act = act( event = `DELETE`
+                                                   row   = `1` ) ).
 
   ENDMETHOD.
 

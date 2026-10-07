@@ -30,6 +30,8 @@ CLASS z2ui5_cl_agent_llm DEFINITION PUBLIC FINAL CREATE PRIVATE.
 
     CONSTANTS c_default_provider TYPE string VALUE `Z2UI5_CL_AGENT_LLM_ANTHROPIC`.
     CONSTANTS c_default_max_tokens TYPE i VALUE 16000.
+    "! What of one prompt or answer the audit keeps when it keeps them.
+    CONSTANTS c_audit_text TYPE i VALUE 400.
 
     "! The configured language model, wrapped (see the class comment).
     "! Raises z2ui5_cx_agent_llm (config) when the provider class is not
@@ -247,6 +249,18 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
               kind = z2ui5_cx_agent_llm=>cs_kind-max_tokens
               text = |the answer of the language model was cut off - the context window is full (stop reason { result-stop_reason })|.
         ENDIF.
+        " only end_turn and stop_sequence are an answer (z2ui5_if_agent_llm):
+        " a pause_turn, a tool_use or a provider's own reason (a guardrail
+        " that intervened, a content filter) passed as one, and its text was
+        " shown as the answer
+        IF result-stop_reason IS NOT INITIAL
+            AND result-stop_reason <> z2ui5_if_agent_llm=>cs_stop-end_turn
+            AND result-stop_reason <> z2ui5_if_agent_llm=>cs_stop-stop_sequence.
+          RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
+            EXPORTING
+              kind = z2ui5_cx_agent_llm=>cs_kind-response
+              text = |the language model stopped without an answer (stop reason { result-stop_reason })|.
+        ENDIF.
         IF ls_request-schema IS NOT INITIAL AND result-json IS NOT BOUND.
           TRY.
               result-json = z2ui5_cl_ajson=>parse( iv_json            = result-text
@@ -301,16 +315,25 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
                     |,"stop_reason":{ z2ui5_cl_agent_viewxml=>json_string( is_response-stop_reason ) }| &&
                     |,"input_tokens":{ is_response-usage-input_tokens }| &&
                     |,"output_tokens":{ is_response-usage-output_tokens }| &&
+                    |,"cache_read":{ is_response-usage-cache_read }| &&
+                    |,"cache_write":{ is_response-usage-cache_write }| &&
                     |,"ms":{ ms }|.
-    " privacy: what the user and the screen said only when asked to keep it
+    " privacy: what the user and the screen said only when asked to keep it.
+    " The answer first and every text cut before it is escaped: the audit
+    " keeps 2000 characters, and the last message (a copilot question carries
+    " the whole screen) filled them - the answer was never kept, and the
+    " args were no JSON any more.
     IF z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-log_prompts ) = abap_true.
       LOOP AT is_request-t_message INTO DATA(ls_message).
         INSERT |\{"role":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-role ) }| &&
-               |,"content":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-content ) }\}| INTO TABLE lt_message.
+               |,"content":{ z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_viewxml=>cut( val = ls_message-content
+                                                                                                len = c_audit_text ) ) }\}|
+               INTO TABLE lt_message.
       ENDLOOP.
-      lv_args = |{ lv_args },"messages":[{ concat_lines_of( table = lt_message
-                                                             sep   = `,` ) }]| &&
-                |,"answer":{ z2ui5_cl_agent_viewxml=>json_string( is_response-text ) }|.
+      lv_args = |{ lv_args },"answer":{ z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_viewxml=>cut( val = is_response-text
+                                                                                                         len = c_audit_text ) ) }| &&
+                |,"messages":[{ concat_lines_of( table = lt_message
+                                                 sep   = `,` ) }]|.
     ENDIF.
 
     z2ui5_cl_agent_audit=>log( VALUE #( app       = is_request-app

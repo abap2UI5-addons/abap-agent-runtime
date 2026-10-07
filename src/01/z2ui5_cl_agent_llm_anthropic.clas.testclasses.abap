@@ -37,6 +37,7 @@ CLASS ltcl_anthropic DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANG
 
     METHODS request_shape FOR TESTING RAISING cx_static_check.
     METHODS settings_apply FOR TESTING RAISING cx_static_check.
+    METHODS older_model_fields FOR TESTING RAISING cx_static_check.
     METHODS answer_read FOR TESTING RAISING cx_static_check.
     METHODS refusal_through_wrapper FOR TESTING RAISING cx_static_check.
     METHODS rate_limit_retryable FOR TESTING RAISING cx_static_check.
@@ -120,7 +121,8 @@ CLASS ltcl_anthropic IMPLEMENTATION.
                                         exp = `server-side-fallback-2026-07-01` ).
     cl_abap_unit_assert=>assert_equals(
         act = ls_sent-body
-        exp = `{"model":"claude-opus-5-5","max_tokens":16000,"system":"You answer in JSON.",` &&
+        exp = `{"model":"claude-opus-5-5","max_tokens":16000,` &&
+              `"system":[{"type":"text","text":"You answer in JSON.","cache_control":{"type":"ephemeral"}}],` &&
               `"messages":[{"role":"user","content":"say \"b\""}],` &&
               `"output_config":{"effort":"low","format":{"type":"json_schema","schema":` &&
               `{"type":"object","additionalProperties":false,"required":["a"],"properties":{"a":{"type":"string"}}}}},` &&
@@ -130,6 +132,32 @@ CLASS ltcl_anthropic IMPLEMENTATION.
                                                     sub = `thinking` )
                                         exp = -1 ).
     cl_abap_unit_assert=>assert_true( xsdbool( ls_sent-timeout >= 120 ) ).
+
+  ENDMETHOD.
+
+  METHOD older_model_fields.
+
+    " Claude Haiku 4.5 answers effort and the fallback with a 400 - neither
+    " is sent, whatever the settings say
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-model
+                                      value = `claude-haiku-4-5` ).
+    NEW z2ui5_cl_agent_llm_anthropic( )->z2ui5_if_agent_llm~chat( request( ) ).
+
+    DATA(ls_sent) = mo_http->ms_sent.
+    cl_abap_unit_assert=>assert_equals( act = find( val = ls_sent-body
+                                                    sub = `effort` )
+                                        exp = -1 ).
+    cl_abap_unit_assert=>assert_equals( act = find( val = ls_sent-body
+                                                    sub = `fallbacks` )
+                                        exp = -1 ).
+    cl_abap_unit_assert=>assert_initial( header( `anthropic-beta` ) ).
+    " the schema still goes
+    cl_abap_unit_assert=>assert_char_cp( act = ls_sent-body
+                                         exp = `*"output_config":{"format":*` ).
+    cl_abap_unit_assert=>assert_true( z2ui5_cl_agent_llm_anthropic=>takes_effort( `claude-opus-5-5` ) ).
+    cl_abap_unit_assert=>assert_false( z2ui5_cl_agent_llm_anthropic=>takes_effort( `anthropic.claude-sonnet-4-5-20250929-v1:0` ) ).
+    cl_abap_unit_assert=>assert_true( z2ui5_cl_agent_llm_anthropic=>takes_fallback( `claude-sonnet-5-5` ) ).
+    cl_abap_unit_assert=>assert_false( z2ui5_cl_agent_llm_anthropic=>takes_fallback( `claude-sonnet-4-6` ) ).
 
   ENDMETHOD.
 

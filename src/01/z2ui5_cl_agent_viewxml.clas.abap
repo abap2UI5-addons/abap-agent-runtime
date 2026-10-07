@@ -308,6 +308,15 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE string.
 
+    "! An argument as an error text repeats it: at most 80 characters, cut
+    "! as cut( ) cuts - a session id of 150k characters came back as a 150k
+    "! error (mcp-server lib/appclient.mjs echo).
+    CLASS-METHODS echo
+      IMPORTING
+        val           TYPE clike
+      RETURNING
+        VALUE(result) TYPE string.
+
     "! A single- or double-quoted JavaScript string literal -&gt; its value.
     CLASS-METHODS js_string
       IMPORTING
@@ -354,6 +363,10 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
     "! c_json_control_hex as characters, built on first use.
     CLASS-DATA gv_json_controls TYPE string.
     CLASS-DATA gv_json_controls_set TYPE abap_bool.
+    "! NUL as a character, built on first use - empty where the platform
+    "! cannot build it.
+    CLASS-DATA gv_json_nul TYPE string.
+    CLASS-DATA gv_json_nul_set TYPE abap_bool.
 
     "! The UTF-8 bytes of U+10000 and U+10FFFF - as characters the first
     "! and the last high surrogate, each followed by a low one.
@@ -577,6 +590,16 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     IF strlen( result ) > len.
       result = substring( val = result
                           len = len - 3 ) && `...`.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD echo.
+
+    result = val.
+    IF strlen( result ) > 80.
+      result = cut( val = result
+                    len = 80 ) && `...`.
     ENDIF.
 
   ENDMETHOD.
@@ -1829,6 +1852,24 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
                                                   len = 2 ) ) }|.
         lv_off = lv_off + 1.
       ENDWHILE.
+    ENDIF.
+    " NUL (U+0000) on its own: a character a string may hold that not every
+    " platform converts - built apart, so a failure here leaves the
+    " escaping above as it was. Raw in a body, it made it invalid JSON.
+    IF gv_json_nul_set = abap_false.
+      TRY.
+          gv_json_nul = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( `00` ) ).
+        CATCH cx_root.
+          CLEAR gv_json_nul.
+      ENDTRY.
+      IF strlen( gv_json_nul ) <> 1.
+        CLEAR gv_json_nul.
+      ENDIF.
+      gv_json_nul_set = abap_true.
+    ENDIF.
+    IF gv_json_nul IS NOT INITIAL AND find( val = result
+                                            sub = gv_json_nul ) >= 0.
+      REPLACE ALL OCCURRENCES OF gv_json_nul IN result WITH `\u0000`.
     ENDIF.
     result = `"` && result && `"`.
 

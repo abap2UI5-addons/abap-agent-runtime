@@ -24,6 +24,8 @@ CLASS ltcl_genui DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROU
     METHODS unknown_field FOR TESTING RAISING cx_static_check.
     METHODS event_not_allowed FOR TESTING RAISING cx_static_check.
     METHODS arg_not_allowed FOR TESTING RAISING cx_static_check.
+    METHODS arg_order FOR TESTING RAISING cx_static_check.
+    METHODS literal_one_line FOR TESTING RAISING cx_static_check.
     METHODS markup_is_escaped FOR TESTING RAISING cx_static_check.
     METHODS tree_shape FOR TESTING RAISING cx_static_check.
     METHODS repair_round FOR TESTING RAISING cx_static_check.
@@ -326,6 +328,41 @@ CLASS ltcl_genui IMPLEMENTATION.
     cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
     cl_abap_unit_assert=>assert_char_cp( act = sim->get_value( `REPORT` )
                                          exp = `*the event ROW_SELECT takes no argument "PRICE"; allowed: CARRID, CONNID, FLDATE*` ).
+
+  ENDMETHOD.
+
+  METHOD arg_order.
+
+    " the app reads its arguments by position - another order is refused
+    mo_double->add_answer( valid_tree( press_args = `["CONNID","CARRID"]` ) ).
+    DATA(sim) = run( ).
+
+    cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_value( `REPORT` )
+                                         exp = `*the event ROW_SELECT takes its arguments in this order: CARRID, CONNID, FLDATE*` ).
+
+  ENDMETHOD.
+
+  METHOD literal_one_line.
+
+    " a valid first line and a binding on the second: ^ and $ of the size
+    " check match per line - refused as a whole, never written as it is;
+    " and an icon typed as a string by the profile is still an icon URI
+    mo_double->add_answer( valid_tree( VALUE #( ( node( id = `x` parent = `root` control = `sap.m.Input`
+                                                        props = prop( name  = `width`
+                                                                      value = |10rem\n\{/T_FLIGHT\}| ) ) )
+                                                ( node( id = `s` parent = `root` control = `sap.m.SegmentedButton` ) )
+                                                ( node( id = `si` parent = `s` control = `sap.m.SegmentedButtonItem`
+                                                        props = prop( name  = `icon`
+                                                                      value = `https://example.com/?d=1` ) ) ) ) ) ).
+    DATA(sim) = run( ).
+
+    cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
+    DATA(lv_report) = sim->get_value( `REPORT` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*width = "10rem*a single value - no line breaks, no braces*` ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_report
+                                         exp = `*icon = "https://example.com/?d=1": only an icon URI*` ).
 
   ENDMETHOD.
 

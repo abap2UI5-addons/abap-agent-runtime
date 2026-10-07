@@ -62,6 +62,9 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
         valid       TYPE abap_bool,
         summary     TYPE string,
         event       TYPE string,
+        "! The id of the action validated - what is checked and fired, as
+        "! two actions may share an event and differ in their arguments.
+        action      TYPE string,
         label       TYPE string,
         policy      TYPE string,
         needs_human TYPE abap_bool,
@@ -312,17 +315,58 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         DO lv_tables TIMES.
           DATA(lv_table) = |/tables/{ sy-index }|.
           DATA(lv_path) = lo_json->get_string( |{ lv_table }/path| ).
+          DATA(ls_snap_table) = VALUE z2ui5_cl_agent_snapshot=>ty_s_table( ).
+          READ TABLE io_snap->mt_table INTO ls_snap_table
+               WITH KEY id = lo_json->get_string( |{ lv_table }/id| ). "#EC CI_SORTSEQ
           DATA(lv_columns) = lines( lo_json->members( |{ lv_table }/columns| ) ).
           DO lv_columns TIMES.
             DATA(lv_column) = lo_json->get_string( |{ lv_table }/columns/{ sy-index }/name| ).
             DATA(lv_column_masked) = z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                                                path = |{ lv_path }/{ lv_column }|
                                                                                name = lv_column ).
+            " a cell bound to several fields or an expression ("{IBAN} ({BANK})",
+            " "{= ${IBAN} }") is a column COL<n> - judged by the fields its
+            " binding reads, by table path and by row path alike
+            DATA(ls_cellspec) = VALUE z2ui5_cl_agent_snapshot=>ty_s_cellspec( ).
+            READ TABLE ls_snap_table-t_cellspec INTO ls_cellspec WITH KEY name = lv_column. "#EC CI_SORTSEQ
+            DATA(lt_read) = z2ui5_cl_agent_snapshot=>binding_paths( ls_cellspec-binding ).
+            DELETE lt_read WHERE table_line = lv_column.
+            LOOP AT lt_read INTO DATA(lv_read).
+              DATA(lv_read_index) = sy-tabix.
+              " an absolute path inside a row is judged as it is
+              IF strlen( lv_read ) > 0 AND lv_read(1) = `/`.
+                DATA(lv_read_name) = lv_read.
+                WHILE lv_read_name CS `/`.
+                  lv_read_name = substring_after( val = lv_read_name
+                                                  sub = `/` ).
+                ENDWHILE.
+                IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                             path = lv_read
+                                                             name = lv_read_name ) = abap_true.
+                  lv_column_masked = abap_true.
+                ENDIF.
+                DELETE lt_read INDEX lv_read_index.
+                CONTINUE.
+              ENDIF.
+              IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                           path = |{ lv_path }/{ lv_read }|
+                                                           name = lv_read ) = abap_true.
+                lv_column_masked = abap_true.
+              ENDIF.
+            ENDLOOP.
             DATA(lv_rows) = lines( lo_json->members( |{ lv_table }/rows| ) ).
             DO lv_rows TIMES.
+              DATA(lv_row_masked) = lv_column_masked.
+              LOOP AT lt_read INTO lv_read.
+                IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                             path = |{ lv_path }/{ sy-index - 1 }/{ lv_read }|
+                                                             name = lv_read ) = abap_true.
+                  lv_row_masked = abap_true.
+                ENDIF.
+              ENDLOOP.
               " a cell by its model path too (/T_PARTNER/*/IBAN), as the audit log masks it
               IF lo_json->exists( |{ lv_table }/rows/{ sy-index }/{ lv_column }| ) = abap_true
-                  AND ( lv_column_masked = abap_true
+                  AND ( lv_row_masked = abap_true
                         OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                                      path = |{ lv_path }/{ sy-index - 1 }/{ lv_column }|
                                                                      name = lv_column ) = abap_true ).
@@ -331,6 +375,37 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
               ENDIF.
             ENDDO.
           ENDDO.
+        ENDDO.
+
+        " texts that show a sensitive field ("IBAN: DE89...") - the snapshot
+        " keeps which paths each text read
+        DATA(lv_texts) = lines( lo_json->members( `/texts` ) ).
+        DO lv_texts TIMES.
+          DATA(lv_text_path) = |/texts/{ sy-index }|.
+          DATA(lv_text_value) = lo_json->get_string( lv_text_path ).
+          READ TABLE io_snap->mt_text_source INTO DATA(ls_source)
+               WITH KEY text = lv_text_value. "#EC CI_SORTSEQ
+          IF sy-subrc <> 0.
+            CONTINUE.
+          ENDIF.
+          LOOP AT ls_source-t_path INTO DATA(lv_source).
+            DATA(lv_source_name) = lv_source.
+            " the field's own name: the last segment of the path
+            WHILE lv_source_name CS `/`.
+              lv_source_name = substring_after( val = lv_source_name
+                                                sub = `/` ).
+            ENDWHILE.
+            IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                         path = lv_source
+                                                         name = lv_source_name ) = abap_true
+                OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                             path = |/{ lv_source }|
+                                                             name = lv_source_name ) = abap_true.
+              lo_json->set( iv_path = lv_text_path
+                            iv_val  = c_mask ).
+              EXIT.
+            ENDIF.
+          ENDLOOP.
         ENDDO.
 
         " forbidden actions: never proposed, so never shown
@@ -529,6 +604,9 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
   METHOD validate.
 
+    DATA ls_action TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+    DATA lv_found TYPE abap_bool.
+
     " the fields: on the screen and not protected
     LOOP AT cs_proposal-t_value REFERENCE INTO DATA(lr_value).
       IF check_protected( EXPORTING io_snap = io_snap
@@ -543,15 +621,35 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
     " the action and its policy - a forbidden one is never offered
     IF cs_proposal-event IS NOT INITIAL.
-      LOOP AT io_snap->mt_action INTO DATA(ls_action)
-           WHERE ( event = cs_proposal-event OR id = cs_proposal-event ) AND frontend IS INITIAL. "#EC CI_SORTSEQ
+      " an action id first, then the first ENABLED action of the event - as
+      " the session resolves it (find_action), so the label the user
+      " confirms and the action that runs are the same control
+      lv_found = abap_false.
+      LOOP AT io_snap->mt_action INTO ls_action
+           WHERE id = cs_proposal-event AND frontend IS INITIAL. "#EC CI_SORTSEQ
+        lv_found = abap_true.
         EXIT.
       ENDLOOP.
-      IF sy-subrc <> 0.
+      IF lv_found = abap_false.
+        LOOP AT io_snap->mt_action INTO ls_action
+             WHERE event = cs_proposal-event AND enabled = abap_true AND frontend IS INITIAL. "#EC CI_SORTSEQ
+          lv_found = abap_true.
+          EXIT.
+        ENDLOOP.
+      ENDIF.
+      IF lv_found = abap_false.
+        LOOP AT io_snap->mt_action INTO ls_action
+             WHERE event = cs_proposal-event AND frontend IS INITIAL. "#EC CI_SORTSEQ
+          lv_found = abap_true.
+          EXIT.
+        ENDLOOP.
+      ENDIF.
+      IF lv_found = abap_false.
         cs_proposal-reason = |there is no action { cs_proposal-event } on this screen|.
         RETURN.
       ENDIF.
       cs_proposal-event = ls_action-event.
+      cs_proposal-action = ls_action-id.
       cs_proposal-label = ls_action-label.
       cs_proposal-policy = COND #( WHEN ls_action-policy IS INITIAL THEN z2ui5_if_agent_app=>cs_policy-allowed
                                    ELSE ls_action-policy ).
@@ -566,7 +664,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     DATA(ls_check) = session_new( )->app_check( session = session
                                                 values  = values_json( cs_proposal-t_value )
                                                 event   = COND string( WHEN cs_proposal-needs_human = abap_false
-                                                                  THEN cs_proposal-event ) ).
+                                                                  THEN cs_proposal-action ) ).
     IF ls_check-is_error = abap_true.
       cs_proposal-reason = ls_check-text.
       RETURN.
@@ -589,7 +687,10 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     " forbidden event
     DATA(ls_result) = lo_session->app_act( session = session
                                            values  = values_json( is_proposal-t_value )
-                                           event   = COND string( WHEN lv_fire = abap_true THEN is_proposal-event ) ).
+                                           event   = COND string( WHEN lv_fire = abap_true
+                                                                  THEN COND #( WHEN is_proposal-action IS NOT INITIAL
+                                                                               THEN is_proposal-action
+                                                                               ELSE is_proposal-event ) ) ).
     IF ls_result-is_error = abap_true.
       result-error = ls_result-text.
       result-session = session.
@@ -626,24 +727,27 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     CLEAR t_refused.
     TRY.
         DATA(lo_snap) = session_new( )->get_snapshot( session ).
-        DATA(lo_json) = z2ui5_cl_ajson=>parse( lo_snap->get_json( ) ).
-        DATA(lv_count) = lines( lo_json->members( `/pending` ) ).
       CATCH cx_root.
         RETURN.
     ENDTRY.
-    DO lv_count TIMES.
+    " each value with its model: one typed into a dialog was read from the
+    " main model - the stale value there written over the user's, and the
+    " path reported as filled
+    LOOP AT lo_snap->get_pending( ) INTO DATA(ls_pending).
+      IF ls_pending-model_key <> z2ui5_cl_agent_snapshot=>cs_model-main.
+        INSERT |{ ls_pending-path } was typed into a dialog - enter it yourself| INTO TABLE t_refused.
+        CONTINUE.
+      ENDIF.
       TRY.
-          DATA(lv_path) = lo_json->get_string( |/pending/{ sy-index }| ).
           write( app  = app
-                 path = lv_path
-                 val  = lo_snap->model_value( model_key = z2ui5_cl_agent_snapshot=>cs_model-main
-                                              path      = lv_path ) ).
-          INSERT lv_path INTO TABLE result.
+                 path = ls_pending-path
+                 val  = ls_pending-val ).
+          INSERT ls_pending-path INTO TABLE result.
         CATCH cx_root INTO DATA(lx).
-          " a value of a popup or of a path that is no attribute: the user enters it
+          " a path that is no attribute: the user enters it
           INSERT lx->get_text( ) INTO TABLE t_refused.
       ENDTRY.
-    ENDDO.
+    ENDLOOP.
 
   ENDMETHOD.
 

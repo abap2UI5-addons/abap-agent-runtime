@@ -260,6 +260,10 @@ CLASS ltcl_viewxml IMPLEMENTATION.
     " a control character without a short escape - valid JSON all the same
     cl_abap_unit_assert=>assert_equals( exp = `"a\u000bb"`
                                         act = z2ui5_cl_agent_viewxml=>json_string( |a{ cl_abap_char_utilities=>vertical_tab }b| ) ).
+    " NUL too, as JSON.stringify writes it
+    cl_abap_unit_assert=>assert_equals( exp = `"a\u0000b"`
+                                        act = z2ui5_cl_agent_viewxml=>json_string(
+                                                  |a{ z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( `00` ) ) }b| ) ).
     cl_abap_unit_assert=>assert_equals( exp = `1.5`
                                         act = z2ui5_cl_agent_viewxml=>number_normalize( `01.50` ) ).
     cl_abap_unit_assert=>assert_equals( exp = `ab...`

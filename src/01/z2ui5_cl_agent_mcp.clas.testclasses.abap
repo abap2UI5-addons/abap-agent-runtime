@@ -1,3 +1,6 @@
+CLASS ltcl_fit DEFINITION DEFERRED.
+CLASS z2ui5_cl_agent_mcp DEFINITION LOCAL FRIENDS ltcl_fit.
+
 "! In-memory draft store - see z2ui5_cl_agent_session's test include.
 CLASS ltd_draft_store DEFINITION FINAL FOR TESTING.
 
@@ -93,6 +96,7 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS unknown_method      FOR TESTING.
     METHODS unknown_tool        FOR TESTING.
     METHODS tool_argument_types FOR TESTING.
+    METHODS unknown_argument    FOR TESTING.
     METHODS tool_call_session   FOR TESTING.
     METHODS batch               FOR TESTING.
     METHODS batch_audit         FOR TESTING.
@@ -234,13 +238,15 @@ CLASS ltcl_mcp IMPLEMENTATION.
     DATA(lv_id) = CONV z2ui5_t_ag_mcp-id( lv_session ).
 
     " an id longer than the column is none: it names no client in the audit
-    " log ...
-    NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
-                                                content_type = `application/json`
-                                                session_id   = |{ lv_session }X|
-                                                body         = `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":` &&
-                                                               `{"name":"app_list","arguments":{"filter":"long_session_id"}}}` ) ).
+    " log - it is no session at all, answered 404 as the spec says ...
+    DATA(ls_long) = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                                content_type = `application/json`
+                                                                session_id   = |{ lv_session }X|
+                                                                body         = `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":` &&
+                                                                               `{"name":"app_list","arguments":{"filter":"long_session_id"}}}` ) ).
     COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 404
+                                        act = ls_long-status ).
     SELECT COUNT(*) FROM z2ui5_t_ag_log
       WHERE uname = @sy-uname AND operation = 'app_list' AND mcp_client = 'unit-test 1.0' AND timestampl >= @mv_start
       INTO @lv_count.
@@ -341,6 +347,13 @@ CLASS ltcl_mcp IMPLEMENTATION.
                                                 session_id = lv_session ) ).
     SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_id INTO @lv_client.
     cl_abap_unit_assert=>assert_subrc( exp = 4 ).
+    " a request on the ended session is a 404 - the client starts anew
+    cl_abap_unit_assert=>assert_equals(
+        exp = 404
+        act = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                          content_type = `application/json`
+                                                          session_id   = lv_session
+                                                          body         = `{"jsonrpc":"2.0","id":9,"method":"ping"}` ) )-status ).
 
   ENDMETHOD.
 
@@ -406,6 +419,23 @@ CLASS ltcl_mcp IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD unknown_argument.
+
+    " refused, not dropped: app_act { value: {...}, event } fired the
+    " event without the edits
+    DATA(lo_json) = rpc( `{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"app_start","arguments":` &&
+                         `{"app":"z2ui5_cl_agent_demo","valuse":{"NAME":"x"}}}}` ).
+    cl_abap_unit_assert=>assert_equals( exp = abap_true
+                                        act = lo_json->get_boolean( `/result/isError` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `app_start has no argument 'valuse' - its arguments: app values max_rows`
+                                        act = lo_json->get_string( `/result/content/1/text` ) ).
+    " an unknown tool's name is echoed at most 80 characters
+    lo_json = rpc( |\{"jsonrpc":"2.0","id":6,"method":"tools/call","params":\{"name":"{ repeat( val = `x`
+                                                                                            occ = 5000 ) }","arguments":\{\}\}\}| ).
+    cl_abap_unit_assert=>assert_true( xsdbool( strlen( lo_json->get_string( `/error/message` ) ) < 300 ) ).
+
+  ENDMETHOD.
+
   METHOD tool_call_session.
 
     DATA(lo_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",` &&
@@ -468,6 +498,76 @@ CLASS ltcl_mcp IMPLEMENTATION.
                               `{"jsonrpc":"2.0","id":2,"method":"ping"}]` ).
     cl_abap_unit_assert=>assert_equals( exp = `[{"jsonrpc":"2.0","id":1,"result":{}},{"jsonrpc":"2.0","id":2,"result":{}}]`
                                         act = ls_response-body ).
+
+  ENDMETHOD.
+
+ENDCLASS.
+
+
+"! fit_snapshot: a snapshot answer within c_answer_budget - long values cut
+"! and read-only, rows dropped from the end, the JSON whole.
+CLASS ltcl_fit DEFINITION FINAL
+  FOR TESTING RISK LEVEL HARMLESS DURATION SHORT.
+
+  PRIVATE SECTION.
+    METHODS fits FOR TESTING.
+
+ENDCLASS.
+
+
+CLASS ltcl_fit IMPLEMENTATION.
+
+  METHOD fits.
+
+    DATA lt_row TYPE string_table.
+
+    DATA(lv_cell) = repeat( val = `c`
+                            occ = 3000 ).
+    DO 300 TIMES.
+      INSERT |\{"NOTE":"{ COND string( WHEN sy-index = 1 THEN lv_cell ELSE repeat( val = `n`
+                                                                                occ = 300 ) ) }","QTY":{ sy-index }\}| INTO TABLE lt_row.
+    ENDDO.
+    DATA(lv_json) = |\{"snapshotVersion":1,"fields":[\{"id":"f1","value":"{ repeat( val = `a`
+                                                                               occ = 120000 ) }","editable":true\},| &&
+                    |\{"id":"f2","value":"short","editable":true\}],"actions":[\{"id":"a1"\}],| &&
+                    |"tables":[\{"id":"t1","rowCount":300,"rows":[{ concat_lines_of( table = lt_row
+                                                                          sep   = `,` ) }],| &&
+                    |"truncated":false,"editableCells":["NOTE","QTY"]\}],"messages":[\{"text":"PONG"\}]\}|.
+
+    z2ui5_cl_agent_mcp=>fit_snapshot( EXPORTING json   = lv_json
+                                      IMPORTING result = DATA(lv_fitted)
+                                                note   = DATA(lv_note) ).
+    cl_abap_unit_assert=>assert_true( xsdbool( strlen( lv_fitted ) <= z2ui5_cl_agent_mcp=>c_answer_budget ) ).
+    TRY.
+        DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( lv_fitted ) ).
+      CATCH cx_root.
+        cl_abap_unit_assert=>fail( `the fitted snapshot is no JSON` ).
+    ENDTRY.
+    cl_abap_unit_assert=>assert_equals( exp = 2003
+                                        act = strlen( lo_json->get_string( `/fields/1/value` ) ) ).
+    cl_abap_unit_assert=>assert_equals( exp = abap_false
+                                        act = lo_json->get_boolean( `/fields/1/editable` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = abap_true
+                                        act = lo_json->get_boolean( `/fields/2/editable` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `QTY`
+                                        act = lo_json->get_string( `/tables/1/editableCells/1` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 1
+                                        act = lines( lo_json->members( `/tables/1/editableCells` ) ) ).
+    cl_abap_unit_assert=>assert_equals( exp = abap_true
+                                        act = lo_json->get_boolean( `/tables/1/truncated` ) ).
+    cl_abap_unit_assert=>assert_true( xsdbool( lines( lo_json->members( `/tables/1/rows` ) ) < 300 ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `PONG`
+                                        act = lo_json->get_string( `/messages/1/text` ) ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*f1 are cut*table t1: cells of NOTE*table t1 shows its first*`
+                                         act = lv_note ).
+
+    " a snapshot that fits is the same
+    z2ui5_cl_agent_mcp=>fit_snapshot( EXPORTING json   = `{"fields":[]}`
+                                      IMPORTING result = lv_fitted
+                                                note   = lv_note ).
+    cl_abap_unit_assert=>assert_equals( exp = `{"fields":[]}`
+                                        act = lv_fitted ).
+    cl_abap_unit_assert=>assert_initial( lv_note ).
 
   ENDMETHOD.
 

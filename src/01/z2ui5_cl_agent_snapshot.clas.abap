@@ -242,6 +242,12 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         id     TYPE clike
         policy TYPE clike.
 
+    "! The values the client changed and has not sent yet, with the model
+    "! each belongs to - /pending in the JSON names the paths only.
+    METHODS get_pending
+      RETURNING
+        VALUE(result) TYPE ty_t_pending.
+
     "! The model value at an absolute path (or a path relative to a row of
     "! a table) of one model - pending values applied.
     METHODS model_value
@@ -941,6 +947,12 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         ENDTRY.
         result-num = lines( lo_json->members( lv_tree ) ).
     ENDCASE.
+
+  ENDMETHOD.
+
+  METHOD get_pending.
+
+    result = ms_input-t_pending.
 
   ENDMETHOD.
 

@@ -97,6 +97,8 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS pending_values      FOR TESTING.
     METHODS popup_flow          FOR TESTING.
     METHODS row_action          FOR TESTING.
+    METHODS max_rows_kept       FOR TESTING.
+    METHODS copilot_dialog      FOR TESTING.
     METHODS row_selection       FOR TESTING.
     METHODS typed_values        FOR TESTING.
     METHODS structure_table     FOR TESTING.
@@ -465,6 +467,12 @@ CLASS ltcl_session IMPLEMENTATION.
                                               values  = `{"NAME":"x"}` )
              pattern   = `*(a popup is open: only its fields and actions count until it closes)*` ).
 
+    " a layer closed in the browser reads nothing: a row or args are refused
+    refused( is_result = mo_session->app_act( session = ls_open-session
+                                              event   = `@CLOSE_POPUP`
+                                              row     = `7` )
+             pattern   = `*takes no row and no args*` ).
+
     " closed in the browser: no roundtrip, the draft stays
     DATA(ls_close) = mo_session->app_act( session = ls_open-session
                                           event   = `@CLOSE_POPUP` ).
@@ -490,6 +498,64 @@ CLASS ltcl_session IMPLEMENTATION.
                                         act = lo_snap->get_string( `/layer` ) ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Note: back on Friday","source":"strip"*`
                                          act = ls_ok-text ).
+
+  ENDMETHOD.
+
+  METHOD copilot_dialog.
+
+    " a value typed into a dialog is not written to the app on close: it was
+    " read from the main model - the stale value there written over the
+    " user's, and the path reported as filled
+    DATA lt_refused TYPE string_table.
+
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-copilot
+                                      value = `on` ).
+    COMMIT WORK.
+    DATA(ls_start) = NEW z2ui5_cl_agent_session( client = c_client
+                                                 mode   = z2ui5_cl_agent_session=>cs_mode-copilot )->app_start( c_app ).
+    COMMIT WORK.
+    DATA(ls_open) = NEW z2ui5_cl_agent_session( client = c_client
+                                                mode   = z2ui5_cl_agent_session=>cs_mode-copilot )->app_act( session = ls_start-session
+                                                                                                         event   = `POPUP_OPEN` ).
+    COMMIT WORK.
+    DATA(ls_typed) = NEW z2ui5_cl_agent_session( client = c_client
+                                                 mode   = z2ui5_cl_agent_session=>cs_mode-copilot )->app_act( session = ls_open-session
+                                                                                                          values  = `{"/NOTE":"back on Friday"}` ).
+    COMMIT WORK.
+    ok( ls_typed ).
+    DATA(lo_demo) = NEW z2ui5_cl_agent_demo( ).
+    lo_demo->note = `typed by the user`.
+    DATA(lt_written) = z2ui5_cl_agent_assist=>apply_pending( EXPORTING session   = ls_typed-session
+                                                                       app       = lo_demo
+                                                             IMPORTING t_refused = lt_refused ).
+    cl_abap_unit_assert=>assert_equals( exp = `typed by the user`
+                                        act = lo_demo->note ).
+    cl_abap_unit_assert=>assert_initial( lt_written ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `/NOTE was typed into a dialog*`
+                                         act = concat_lines_of( lt_refused ) ).
+
+  ENDMETHOD.
+
+  METHOD max_rows_kept.
+
+    " an act's max_rows is the session's from then on - app_describe
+    " answered the stored snapshot for any max_rows asked
+    DATA(ls_start) = mo_session->app_start( app      = c_app
+                                            max_rows = `1` ).
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 1
+                                        act = lines( ok( ls_start )->members( `/tables/1/rows` ) ) ).
+    DATA(ls_act) = mo_session->app_act( session  = ls_start-session
+                                        values   = `{"NAME":"x"}`
+                                        max_rows = `2` ).
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 2
+                                        act = lines( ok( ls_act )->members( `/tables/1/rows` ) ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 1
+                                        act = lines( ok( mo_session->app_describe( session  = ls_act-session
+                                                                                   max_rows = `1` ) )->members( `/tables/1/rows` ) ) ).
+    cl_abap_unit_assert=>assert_equals( exp = 2
+                                        act = lines( ok( mo_session->app_describe( ls_act-session ) )->members( `/tables/1/rows` ) ) ).
 
   ENDMETHOD.
 

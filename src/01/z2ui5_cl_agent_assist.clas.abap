@@ -727,24 +727,27 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     CLEAR t_refused.
     TRY.
         DATA(lo_snap) = session_new( )->get_snapshot( session ).
-        DATA(lo_json) = z2ui5_cl_ajson=>parse( lo_snap->get_json( ) ).
-        DATA(lv_count) = lines( lo_json->members( `/pending` ) ).
       CATCH cx_root.
         RETURN.
     ENDTRY.
-    DO lv_count TIMES.
+    " each value with its model: one typed into a dialog was read from the
+    " main model - the stale value there written over the user's, and the
+    " path reported as filled
+    LOOP AT lo_snap->get_pending( ) INTO DATA(ls_pending).
+      IF ls_pending-model_key <> z2ui5_cl_agent_snapshot=>cs_model-main.
+        INSERT |{ ls_pending-path } was typed into a dialog - enter it yourself| INTO TABLE t_refused.
+        CONTINUE.
+      ENDIF.
       TRY.
-          DATA(lv_path) = lo_json->get_string( |/pending/{ sy-index }| ).
           write( app  = app
-                 path = lv_path
-                 val  = lo_snap->model_value( model_key = z2ui5_cl_agent_snapshot=>cs_model-main
-                                              path      = lv_path ) ).
-          INSERT lv_path INTO TABLE result.
+                 path = ls_pending-path
+                 val  = ls_pending-val ).
+          INSERT ls_pending-path INTO TABLE result.
         CATCH cx_root INTO DATA(lx).
-          " a value of a popup or of a path that is no attribute: the user enters it
+          " a path that is no attribute: the user enters it
           INSERT lx->get_text( ) INTO TABLE t_refused.
       ENDTRY.
-    ENDDO.
+    ENDLOOP.
 
   ENDMETHOD.
 

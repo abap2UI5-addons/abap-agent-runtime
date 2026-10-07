@@ -308,6 +308,15 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE string.
 
+    "! An argument as an error text repeats it: at most 80 characters, cut
+    "! as cut( ) cuts - a session id of 150k characters came back as a 150k
+    "! error (mcp-server lib/appclient.mjs echo).
+    CLASS-METHODS echo
+      IMPORTING
+        val           TYPE clike
+      RETURNING
+        VALUE(result) TYPE string.
+
     "! A single- or double-quoted JavaScript string literal -&gt; its value.
     CLASS-METHODS js_string
       IMPORTING
@@ -581,6 +590,16 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     IF strlen( result ) > len.
       result = substring( val = result
                           len = len - 3 ) && `...`.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD echo.
+
+    result = val.
+    IF strlen( result ) > 80.
+      result = cut( val = result
+                    len = 80 ) && `...`.
     ENDIF.
 
   ENDMETHOD.

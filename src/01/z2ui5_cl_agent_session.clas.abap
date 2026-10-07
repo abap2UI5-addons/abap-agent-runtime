@@ -575,7 +575,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDIF.
     DATA(ls_arg) = z2ui5_cl_agent_viewxml=>describe_arg( val ).
     IF ls_arg-static = abap_false OR ls_arg-val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-number.
-      fail( |max_rows must be a number, not '{ val }' - leaving it out means { default }| ).
+      fail( |max_rows must be a number, not '{ z2ui5_cl_agent_viewxml=>echo( val ) }' - leaving it out means { default }| ).
     ENDIF.
     " clamped before it becomes an integer - 10000000000 does not fit one
     IF ls_arg-val-num < 0.
@@ -618,7 +618,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         DATA(lv_hint) = COND string( WHEN lt_app IS NOT INITIAL
                                      THEN `app_start { app } starts one and answers with its agent snapshot`
                                      WHEN filter IS NOT INITIAL
-                                     THEN |no app enabled for agents contains '{ filter }'|
+                                     THEN |no app enabled for agents contains '{ z2ui5_cl_agent_viewxml=>echo( filter ) }'|
                                      ELSE `no app is enabled for agents on this system - an app opts in by implementing ` &&
                                           `z2ui5_if_agent_app, or an administrator allows it in Z2UI5_CL_AGENT_APP_ADMIN` ).
         result-text = |\{"count":{ lines( lt_app ) },"apps":[{ concat_lines_of( table = lt_item
@@ -802,6 +802,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           ENDIF.
         ELSEIF lv_row IS NOT INITIAL.
           fail( `row belongs to an event - pass event too` ).
+        ENDIF.
+        " a layer closed in the browser reads nothing: a row or args given to
+        " it were taken without a word
+        IF lv_event IS NOT INITIAL AND ls_action-frontend IS NOT INITIAL AND ( lv_row IS NOT INITIAL OR lt_arg IS NOT INITIAL ).
+          fail( |{ ls_action-event } closes the { ls_action-frontend } in the browser - it takes no row and no args| ).
         ENDIF.
 
         DATA(lt_pending_before) = mt_pending.
@@ -1042,7 +1047,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       LOOP AT lt_session INTO DATA(ls_session).
         INSERT |{ ls_session-id } ({ ls_session-app })| INTO TABLE lt_open.
       ENDLOOP.
-      fail( |unknown session '{ condense( session ) }' - start one with app_start{ COND #( WHEN lt_open IS NOT INITIAL
+      fail( |unknown session '{ z2ui5_cl_agent_viewxml=>echo( condense( session ) ) }' - start one with app_start{ COND #( WHEN lt_open IS NOT INITIAL
                                                                               THEN |; open sessions: { list_of( lt_open ) }| ) }| ).
     ENDIF.
 
@@ -1143,6 +1148,9 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     ms_row-state = mo_sim->get_state( ).
     ms_row-snapshot = mo_snap->get_json( ).
+    " the rows the stored snapshot was built with: an act's max_rows was
+    " not kept, and app_describe answered it for any max_rows asked
+    ms_row-max_rows = mv_max_rows.
     ms_row-app = mo_sim->get_app( ).
     ms_row-uname = sy-uname.
     ms_row-changed_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
@@ -1476,7 +1484,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ELSEIF val-kind = z2ui5_cl_agent_viewxml=>cs_kind-string AND ( val-str = `true` OR val-str = `false` ).
         result = z2ui5_cl_agent_viewxml=>val_boolean( xsdbool( val-str = `true` ) ).
       ELSE.
-        fail( |{ label } is a boolean - pass true or false, not { val_json_quoted( val ) }| ).
+        fail( |{ label } is a boolean - pass true or false, not { z2ui5_cl_agent_viewxml=>echo( val_json_quoted( val ) ) }| ).
       ENDIF.
       RETURN.
     ENDIF.
@@ -1515,7 +1523,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           AND ls_num-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-number.
         result = ls_num-val.
       ELSE.
-        fail( |{ label } holds a number - { val_json_quoted( val ) } is none| ).
+        fail( |{ label } holds a number - { z2ui5_cl_agent_viewxml=>echo( val_json_quoted( val ) ) } is none| ).
       ENDIF.
       RETURN.
     ENDIF.
@@ -1549,7 +1557,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       DATA(ls_target) = resolve_target( EXPORTING key   = ls_value-key
                                         IMPORTING found = lv_found ).
       IF lv_found = abap_false.
-        fail( |no field '{ ls_value-key }' on this screen - { field_help( ) }| ).
+        fail( |no field '{ z2ui5_cl_agent_viewxml=>echo( ls_value-key ) }' on this screen - { field_help( ) }| ).
       ENDIF.
 
       IF ls_target-is_cell = abap_false.
@@ -1586,7 +1594,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           ENDIF.
           LOOP AT lt_given INTO DATA(lv_one).
             IF NOT line_exists( lt_keys[ table_line = lv_one ] ). "#EC CI_SORTSEQ
-              fail( |{ lv_label }: '{ lv_one }' is not one of its values - allowed keys: { list_of( lt_quoted ) }| ).
+              fail( |{ lv_label }: '{ z2ui5_cl_agent_viewxml=>echo( lv_one ) }' is not one of its values - allowed keys: { list_of( lt_quoted ) }| ).
             ENDIF.
           ENDLOOP.
           " a choice keyed by index (RadioButtonGroup) keeps its number
@@ -1656,7 +1664,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
     IF lt_named IS INITIAL.
-      fail( |no action '{ event }' on this screen - { action_help( ) }| ).
+      fail( |no action '{ z2ui5_cl_agent_viewxml=>echo( event ) }' on this screen - { action_help( ) }| ).
     ENDIF.
     DATA(lt_pool) = COND z2ui5_cl_agent_snapshot=>ty_t_action( WHEN lt_enabled IS NOT INITIAL THEN lt_enabled ELSE lt_named ).
     IF has_row = abap_true.
@@ -1777,7 +1785,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       IF lv_explicit = abap_true.
         IF ls_desc-kind = `action` AND is_action-has_choices = abap_true
             AND NOT line_exists( is_action-t_choice[ table_line = z2ui5_cl_agent_viewxml=>val_to_string( ls_explicit ) ] ). "#EC CI_SORTSEQ
-          fail( |argument { lv_index } of { is_action-event }: '{ z2ui5_cl_agent_viewxml=>val_to_string( ls_explicit ) }' | &&
+          fail( |argument { lv_index } of { is_action-event }: '{ z2ui5_cl_agent_viewxml=>echo( z2ui5_cl_agent_viewxml=>val_to_string( ls_explicit ) ) }' | &&
                 |is not one of { list_of( is_action-t_choice ) }| ).
         ENDIF.
         INSERT ls_explicit INTO TABLE result.
@@ -1854,7 +1862,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DATA(ls_row) = z2ui5_cl_agent_viewxml=>describe_arg( row_raw ).
     IF ls_row-static = abap_false OR ls_row-val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-number
         OR ls_row-val-num <> trunc( ls_row-val-num ) OR ls_row-val-num < 0 OR ls_row-val-num >= count.
-      fail( |table { table_id } has { count } row(s) - row { row_raw } does not exist (rows are 0-based)| ).
+      fail( |table { table_id } has { count } row(s) - row { z2ui5_cl_agent_viewxml=>echo( row_raw ) } does not exist (rows are 0-based)| ).
     ENDIF.
     result = ls_row-val-num.
 

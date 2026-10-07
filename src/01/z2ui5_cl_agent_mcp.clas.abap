@@ -28,6 +28,11 @@ CLASS z2ui5_cl_agent_mcp DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     CONSTANTS c_server_name TYPE string VALUE `abap2ui5-agent`.
     CONSTANTS c_server_version TYPE string VALUE `1.0.0`.
+    "! Characters of one tool answer - an MCP client refuses a result over
+    "! about 25,000 tokens and the agent sees nothing.
+    CONSTANTS c_answer_budget TYPE i VALUE 60000.
+    "! Characters a field value or a table cell keeps in a fitted snapshot.
+    CONSTANTS c_value_cap TYPE i VALUE 2000.
 
     "! The MCP revisions this endpoint speaks, newest first - it uses
     "! nothing (tools, JSON responses) that differs between them.
@@ -151,8 +156,20 @@ CLASS z2ui5_cl_agent_mcp DEFINITION PUBLIC FINAL CREATE PUBLIC.
       IMPORTING
         text          TYPE string
         is_error      TYPE abap_bool
+        note          TYPE string OPTIONAL
       RETURNING
         VALUE(result) TYPE string.
+
+    "! A snapshot that fits one tool answer (c_answer_budget characters):
+    "! long values cut to c_value_cap and read-only, then rows dropped from
+    "! the end of the largest table - note says what was cut. As
+    "! mcp-server's fitSnapshot (lib/budget.mjs).
+    CLASS-METHODS fit_snapshot
+      IMPORTING
+        json   TYPE string
+      EXPORTING
+        result TYPE string
+        note   TYPE string.
 
     CLASS-METHODS http_error
       IMPORTING
@@ -291,7 +308,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       result = http_error( status = 400
                            reason = `Bad Request`
                            code   = cs_error-invalid_request
-                           text   = |unsupported MCP-Protocol-Version { is_request-protocol_version } - this endpoint speaks { c_protocol_versions }| ).
+                           text   = |unsupported MCP-Protocol-Version { z2ui5_cl_agent_viewxml=>echo( is_request-protocol_version ) } - this endpoint speaks { c_protocol_versions }| ).
       RETURN.
     ENDIF.
 
@@ -488,7 +505,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
           WHEN OTHERS.
             result = rpc_error( id   = lv_id
                                 code = cs_error-method_not_found
-                                text = |method not found: { lv_method } - this endpoint offers initialize, ping, tools/list and tools/call| ).
+                                text = |method not found: { z2ui5_cl_agent_viewxml=>echo( lv_method ) } - this endpoint offers initialize, ping, tools/list and tools/call| ).
         ENDCASE.
       CATCH cx_root INTO DATA(lx).
         result = rpc_error( id   = lv_id
@@ -566,6 +583,27 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       RETURN.
     ENDIF.
 
+    " an argument the tool does not take is refused, not dropped:
+    " app_act { value: {...}, event } fired the event without the edits
+    DATA(lv_known) = SWITCH string( lv_name
+                                    WHEN `app_list` THEN `,filter,`
+                                    WHEN `app_start` THEN `,app,values,max_rows,`
+                                    WHEN `app_describe` THEN `,session,max_rows,`
+                                    WHEN `app_act` THEN `,session,values,event,args,row,max_rows,` ).
+    IF lv_known IS NOT INITIAL AND lv_args_type = z2ui5_if_ajson_types=>node_type-object.
+      LOOP AT io_json->members( lv_base ) INTO DATA(lv_member).
+        IF find( val = lv_known
+                 sub = |,{ lv_member },| ) < 0.
+          result = tool_result( text     = |{ lv_name } has no argument '{ z2ui5_cl_agent_viewxml=>echo( lv_member ) }' - | &&
+                                           |its arguments: { condense( translate( val  = lv_known
+                                                                                   from = `,`
+                                                                                   to   = ` ` ) ) }|
+                                is_error = abap_true ).
+          RETURN.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+
     " the schema is documentation to the client, not a gate on the wire:
     " every argument is checked for its type before it is used
     DATA(lt_string) = VALUE string_table( ( `filter` ) ( `app` ) ( `session` ) ( `event` ) ).
@@ -628,18 +666,146 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
                                          max_rows = lv_max_rows ).
       WHEN OTHERS.
         error_code = cs_error-invalid_params.
-        error_text = |unknown tool: { lv_name } - this endpoint offers app_list, app_start, app_describe and app_act|.
+        error_text = |unknown tool: { z2ui5_cl_agent_viewxml=>echo( lv_name ) } - this endpoint offers app_list, app_start, app_describe and app_act|.
         RETURN.
     ENDCASE.
 
-    result = tool_result( text     = ls_result-text
-                          is_error = ls_result-is_error ).
+    IF ls_result-is_error = abap_true OR lv_name = `app_list`.
+      result = tool_result( text     = ls_result-text
+                            is_error = ls_result-is_error ).
+      RETURN.
+    ENDIF.
+    " a 120 KB TextArea or many wide rows went over the client's cap, and
+    " the agent saw nothing
+    fit_snapshot( EXPORTING json   = ls_result-text
+                  IMPORTING result = DATA(lv_fitted)
+                            note   = DATA(lv_note) ).
+    result = tool_result( text     = lv_fitted
+                          is_error = abap_false
+                          note     = lv_note ).
+
+  ENDMETHOD.
+
+  METHOD fit_snapshot.
+
+    DATA lt_note TYPE string_table.
+    DATA lt_cut TYPE string_table.
+    DATA lt_cols TYPE string_table.
+    DATA lt_keep TYPE string_table.
+
+    result = json.
+    CLEAR note.
+    IF strlen( json ) <= c_answer_budget.
+      RETURN.
+    ENDIF.
+    TRY.
+        DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = json
+                                                                    iv_keep_item_order = abap_true ) ).
+        DO lines( lo_json->members( `/fields` ) ) TIMES.
+          DATA(lv_field) = |/fields/{ sy-index }|.
+          IF lo_json->get_node_type( |{ lv_field }/value| ) = z2ui5_if_ajson_types=>node_type-string.
+            DATA(lv_value) = lo_json->get_string( |{ lv_field }/value| ).
+            IF strlen( lv_value ) > c_value_cap.
+              lo_json->set_string( iv_path = |{ lv_field }/value|
+                                   iv_val  = z2ui5_cl_agent_viewxml=>cut( val = lv_value
+                                                                          len = c_value_cap ) && `...` ).
+              lo_json->set_boolean( iv_path = |{ lv_field }/editable|
+                                    iv_val  = abap_false ).
+              INSERT lo_json->get_string( |{ lv_field }/id| ) INTO TABLE lt_cut.
+            ENDIF.
+          ENDIF.
+        ENDDO.
+        IF lt_cut IS NOT INITIAL.
+          INSERT |the values of { concat_lines_of( table = lt_cut
+                                                   sep   = `, ` ) } are cut to { c_value_cap } characters and read-only in this answer|
+                 INTO TABLE lt_note.
+        ENDIF.
+
+        DATA(lv_tables) = lines( lo_json->members( `/tables` ) ).
+        DO lv_tables TIMES.
+          DATA(lv_table) = |/tables/{ sy-index }|.
+          CLEAR lt_cols.
+          DATA(lv_rows) = lines( lo_json->members( |{ lv_table }/rows| ) ).
+          DO lv_rows TIMES.
+            DATA(lv_row) = |{ lv_table }/rows/{ sy-index }|.
+            LOOP AT lo_json->members( lv_row ) INTO DATA(lv_col).
+              IF lo_json->get_node_type( |{ lv_row }/{ lv_col }| ) <> z2ui5_if_ajson_types=>node_type-string.
+                CONTINUE.
+              ENDIF.
+              lv_value = lo_json->get_string( |{ lv_row }/{ lv_col }| ).
+              IF strlen( lv_value ) > c_value_cap.
+                lo_json->set_string( iv_path = |{ lv_row }/{ lv_col }|
+                                     iv_val  = z2ui5_cl_agent_viewxml=>cut( val = lv_value
+                                                                            len = c_value_cap ) && `...` ).
+                IF NOT line_exists( lt_cols[ table_line = lv_col ] ).
+                  INSERT lv_col INTO TABLE lt_cols.
+                ENDIF.
+              ENDIF.
+            ENDLOOP.
+          ENDDO.
+          IF lt_cols IS NOT INITIAL.
+            CLEAR lt_keep.
+            DO lines( lo_json->members( |{ lv_table }/editableCells| ) ) TIMES.
+              DATA(lv_cell) = lo_json->get_string( |{ lv_table }/editableCells/{ sy-index }| ).
+              IF NOT line_exists( lt_cols[ table_line = lv_cell ] ).
+                INSERT lv_cell INTO TABLE lt_keep.
+              ENDIF.
+            ENDDO.
+            lo_json->set( iv_path         = |{ lv_table }/editableCells|
+                          iv_val          = lt_keep
+                          iv_ignore_empty = abap_false ).
+            INSERT |table { lo_json->get_string( |{ lv_table }/id| ) }: cells of { concat_lines_of( table = lt_cols
+                                                                                                       sep   = `, ` ) } | &&
+                   |are cut to { c_value_cap } characters and not editable in this answer| INTO TABLE lt_note.
+          ENDIF.
+        ENDDO.
+
+        " then rows from the end of the largest table, halved until it fits
+        WHILE strlen( lo_json->stringify( ) ) > c_answer_budget.
+          DATA(lv_big) = 0.
+          DATA(lv_big_len) = 0.
+          DO lv_tables TIMES.
+            lv_rows = lines( lo_json->members( |/tables/{ sy-index }/rows| ) ).
+            IF lv_rows > 1.
+              DATA(lv_len) = strlen( lo_json->slice( |/tables/{ sy-index }/rows| )->stringify( ) ).
+              IF lv_len > lv_big_len.
+                lv_big = sy-index.
+                lv_big_len = lv_len.
+              ENDIF.
+            ENDIF.
+          ENDDO.
+          IF lv_big = 0.
+            EXIT.
+          ENDIF.
+          lv_table = |/tables/{ lv_big }|.
+          lv_rows = lines( lo_json->members( |{ lv_table }/rows| ) ).
+          DATA(lv_keep_rows) = nmax( val1 = 1
+                                     val2 = lv_rows DIV 2 ).
+          WHILE lv_rows > lv_keep_rows.
+            lo_json->delete( |{ lv_table }/rows/{ lv_rows }| ).
+            lv_rows = lv_rows - 1.
+          ENDWHILE.
+          lo_json->set_boolean( iv_path = |{ lv_table }/truncated|
+                                iv_val  = abap_true ).
+          DATA(lv_note_rows) = |table { lo_json->get_string( |{ lv_table }/id| ) } shows its first |.
+          DELETE lt_note WHERE table_line CP |{ lv_note_rows }*|.
+          INSERT |{ lv_note_rows }{ lv_keep_rows } row(s) to fit the answer - app_describe \{ max_rows \} pages it| INTO TABLE lt_note.
+        ENDWHILE.
+        result = lo_json->stringify( ).
+        note = |cut to fit one answer: { concat_lines_of( table = lt_note
+                                                         sep   = `; ` ) }|.
+      CATCH cx_root.
+        " not a snapshot: as it is
+        result = json.
+        CLEAR note.
+    ENDTRY.
 
   ENDMETHOD.
 
   METHOD tool_result.
 
-    result = |\{"content":[\{"type":"text","text":{ z2ui5_cl_agent_viewxml=>json_string( text ) }\}]| &&
+    result = |\{"content":[\{"type":"text","text":{ z2ui5_cl_agent_viewxml=>json_string( text ) }\}| &&
+             |{ COND #( WHEN note IS NOT INITIAL THEN |,\{"type":"text","text":{ z2ui5_cl_agent_viewxml=>json_string( note ) }\}| ) }]| &&
              |,"isError":{ COND #( WHEN is_error = abap_true THEN `true` ELSE `false` ) }\}|.
 
   ENDMETHOD.
@@ -659,7 +825,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
   METHOD get_tools.
 
     DATA(lv_max_rows) = `"max_rows":{"type":"number","description":"table rows per table in the snapshot (default 20, max 200)"}`.
-    DATA(lv_max_rows_kept) = `"max_rows":{"type":"number","description":"table rows per table (default: what app_start used)"}`.
+    DATA(lv_max_rows_kept) = `"max_rows":{"type":"number","description":"table rows per table (default: the last max_rows given)"}`.
 
     result = `{"tools":[` &&
       `{"name":"app_list","description":"The abap2UI5 apps of this SAP system an agent may start with app_start: the classes ` &&

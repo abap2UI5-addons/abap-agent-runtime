@@ -448,6 +448,28 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
             lo_json->set( iv_path = `/`
                           iv_val  = val ).
           ENDIF.
+          " only what the field list names, and a sensitive field masked:
+          " whole rows carried the nested tables fields_of( ) leaves out,
+          " and the IBAN the app marks sensitive went to the model as it was
+          DATA(lt_row) = COND string_table( WHEN is_table = abap_true THEN lo_json->members( `/` )
+                                            ELSE VALUE #( ( `` ) ) ).
+          LOOP AT lt_row INTO DATA(lv_row).
+            DATA(lv_base) = COND string( WHEN is_table = abap_true THEN |/{ lv_row }/| ELSE `/` ).
+            DATA(lv_model) = COND string( WHEN is_table = abap_true THEN |{ ls_dataset-path }/{ CONV i( lv_row ) - 1 }/|
+                                          ELSE |{ ls_dataset-path }/| ).
+            DATA(lt_member) = lo_json->members( lv_base ).
+            LOOP AT lt_member INTO DATA(lv_member).
+              DATA(lv_name) = to_upper( lv_member ).
+              IF NOT line_exists( ls_dataset-t_field[ name = lv_name ] ). "#EC CI_SORTSEQ
+                lo_json->delete( |{ lv_base }{ lv_member }| ).
+              ELSEIF z2ui5_cl_agent_settings=>check_sensitive( app  = mv_app
+                                                               path = |{ lv_model }{ lv_name }|
+                                                               name = lv_name ) = abap_true.
+                lo_json->set_string( iv_path = |{ lv_base }{ lv_member }|
+                                     iv_val  = z2ui5_cl_agent_audit=>c_mask ).
+              ENDIF.
+            ENDLOOP.
+          ENDLOOP.
           ls_dataset-sample = lo_json->stringify( ).
         CATCH cx_root.
           CLEAR ls_dataset-sample.
@@ -697,7 +719,7 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
         INSERT |- { ls_event-event }{ COND #( WHEN ls_event-description IS NOT INITIAL THEN |: { ls_event-description }| ) }| &&
                |{ COND #( WHEN ls_event-t_arg IS NOT INITIAL
                           THEN |; args may be { concat_lines_of( table = ls_event-t_arg
-                                                                 sep   = `, ` ) }|
+                                                                 sep   = `, ` ) } - in this order, leave out only from the end|
                           ELSE `; no args` ) }| INTO TABLE lt_line.
       ENDLOOP.
     ENDIF.
@@ -1118,6 +1140,13 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
         ENDIF.
         lv_type = ls_entry-type.
         lv_info = ls_entry-info.
+        " a URL property is an icon URI, whatever the profile types it
+        " (sap.m.SegmentedButtonItem's icon is a string there): any other
+        " URL is a request the browser sends - with data in it, if a prompt
+        " asked for that
+        IF prop-name = `icon` OR prop-name = `src` OR prop-name = `href`.
+          lv_type = `U`.
+        ENDIF.
     ENDCASE.
 
     IF prop-field IS INITIAL.
@@ -1202,6 +1231,14 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
     DATA lt_value TYPE string_table.
 
+    " ^ and $ of a POSIX regex match at every line: "10rem" + a line break +
+    " "{/OTHER/PATH}" passed the size check as its first line, and the
+    " value, written as it is, was a binding over any path of the model
+    IF type <> `S` AND ( value CA cl_abap_char_utilities=>cr_lf OR value CA '{}' ).
+      result = `a single value - no line breaks, no braces`.
+      RETURN.
+    ENDIF.
+
     CASE type.
       WHEN `S`.
         " any text - escaped as a literal when the view is built
@@ -1283,12 +1320,24 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
         CONTINUE.
       ENDIF.
       LOOP AT ls_evt-t_arg INTO DATA(lv_arg).
+        DATA(lv_pos) = sy-tabix.
         IF NOT line_exists( ls_event-t_arg[ table_line = lv_arg ] ).
           issue( node = node
                  text = |the event { ls_evt-event } takes no argument "{ lv_arg }"| &&
                         |{ COND #( WHEN ls_event-t_arg IS NOT INITIAL THEN |; allowed: { concat_lines_of( table = ls_event-t_arg
                                                                                                          sep   = `, ` ) }|
                                    ELSE `; it takes none` ) }| ).
+          CONTINUE.
+        ENDIF.
+        " the app reads its arguments by position (get_event_arg( 1 )): in
+        " another order, or with a gap, it read the date as the carrier
+        DATA(lv_declared) = VALUE string( ).
+        READ TABLE ls_event-t_arg INTO lv_declared INDEX lv_pos.
+        IF lv_declared <> lv_arg.
+          issue( node = node
+                 text = |the event { ls_evt-event } takes its arguments in this order: | &&
+                        |{ concat_lines_of( table = ls_event-t_arg
+                                            sep   = `, ` ) } - leave out only from the end| ).
           CONTINUE.
         ENDIF.
         IF node-scope IS NOT INITIAL.

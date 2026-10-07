@@ -358,9 +358,18 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     IF lv_session <> ms_request-session_id.
       RETURN.
     ENDIF.
-    SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_session AND uname = @sy-uname INTO @DATA(lv_client).
+    SELECT SINGLE mcp_client, changed_at FROM z2ui5_t_ag_mcp WHERE id = @lv_session AND uname = @sy-uname
+      INTO (@DATA(lv_client), @DATA(lv_changed)).
     IF sy-subrc = 0.
       mv_client = lv_client.
+      " in use: kept - the cleanup at initialize goes by changed_at, and a
+      " client connected for more than a day lost its row and its name in
+      " the audit. Written at most once an hour, not on every request.
+      DATA(lv_now) = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
+      IF lv_changed < z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = lv_now
+                                                                        seconds = 3600 ).
+        UPDATE z2ui5_t_ag_mcp SET changed_at = @lv_now WHERE id = @lv_session AND uname = @sy-uname.
+      ENDIF.
     ENDIF.
 
   ENDMETHOD.

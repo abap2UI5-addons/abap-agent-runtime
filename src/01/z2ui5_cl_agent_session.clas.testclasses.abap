@@ -102,6 +102,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS structure_table     FOR TESTING.
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
+    METHODS audit_masks_act     FOR TESTING.
     METHODS audit_cleanup_range FOR TESTING.
     METHODS cut_surrogate_pair  FOR TESTING.
     METHODS admin_key_not_kept  FOR TESTING.
@@ -407,6 +408,15 @@ CLASS ltcl_session IMPLEMENTATION.
                                               event   = `ADD` )
              pattern   = `*the setting EVENT Z2UI5_CL_AGENT_* ADD classifies it confirm*` ).
 
+    " an app denied after the session started - or reached by navigation -
+    " is denied for every event, not only at app_start
+    z2ui5_cl_agent_settings=>save( kind  = z2ui5_cl_agent_settings=>cs_kind-app
+                                   app   = c_app
+                                   value = z2ui5_cl_agent_settings=>cs_app_rule-deny ).
+    refused( is_result = mo_session->app_act( session = ls_start-session
+                                              event   = `POPUP_OPEN` )
+             pattern   = |*{ c_app } is denied for agents by the setting APP*| ).
+
   ENDMETHOD.
 
   METHOD pending_values.
@@ -610,6 +620,29 @@ CLASS ltcl_session IMPLEMENTATION.
                                          act = lv_args ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"NAME":"Gus"*`
                                          act = lv_args ).
+
+  ENDMETHOD.
+
+  METHOD audit_masks_act.
+
+    " typed with an event that opens a popup: the next screen has no IBAN
+    " field, and the value is still masked - judged against the screen it
+    " was typed into
+    DATA(ls_start) = start( ).
+    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+                                        values  = `{"IBAN":"DE02100100109307118603"}`
+                                        event   = `POPUP_OPEN` ).
+    COMMIT WORK.
+    ok( ls_act ).
+    SELECT SINGLE args FROM z2ui5_t_ag_log
+      WHERE uname = @sy-uname AND session_id = @ls_act-session AND operation = 'app_act'
+      INTO @DATA(lv_args).
+    cl_abap_unit_assert=>assert_subrc( ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"IBAN":"***"*`
+                                         act = lv_args ).
+    cl_abap_unit_assert=>assert_equals( exp = -1
+                                        act = find( val = lv_args
+                                                    sub = `DE02100100109307118603` ) ).
 
   ENDMETHOD.
 

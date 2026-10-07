@@ -23,6 +23,13 @@
 "! structured answer is requested with output_config.format json_schema;
 "! there is no assistant prefill. The answer is the first content block of
 "! type text - thinking blocks come first and are empty.
+"!
+"! Not every model takes every field: effort is a 400 on Claude Haiku 4.5,
+"! Sonnet 4.5 and older models, and the server-side fallback exists for the
+"! Fable, Mythos, Opus 5 and Sonnet 5.5 lines only - both are left out for a
+"! model that does not take them (takes_effort, takes_fallback). The system
+"! prompt is sent as a cached block: the generative UI's carries the whole
+"! vocabulary, the same on every call and twice per generation.
 CLASS z2ui5_cl_agent_llm_anthropic DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PUBLIC SECTION.
@@ -63,6 +70,20 @@ CLASS z2ui5_cl_agent_llm_anthropic DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RAISING
         z2ui5_cx_agent_llm.
 
+    "! Whether the model takes output_config.effort.
+    CLASS-METHODS takes_effort
+      IMPORTING
+        model         TYPE string
+      RETURNING
+        VALUE(result) TYPE abap_bool.
+
+    "! Whether the model takes the server-side refusal fallback.
+    CLASS-METHODS takes_fallback
+      IMPORTING
+        model         TYPE string
+      RETURNING
+        VALUE(result) TYPE abap_bool.
+
   PROTECTED SECTION.
 
   PRIVATE SECTION.
@@ -88,10 +109,36 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD takes_effort.
+
+    " a model id may carry a platform prefix (anthropic.claude-...) or a date
+    result = xsdbool( NOT ( model CP `*claude-haiku*`
+                         OR model CP `*claude-3*`
+                         OR model CP `*claude-sonnet-4-5*`
+                         OR model CP `*claude-sonnet-4-2*`
+                         OR model CP `*claude-sonnet-4-0*`
+                         OR model CP `*claude-opus-4-1*`
+                         OR model CP `*claude-opus-4-2*`
+                         OR model CP `*claude-opus-4-0*` ) ).
+
+  ENDMETHOD.
+
+  METHOD takes_fallback.
+
+    result = xsdbool( model CP `*claude-fable-5*`
+                   OR model CP `*claude-mythos-5*`
+                   OR model CP `*claude-opus-5*`
+                   OR model CP `*claude-sonnet-5-5*` ).
+
+  ENDMETHOD.
+
   METHOD build_body.
 
     DATA lt_message TYPE string_table.
     DATA lt_config TYPE string_table.
+
+    DATA(lv_model) = setting( item    = z2ui5_cl_agent_settings=>cs_llm-model
+                              default = c_default_model ).
 
     IF is_request-t_message IS INITIAL.
       RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
@@ -104,7 +151,7 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
              |,"content":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-content ) }\}| INTO TABLE lt_message.
     ENDLOOP.
 
-    IF is_request-effort IS NOT INITIAL.
+    IF is_request-effort IS NOT INITIAL AND takes_effort( lv_model ) = abap_true.
       INSERT |"effort":{ z2ui5_cl_agent_viewxml=>json_string( is_request-effort ) }| INTO TABLE lt_config.
     ENDIF.
     IF is_request-schema IS NOT INITIAL.
@@ -122,12 +169,12 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
       INSERT |"format":\{"type":"json_schema","schema":{ is_request-schema }\}| INTO TABLE lt_config.
     ENDIF.
 
-    result = |\{"model":{ z2ui5_cl_agent_viewxml=>json_string( setting( item    = z2ui5_cl_agent_settings=>cs_llm-model
-                                                                         default = c_default_model ) ) }| &&
+    result = |\{"model":{ z2ui5_cl_agent_viewxml=>json_string( lv_model ) }| &&
              |,"max_tokens":{ COND i( WHEN is_request-max_tokens > 0 THEN is_request-max_tokens
                                        ELSE z2ui5_cl_agent_llm=>c_default_max_tokens ) }|.
     IF is_request-system IS NOT INITIAL.
-      result = |{ result },"system":{ z2ui5_cl_agent_viewxml=>json_string( is_request-system ) }|.
+      result = |{ result },"system":[\{"type":"text","text":{ z2ui5_cl_agent_viewxml=>json_string( is_request-system ) }| &&
+               |,"cache_control":\{"type":"ephemeral"\}\}]|.
     ENDIF.
     result = |{ result },"messages":[{ concat_lines_of( table = lt_message
                                                        sep   = `,` ) }]|.
@@ -136,7 +183,8 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
                                                                sep   = `,` ) }\}|.
     ENDIF.
     IF z2ui5_cl_agent_settings=>check_llm( item    = z2ui5_cl_agent_settings=>cs_llm-fallback
-                                           default = abap_true ) = abap_true.
+                                           default = abap_true ) = abap_true
+        AND takes_fallback( lv_model ) = abap_true.
       result = |{ result },"fallbacks":"default"|.
     ENDIF.
     result = |{ result }\}|.
@@ -170,7 +218,9 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
                       value = lv_key ) INTO TABLE result-t_header.
     ENDIF.
     IF z2ui5_cl_agent_settings=>check_llm( item    = z2ui5_cl_agent_settings=>cs_llm-fallback
-                                           default = abap_true ) = abap_true.
+                                           default = abap_true ) = abap_true
+        AND takes_fallback( setting( item    = z2ui5_cl_agent_settings=>cs_llm-model
+                                     default = c_default_model ) ) = abap_true.
       INSERT VALUE #( name  = `anthropic-beta`
                       value = setting( item    = z2ui5_cl_agent_settings=>cs_llm-beta
                                        default = c_default_beta ) ) INTO TABLE result-t_header.

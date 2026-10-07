@@ -721,6 +721,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DATA ls_action TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
     DATA lv_event TYPE string.
     DATA lv_row TYPE string.
+    DATA lv_values_audit TYPE string.
 
     lv_event = event.
     lv_row = row.
@@ -741,6 +742,14 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             fail( |session '{ ms_row-id }' cannot be continued - { lx_resume->get_text( ) }; app_start { ms_row-app_start } again| ).
         ENDTRY.
         analyze( ).
+        " masked for the audit against THIS screen - the one the values are
+        " typed into. Masked after the act, they were judged against the next
+        " screen: a popup or another app without the field, an id f3 naming
+        " something else, and a sensitive value went into the log as it was.
+        IF values IS NOT INITIAL.
+          lv_values_audit = mask_values( t_value = lt_value
+                                         app     = ms_row-app ).
+        ENDIF.
 
         " validate everything before anything changes
         IF lv_event IS NOT INITIAL.
@@ -847,8 +856,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     DATA(lv_args) = |\{"session":{ z2ui5_cl_agent_viewxml=>json_string( session ) }|.
     IF values IS NOT INITIAL.
-      lv_args = |{ lv_args },"values":{ mask_values( t_value = lt_value
-                                                     app     = ms_row-app ) }|.
+      IF lv_values_audit IS INITIAL.
+        " the session was never loaded: judged by the keys alone
+        lv_values_audit = mask_values( t_value = lt_value
+                                       app     = ms_row-app ).
+      ENDIF.
+      lv_args = |{ lv_args },"values":{ lv_values_audit }|.
     ENDIF.
     IF args IS NOT INITIAL.
       lv_args = |{ lv_args },"args":{ args }|.
@@ -899,6 +912,10 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         DATA(lv_app) = mo_sim->get_app( ).
         IF z2ui5_cl_agent_settings=>check_app( EXPORTING app    = lv_app
                                                IMPORTING reason = lv_reason ) = abap_false.
+          " the restore ran the app's main( ) - what it left open goes, as
+          " for a screen that cannot be continued (a stateful app is not
+          " rolled back by abap2UI5, and the caller's commit kept it)
+          app_rollback( ).
           fail( lv_reason ).
         ENDIF.
         IF mo_sim->is_sticky( ) = abap_true.
@@ -2573,9 +2590,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       DATA(lv_app) = COND string( WHEN mo_sim IS BOUND THEN mo_sim->get_app( ) ELSE app ).
       IF mo_snap IS NOT BOUND.
         " no screen to resolve the key against: judged by the key alone
-        lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                              path = ls_value-key
-                                                              name = ls_value-key ).
+        lv_masked = xsdbool( z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                       path = ls_value-key
+                                                                       name = ls_value-key ) = abap_true
+                          OR z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                       path = |/{ ls_value-key }|
+                                                                       name = ls_value-key ) = abap_true ).
       ELSE.
         DATA(ls_target) = resolve_target( EXPORTING key   = ls_value-key
                                           IMPORTING found = lv_found ).
@@ -2591,9 +2611,14 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                                                                 path = |{ ls_table-path }/{ ls_target-row }/{ ls_target-column }|
                                                                 name = ls_target-column ).
         ELSE.
-          lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                path = ls_value-key
-                                                                name = ls_value-key ).
+          " a key the screen does not know: a name like IBAN is checked as
+          " the path /IBAN as well, the shape the sensitive rules are written in
+          lv_masked = xsdbool( z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                         path = ls_value-key
+                                                                         name = ls_value-key ) = abap_true
+                            OR z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                         path = |/{ ls_value-key }|
+                                                                         name = ls_value-key ) = abap_true ).
         ENDIF.
       ENDIF.
       INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-key ) }:| &&

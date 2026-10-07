@@ -591,6 +591,17 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
                         source = |{ lv_app } belongs to the agent addon itself and is never operable by an agent| ).
       RETURN.
     ENDIF.
+    " an app an administrator denied, also when an operable app navigated
+    " there or the rule came after the session started: check_app( ) only
+    " guards app_start and app_attach, and "deny wins"
+    load( ).
+    LOOP AT gt_setting INTO DATA(ls_deny) WHERE kind = cs_kind-app. "#EC CI_SORTSEQ
+      IF lv_app CP ls_deny-app AND ls_deny-value = cs_app_rule-deny.
+        result = VALUE #( policy = z2ui5_if_agent_app=>cs_policy-forbidden
+                          source = |{ lv_app } is denied for agents by the setting APP { ls_deny-app }| ).
+        RETURN.
+      ENDIF.
+    ENDLOOP.
 
     " the app's own word
     DATA(ls_info) = get_app_info( lv_app ).

@@ -62,6 +62,9 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
         valid       TYPE abap_bool,
         summary     TYPE string,
         event       TYPE string,
+        "! The id of the action validated - what is checked and fired, as
+        "! two actions may share an event and differ in their arguments.
+        action      TYPE string,
         label       TYPE string,
         policy      TYPE string,
         needs_human TYPE abap_bool,
@@ -529,6 +532,9 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
   METHOD validate.
 
+    DATA ls_action TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+    DATA lv_found TYPE abap_bool.
+
     " the fields: on the screen and not protected
     LOOP AT cs_proposal-t_value REFERENCE INTO DATA(lr_value).
       IF check_protected( EXPORTING io_snap = io_snap
@@ -543,15 +549,35 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
     " the action and its policy - a forbidden one is never offered
     IF cs_proposal-event IS NOT INITIAL.
-      LOOP AT io_snap->mt_action INTO DATA(ls_action)
-           WHERE ( event = cs_proposal-event OR id = cs_proposal-event ) AND frontend IS INITIAL. "#EC CI_SORTSEQ
+      " an action id first, then the first ENABLED action of the event - as
+      " the session resolves it (find_action), so the label the user
+      " confirms and the action that runs are the same control
+      lv_found = abap_false.
+      LOOP AT io_snap->mt_action INTO ls_action
+           WHERE id = cs_proposal-event AND frontend IS INITIAL. "#EC CI_SORTSEQ
+        lv_found = abap_true.
         EXIT.
       ENDLOOP.
-      IF sy-subrc <> 0.
+      IF lv_found = abap_false.
+        LOOP AT io_snap->mt_action INTO ls_action
+             WHERE event = cs_proposal-event AND enabled = abap_true AND frontend IS INITIAL. "#EC CI_SORTSEQ
+          lv_found = abap_true.
+          EXIT.
+        ENDLOOP.
+      ENDIF.
+      IF lv_found = abap_false.
+        LOOP AT io_snap->mt_action INTO ls_action
+             WHERE event = cs_proposal-event AND frontend IS INITIAL. "#EC CI_SORTSEQ
+          lv_found = abap_true.
+          EXIT.
+        ENDLOOP.
+      ENDIF.
+      IF lv_found = abap_false.
         cs_proposal-reason = |there is no action { cs_proposal-event } on this screen|.
         RETURN.
       ENDIF.
       cs_proposal-event = ls_action-event.
+      cs_proposal-action = ls_action-id.
       cs_proposal-label = ls_action-label.
       cs_proposal-policy = COND #( WHEN ls_action-policy IS INITIAL THEN z2ui5_if_agent_app=>cs_policy-allowed
                                    ELSE ls_action-policy ).
@@ -566,7 +592,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     DATA(ls_check) = session_new( )->app_check( session = session
                                                 values  = values_json( cs_proposal-t_value )
                                                 event   = COND string( WHEN cs_proposal-needs_human = abap_false
-                                                                  THEN cs_proposal-event ) ).
+                                                                  THEN cs_proposal-action ) ).
     IF ls_check-is_error = abap_true.
       cs_proposal-reason = ls_check-text.
       RETURN.
@@ -589,7 +615,10 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     " forbidden event
     DATA(ls_result) = lo_session->app_act( session = session
                                            values  = values_json( is_proposal-t_value )
-                                           event   = COND string( WHEN lv_fire = abap_true THEN is_proposal-event ) ).
+                                           event   = COND string( WHEN lv_fire = abap_true
+                                                                  THEN COND #( WHEN is_proposal-action IS NOT INITIAL
+                                                                               THEN is_proposal-action
+                                                                               ELSE is_proposal-event ) ) ).
     IF ls_result-is_error = abap_true.
       result-error = ls_result-text.
       result-session = session.

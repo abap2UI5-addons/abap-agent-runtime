@@ -40,6 +40,7 @@ CLASS ltcl_llm DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROUS.
     METHODS refusal_refused FOR TESTING RAISING cx_static_check.
     METHODS max_tokens_refused FOR TESTING RAISING cx_static_check.
     METHODS context_window_refused FOR TESTING RAISING cx_static_check.
+    METHODS other_stop_refused FOR TESTING RAISING cx_static_check.
     METHODS not_the_json FOR TESTING RAISING cx_static_check.
     METHODS audit_without_prompt FOR TESTING RAISING cx_static_check.
     METHODS audit_with_prompt FOR TESTING RAISING cx_static_check.
@@ -178,6 +179,22 @@ CLASS ltcl_llm IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD other_stop_refused.
+
+    " a reason that is no answer (pause_turn, a provider's guardrail) - its
+    " text is never taken for one
+    mo_double->add_answer( text        = `{"a":"b"}`
+                           stop_reason = `guardrail_intervened` ).
+    TRY.
+        z2ui5_cl_agent_llm=>create( )->chat( request( ) ).
+        cl_abap_unit_assert=>fail( `guardrail_intervened must raise` ).
+      CATCH z2ui5_cx_agent_llm INTO DATA(lx).
+        cl_abap_unit_assert=>assert_equals( act = lx->kind
+                                            exp = z2ui5_cx_agent_llm=>cs_kind-response ).
+    ENDTRY.
+
+  ENDMETHOD.
+
   METHOD not_the_json.
 
     mo_double->add_answer( `Sure! Here is your view:` ).
@@ -219,10 +236,19 @@ CLASS ltcl_llm IMPLEMENTATION.
     z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-log_prompts
                                       value = `on` ).
     mo_double->add_answer( `{"a":"the secret answer"}` ).
-    z2ui5_cl_agent_llm=>create( )->chat( request( ) ).
+    " a question as long as a copilot's, which carries the whole screen
+    DATA(ls_request) = request( ).
+    INSERT VALUE #( role    = `user`
+                    content = repeat( val = `0123456789`
+                                      occ = 500 ) ) INTO TABLE ls_request-t_message.
+    z2ui5_cl_agent_llm=>create( )->chat( ls_request ).
 
-    cl_abap_unit_assert=>assert_char_cp( act = last_log( )-args
-                                         exp = `*the secret question*the secret answer*` ).
+    " the answer first, so the cut at 2000 characters never takes it, and
+    " what is kept is still JSON
+    DATA(lv_args) = last_log( )-args.
+    cl_abap_unit_assert=>assert_char_cp( act = lv_args
+                                         exp = `*the secret answer*the secret question*` ).
+    z2ui5_cl_ajson=>parse( lv_args ).
 
   ENDMETHOD.
 

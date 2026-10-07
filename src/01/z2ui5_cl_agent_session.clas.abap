@@ -202,6 +202,11 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA mv_dry_run TYPE abap_bool.
     DATA mo_sim TYPE REF TO z2ui5_cl_frontend_simulator.
     DATA ms_row TYPE z2ui5_t_ag_ses.
+    "! changed_at before and after claim( ), for release( ).
+    DATA mv_claimed_from TYPE z2ui5_t_ag_ses-changed_at.
+    DATA mv_claimed_until TYPE z2ui5_t_ag_ses-changed_at.
+    "! How long a claim holds a session - longer than any request runs.
+    CONSTANTS c_claim_seconds TYPE i VALUE 600.
     DATA mt_custom TYPE string_table.
     DATA mt_pending TYPE z2ui5_cl_agent_snapshot=>ty_t_pending.
     DATA mo_snap TYPE REF TO z2ui5_cl_agent_snapshot.
@@ -241,6 +246,9 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
     METHODS claim
       RAISING
         z2ui5_cx_ui5_util_error.
+
+    "! Gives a claimed session back after a refused act - as it was.
+    METHODS release.
 
     METHODS save
       IMPORTING
@@ -735,6 +743,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     lv_event = event.
     lv_row = row.
+    CLEAR: mv_claimed_from, mv_claimed_until.
     TRY.
         check_enabled( ).
         load( session ).
@@ -821,10 +830,18 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                                 session = ms_row-id ).
               mt_pending = lt_pending_before.
             ELSEIF lv_event IS INITIAL.
+              " values only: claimed too - saved over a session another act
+              " moved on from meanwhile, it brought the old one back
+              IF mv_mode <> cs_mode-copilot.
+                claim( ).
+              ENDIF.
               save( ).
             ELSEIF ls_action-frontend IS NOT INITIAL.
               " performed here, as the browser performs it: the slot closes,
               " its unsent edits go with it, no roundtrip
+              IF mv_mode <> cs_mode-copilot.
+                claim( ).
+              ENDIF.
               close_layer( ls_action-frontend ).
               save( ).
             ELSE.
@@ -858,10 +875,13 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           CATCH z2ui5_cx_ui5_util_error INTO DATA(lx_act).
             " a refused act changes nothing: neither the pending edits nor the session
             mt_pending = lt_pending_before.
+            release( ).
             RAISE EXCEPTION lx_act.
         ENDTRY.
 
       CATCH cx_root INTO DATA(lx).
+        " whatever failed after the claim - the session is free again
+        release( ).
         result = VALUE #( is_error = abap_true
                           text     = lx->get_text( )
                           session  = ms_row-id ).
@@ -1061,14 +1081,39 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   METHOD claim.
 
+    " changed_at in the future marks the session as taken - for as long as
+    " a request may run; save( ) writes the present back and so releases
+    " it, release( ) does on a refusal, and a request that dumps leaves it
+    " blocked for that long at most. Taken by a call that loaded the row
+    " before, or after the claim, the next is refused either way.
     DATA(lv_now) = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
-    UPDATE z2ui5_t_ag_ses SET changed_at = @lv_now
+    IF ms_row-changed_at > lv_now.
+      fail( |session '{ ms_row-id }' is being continued by another call - wait for its answer and act on the session it returns| ).
+    ENDIF.
+    DATA(lv_until) = z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = lv_now
+                                                                       seconds = 0 - c_claim_seconds ).
+    UPDATE z2ui5_t_ag_ses SET changed_at = @lv_until
       WHERE id = @ms_row-id AND uname = @sy-uname AND changed_at = @ms_row-changed_at.
     IF sy-dbcnt = 0.
       fail( |session '{ ms_row-id }' is being continued by another call - wait for its answer and act on the session it returns| ).
     ENDIF.
     COMMIT WORK.
-    ms_row-changed_at = lv_now.
+    mv_claimed_from = ms_row-changed_at.
+    mv_claimed_until = lv_until.
+    ms_row-changed_at = lv_until.
+
+  ENDMETHOD.
+
+  METHOD release.
+
+    IF mv_claimed_until IS INITIAL.
+      RETURN.
+    ENDIF.
+    UPDATE z2ui5_t_ag_ses SET changed_at = @mv_claimed_from
+      WHERE id = @ms_row-id AND uname = @sy-uname AND changed_at = @mv_claimed_until.
+    COMMIT WORK.
+    ms_row-changed_at = mv_claimed_from.
+    CLEAR: mv_claimed_from, mv_claimed_until.
 
   ENDMETHOD.
 

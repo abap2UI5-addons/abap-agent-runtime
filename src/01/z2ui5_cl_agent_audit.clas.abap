@@ -48,6 +48,8 @@ CLASS z2ui5_cl_agent_audit DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS read
       IMPORTING
         uname         TYPE clike OPTIONAL
+        "! ok / error - the outcome filter, in the database (empty: all)
+        outcome       TYPE clike OPTIONAL
         max_rows      TYPE i DEFAULT 500
       RETURNING
         VALUE(result) TYPE ty_t_log.
@@ -99,20 +101,21 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
 
   METHOD read.
 
-    DATA lv_uname TYPE z2ui5_t_ag_log-uname.
+    DATA lt_uname TYPE RANGE OF z2ui5_t_ag_log-uname.
+    DATA lt_outcome TYPE RANGE OF z2ui5_t_ag_log-outcome.
 
     IF uname IS SUPPLIED.
-      lv_uname = to_upper( uname ).
-      SELECT * FROM z2ui5_t_ag_log WHERE uname = @lv_uname
-        ORDER BY timestampl DESCENDING
-        INTO TABLE @result
-        UP TO @max_rows ROWS.
-    ELSE.
-      SELECT * FROM z2ui5_t_ag_log
-        ORDER BY timestampl DESCENDING
-        INTO TABLE @result
-        UP TO @max_rows ROWS.
+      INSERT VALUE #( sign = `I` option = `EQ` low = to_upper( uname ) ) INTO TABLE lt_uname.
     ENDIF.
+    " filtered here, not after the read: filtered from the newest rows only,
+    " the refused calls of last month were "0 call(s)"
+    IF outcome IS NOT INITIAL.
+      INSERT VALUE #( sign = `I` option = `EQ` low = outcome ) INTO TABLE lt_outcome.
+    ENDIF.
+    SELECT * FROM z2ui5_t_ag_log WHERE uname IN @lt_uname AND outcome IN @lt_outcome
+      ORDER BY timestampl DESCENDING
+      INTO TABLE @result
+      UP TO @max_rows ROWS.
 
   ENDMETHOD.
 

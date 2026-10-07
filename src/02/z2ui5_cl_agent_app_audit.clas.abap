@@ -40,6 +40,11 @@ CLASS z2ui5_cl_agent_app_audit DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PROTECTED SECTION.
 
+    "! What the list shows at most, and how many of the newest entries a
+    "! search looks through.
+    CONSTANTS c_list_rows TYPE i VALUE 500.
+    CONSTANTS c_search_rows TYPE i VALUE 5000.
+
     DATA client TYPE REF TO z2ui5_if_client.
 
     METHODS view_display.
@@ -278,14 +283,22 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
     " asked on every search, not remembered in the draft: an administrator
     " removed meanwhile sees only the own calls again
     is_admin = z2ui5_cl_agent_settings=>check_admin( ).
-    DATA(lt_log) = COND z2ui5_cl_agent_audit=>ty_t_log( WHEN is_admin = abap_true AND all_users = abap_true
-                                                       THEN z2ui5_cl_agent_audit=>read( )
-                                                       ELSE z2ui5_cl_agent_audit=>read( uname = sy-uname ) ).
     DATA(lv_search) = to_upper( condense( search ) ).
+    DATA(lv_outcome) = COND string( WHEN outcome <> `all` THEN outcome ).
+    " the outcome is filtered by the database; a search runs over the texts
+    " too (STRG, no LIKE) - over a wider window of the newest entries, and
+    " the title says when that window was full
+    DATA(lv_window) = COND i( WHEN lv_search IS NOT INITIAL THEN c_search_rows ELSE c_list_rows ).
+    DATA(lt_log) = COND z2ui5_cl_agent_audit=>ty_t_log( WHEN is_admin = abap_true AND all_users = abap_true
+                                                       THEN z2ui5_cl_agent_audit=>read( outcome  = lv_outcome
+                                                                                        max_rows = lv_window )
+                                                       ELSE z2ui5_cl_agent_audit=>read( uname    = sy-uname
+                                                                                        outcome  = lv_outcome
+                                                                                        max_rows = lv_window ) ).
     CLEAR t_entry.
     LOOP AT lt_log INTO DATA(ls_log).
-      IF outcome IS NOT INITIAL AND outcome <> `all` AND ls_log-outcome <> outcome.
-        CONTINUE.
+      IF lines( t_entry ) >= c_list_rows.
+        EXIT.
       ENDIF.
       IF lv_search IS NOT INITIAL.
         DATA(lv_hay) = to_upper( |{ ls_log-app } { ls_log-event } { ls_log-session_id } { ls_log-uname } { ls_log-text } { ls_log-operation }| ).
@@ -312,7 +325,11 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
     ENDLOOP.
     title = |Agent audit log - { lines( t_entry ) } call(s){ COND #( WHEN is_admin = abap_true AND all_users = abap_true
                                                                     THEN `, all users`
-                                                                    ELSE |, user { sy-uname }| ) }|.
+                                                                    ELSE |, user { sy-uname }| ) }| &&
+            |{ COND #( WHEN lines( t_entry ) >= c_list_rows
+                       THEN |, the newest { c_list_rows } shown - narrow the search|
+                       WHEN lines( lt_log ) >= lv_window AND lv_search IS NOT INITIAL
+                       THEN |, searched the newest { lv_window } entries only| ) }|.
 
   ENDMETHOD.
 

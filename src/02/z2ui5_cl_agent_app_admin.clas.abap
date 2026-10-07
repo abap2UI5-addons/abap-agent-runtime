@@ -68,7 +68,17 @@ CLASS z2ui5_cl_agent_app_admin DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PROTECTED SECTION.
 
+    TYPES:
+      BEGIN OF ty_s_llm_item,
+        item  TYPE string,
+        value TYPE string,
+      END OF ty_s_llm_item.
+    TYPES ty_t_llm_item TYPE STANDARD TABLE OF ty_s_llm_item WITH EMPTY KEY.
+
     DATA client TYPE REF TO z2ui5_if_client.
+    "! The language model settings as the form showed them when it was
+    "! loaded - Save writes only what was changed since.
+    DATA mt_llm_shown TYPE ty_t_llm_item.
 
     METHODS view_display.
     METHODS on_event.
@@ -82,6 +92,10 @@ CLASS z2ui5_cl_agent_app_admin DEFINITION PUBLIC FINAL CREATE PUBLIC.
         text TYPE string.
     METHODS model_init.
     METHODS llm_save.
+    "! The form's language model settings as they are stored (key aside).
+    METHODS llm_form
+      RETURNING
+        VALUE(result) TYPE ty_t_llm_item.
     METHODS llm_test.
 
   PRIVATE SECTION.
@@ -464,6 +478,19 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         IF sy-subrc <> 0.
           RETURN.
         ENDIF.
+        " the last administrator stays: without one nobody may change these
+        " settings, and only a developer in the system could add one again
+        IF ls_rule-kind = z2ui5_cl_agent_settings=>cs_kind-admin.
+          DATA(lv_admins) = 0.
+          LOOP AT t_rule TRANSPORTING NO FIELDS WHERE kind = z2ui5_cl_agent_settings=>cs_kind-admin. "#EC CI_SORTSEQ
+            lv_admins = lv_admins + 1.
+          ENDLOOP.
+          IF lv_admins <= 1.
+            client->message_box_display( text = `The last administrator cannot be removed - add another one first.`
+                                         type = `error` ).
+            RETURN.
+          ENDIF.
+        ENDIF.
         z2ui5_cl_agent_settings=>remove( kind = ls_rule-kind
                                          app  = ls_rule-app
                                          item = ls_rule-item ).
@@ -580,34 +607,29 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         RETURN.
       ENDIF.
     ENDLOOP.
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-provider
-                                      value = to_upper( condense( llm_provider ) ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-model
-                                      value = condense( llm_model ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-effort
-                                      value = to_lower( condense( llm_effort ) ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-max_tokens
-                                      value = condense( llm_max_tokens ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-timeout
-                                      value = condense( llm_timeout ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-url
-                                      value = condense( llm_url ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-destination
-                                      value = condense( llm_destination ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-beta
-                                      value = condense( llm_beta ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-fallback
-                                      value = COND #( WHEN llm_fallback = abap_true THEN `on` ELSE `off` ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-log_prompts
-                                      value = COND #( WHEN llm_log_prompts = abap_true THEN `on` ELSE `off` ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-genui_samples
-                                      value = COND #( WHEN llm_genui_samples = abap_true THEN `on` ELSE `off` ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-genui_repair
-                                      value = COND #( WHEN llm_genui_repair = abap_true THEN `on` ELSE `off` ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-copilot
-                                      value = COND #( WHEN llm_copilot = abap_true THEN `on` ELSE `off` ) ).
-    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-copilot_act
-                                      value = COND #( WHEN llm_copilot_act = abap_true THEN `on` ELSE `off` ) ).
+    " only what this form changed: another administrator's change made
+    " since it was loaded (a privacy switch turned off) stays - written from
+    " the stale form, prompt logging was back on and nobody was told
+    DATA(lt_changed) = VALUE string_table( ).
+    LOOP AT llm_form( ) INTO DATA(ls_new).
+      READ TABLE mt_llm_shown INTO DATA(ls_shown) WITH KEY item = ls_new-item. "#EC CI_SORTSEQ
+      IF sy-subrc = 0 AND ls_shown-value = ls_new-value.
+        CONTINUE.
+      ENDIF.
+      z2ui5_cl_agent_settings=>set_llm( item  = ls_new-item
+                                        value = ls_new-value ).
+      INSERT ls_new-item INTO TABLE lt_changed.
+    ENDLOOP.
+    " the key goes where the address says: sent to a new URL, destination
+    " or provider, it is the key of a host an administrator just named -
+    " who may never have seen the key. Kept only with a key typed anew.
+    IF llm_key IS INITIAL AND z2ui5_cl_agent_settings=>check_llm_key( ) = abap_true
+        AND ( line_exists( lt_changed[ table_line = z2ui5_cl_agent_settings=>cs_llm-url ] )
+           OR line_exists( lt_changed[ table_line = z2ui5_cl_agent_settings=>cs_llm-destination ] )
+           OR line_exists( lt_changed[ table_line = z2ui5_cl_agent_settings=>cs_llm-provider ] ) ).
+      z2ui5_cl_agent_settings=>set_llm( z2ui5_cl_agent_settings=>cs_llm-key ).
+      INSERT `API key removed - the address changed; enter the key again` INTO TABLE lt_item.
+    ENDIF.
     " the key only when a new one was typed - it is never shown back
     IF llm_key IS NOT INITIAL.
       z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-key
@@ -617,9 +639,39 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     CLEAR llm_key.
     audit( |language model settings saved: provider { llm_provider }, model { llm_model }, effort { llm_effort }, | &&
            |destination { llm_destination }, url { llm_url }, copilot { llm_copilot }/{ llm_copilot_act }, | &&
-           |log prompts { llm_log_prompts }{ COND #( WHEN lt_item IS NOT INITIAL THEN `, API key replaced` ) }| ).
+           |log prompts { llm_log_prompts }{ COND #( WHEN lt_item IS NOT INITIAL
+                                                     THEN |, { concat_lines_of( table = lt_item
+                                                                                sep   = `, ` ) }| ) }| ).
     load( ).
-    client->message_toast_display( `Language model settings saved` ).
+    IF line_exists( lt_item[ table_line = `API key removed - the address changed; enter the key again` ] ).
+      client->message_box_display( text = `Saved. The API key was removed because the address changed - enter it again.`
+                                   type = `warning` ).
+    ELSE.
+      client->message_toast_display( `Language model settings saved` ).
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD llm_form.
+
+    result = VALUE #(
+        ( item = z2ui5_cl_agent_settings=>cs_llm-provider    value = to_upper( condense( llm_provider ) ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-model       value = condense( llm_model ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-effort      value = to_lower( condense( llm_effort ) ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-max_tokens  value = condense( llm_max_tokens ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-timeout     value = condense( llm_timeout ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-url         value = condense( llm_url ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-destination value = condense( llm_destination ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-beta        value = condense( llm_beta ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-fallback    value = COND #( WHEN llm_fallback = abap_true THEN `on` ELSE `off` ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-log_prompts value = COND #( WHEN llm_log_prompts = abap_true THEN `on` ELSE `off` ) )
+        ( item  = z2ui5_cl_agent_settings=>cs_llm-genui_samples
+          value = COND #( WHEN llm_genui_samples = abap_true THEN `on` ELSE `off` ) )
+        ( item  = z2ui5_cl_agent_settings=>cs_llm-genui_repair
+          value = COND #( WHEN llm_genui_repair = abap_true THEN `on` ELSE `off` ) )
+        ( item = z2ui5_cl_agent_settings=>cs_llm-copilot     value = COND #( WHEN llm_copilot = abap_true THEN `on` ELSE `off` ) )
+        ( item  = z2ui5_cl_agent_settings=>cs_llm-copilot_act
+          value = COND #( WHEN llm_copilot_act = abap_true THEN `on` ELSE `off` ) ) ).
 
   ENDMETHOD.
 
@@ -696,6 +748,7 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     llm_copilot = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot ).
     llm_copilot_act = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot_act ).
     CLEAR llm_key.
+    mt_llm_shown = llm_form( ).
     llm_key_state = COND #( WHEN z2ui5_cl_agent_settings=>check_llm_key( ) = abap_true
                             THEN `set - type a new key to replace it`
                             ELSE `not set` ).

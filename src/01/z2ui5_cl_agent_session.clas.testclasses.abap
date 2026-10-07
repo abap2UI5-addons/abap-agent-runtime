@@ -103,6 +103,7 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
     METHODS audit_masks_act     FOR TESTING.
+    METHODS claimed_session     FOR TESTING.
     METHODS audit_cleanup_range FOR TESTING.
     METHODS cut_surrogate_pair  FOR TESTING.
     METHODS admin_key_not_kept  FOR TESTING.
@@ -643,6 +644,31 @@ CLASS ltcl_session IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = -1
                                         act = find( val = lv_args
                                                     sub = `DE02100100109307118603` ) ).
+
+  ENDMETHOD.
+
+  METHOD claimed_session.
+
+    " another call holds the session (its claim puts changed_at ahead):
+    " an act on it is refused before anything runs, and the row is left
+    " as it was
+    DATA(ls_start) = start( ).
+    DATA(lv_id) = CONV z2ui5_t_ag_ses-id( ls_start-session ).
+    DATA(lv_ahead) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
+                         time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
+                         seconds = -300 ).
+    UPDATE z2ui5_t_ag_ses SET changed_at = @lv_ahead WHERE id = @lv_id.
+    COMMIT WORK.
+    refused( is_result = mo_session->app_act( session = ls_start-session
+                                              event   = `POPUP_OPEN` )
+             pattern   = `*being continued by another call*` ).
+    refused( is_result = mo_session->app_act( session = ls_start-session
+                                              values  = `{"NAME":"x"}` )
+             pattern   = `*being continued by another call*` ).
+    SELECT SINGLE id FROM z2ui5_t_ag_ses WHERE id = @lv_id INTO @DATA(lv_still).
+    cl_abap_unit_assert=>assert_subrc( ).
+    cl_abap_unit_assert=>assert_equals( exp = lv_id
+                                        act = lv_still ).
 
   ENDMETHOD.
 

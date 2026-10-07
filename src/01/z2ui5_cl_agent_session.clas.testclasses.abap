@@ -942,6 +942,7 @@ CLASS ltcl_args DEFINITION FINAL
     METHODS pick_none      FOR TESTING.
     METHODS pick_unknown   FOR TESTING.
     METHODS table_events   FOR TESTING.
+    METHODS screen_before_row FOR TESTING.
     METHODS action_hidden  FOR TESTING.
     METHODS action_disabled FOR TESTING.
 
@@ -1153,6 +1154,22 @@ CLASS ltcl_args IMPLEMENTATION.
                                           act = act( event = `OK`
                                                      row   = `0` ) ).
     ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD screen_before_row.
+
+    " without row, the screen action of that name fires before a row action
+    " of the same name that comes first in the view
+    screen( xml   = `<Table items="{/T}"><columns><Column/></columns><items><ColumnListItem><cells>` &&
+                    `<Button text="Del" press=".eB(['DELETE'], ${A})"/></cells></ColumnListItem></items></Table>` &&
+                    `<Button text="Delete selected" press=".eB(['DELETE'])"/>`
+            model = rows( ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `[]`
+                                        act = act( `DELETE` ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `["a1"]`
+                                        act = act( event = `DELETE`
+                                                   row   = `1` ) ).
 
   ENDMETHOD.
 

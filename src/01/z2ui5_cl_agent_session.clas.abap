@@ -1664,6 +1664,13 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       IF sy-subrc = 0.
         RETURN.
       ENDIF.
+    ELSE.
+      " without a row, a screen action of that name before a row action -
+      " a "delete selected" button after a table with a DELETE per row was
+      " reachable by its id only (mcp-server lib/appclient.mjs findAction)
+      LOOP AT lt_pool INTO result WHERE scope <> `row`. "#EC CI_SORTSEQ
+        RETURN.
+      ENDLOOP.
     ENDIF.
     result = lt_pool[ 1 ].
 

@@ -24,6 +24,7 @@ CLASS ltcl_snapshot DEFINITION FINAL
     METHODS select_dialogs  FOR TESTING.
     METHODS secret_path     FOR TESTING.
     METHODS named_model_key FOR TESTING.
+    METHODS text_sources    FOR TESTING.
 
     METHODS synthetic
       IMPORTING
@@ -458,6 +459,29 @@ CLASS ltcl_snapshot IMPLEMENTATION.
     cl_abap_unit_assert=>assert_true( lo_snap->is_secret( `f1` ) ).
     cl_abap_unit_assert=>assert_true( lo_snap->is_secret( `f2` ) ).
     cl_abap_unit_assert=>assert_false( lo_snap->is_secret( `f3` ) ).
+
+  ENDMETHOD.
+
+  METHOD text_sources.
+
+    " a text keeps the paths it was read from, beside the JSON - the
+    " copilot masks "IBAN: DE89..." by them; a literal text keeps none
+    DATA(lo_snap) = synthetic( xml   = `<ObjectAttribute title="IBAN" text="{/IBAN}"/>` &&
+                                       `<Text text="{/NAME} ({/CITY})"/><Text text="plain"/>`
+                               model = `{"IBAN":"DE89370400440532013000","NAME":"Ann","CITY":"Bonn"}` ).
+    DATA(lt_source) = lo_snap->mt_text_source.
+    cl_abap_unit_assert=>assert_equals( exp = 2
+                                        act = lines( lt_source ) ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*DE89370400440532013000*`
+                                         act = lt_source[ 1 ]-text ).
+    cl_abap_unit_assert=>assert_equals( exp = VALUE string_table( ( `/IBAN` ) )
+                                        act = lt_source[ 1 ]-t_path ).
+    cl_abap_unit_assert=>assert_equals( exp = VALUE string_table( ( `/NAME` ) ( `/CITY` ) )
+                                        act = lt_source[ 2 ]-t_path ).
+    " and the JSON - the contract - is unchanged by it
+    cl_abap_unit_assert=>assert_equals( exp = -1
+                                        act = find( val = lo_snap->get_json( )
+                                                    sub = `t_path` ) ).
 
   ENDMETHOD.
 

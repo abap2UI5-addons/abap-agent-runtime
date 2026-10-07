@@ -350,6 +350,37 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
           ENDDO.
         ENDDO.
 
+        " texts that show a sensitive field ("IBAN: DE89...") - the snapshot
+        " keeps which paths each text read
+        DATA(lv_texts) = lines( lo_json->members( `/texts` ) ).
+        DO lv_texts TIMES.
+          DATA(lv_text_path) = |/texts/{ sy-index }|.
+          DATA(lv_text_value) = lo_json->get_string( lv_text_path ).
+          READ TABLE io_snap->mt_text_source INTO DATA(ls_source)
+               WITH KEY text = lv_text_value. "#EC CI_SORTSEQ
+          IF sy-subrc <> 0.
+            CONTINUE.
+          ENDIF.
+          LOOP AT ls_source-t_path INTO DATA(lv_source).
+            DATA(lv_source_name) = lv_source.
+            " the field's own name: the last segment of the path
+            WHILE lv_source_name CS `/`.
+              lv_source_name = substring_after( val = lv_source_name
+                                                sub = `/` ).
+            ENDWHILE.
+            IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                         path = lv_source
+                                                         name = lv_source_name ) = abap_true
+                OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                             path = |/{ lv_source }|
+                                                             name = lv_source_name ) = abap_true.
+              lo_json->set( iv_path = lv_text_path
+                            iv_val  = c_mask ).
+              EXIT.
+            ENDIF.
+          ENDLOOP.
+        ENDDO.
+
         " forbidden actions: never proposed, so never shown
         DATA(lv_actions) = lines( lo_json->members( `/actions` ) ).
         DO lv_actions TIMES.

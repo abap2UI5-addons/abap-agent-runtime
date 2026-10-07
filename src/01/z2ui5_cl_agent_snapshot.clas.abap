@@ -201,11 +201,23 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       END OF ty_s_message.
     TYPES ty_t_message TYPE STANDARD TABLE OF ty_s_message WITH EMPTY KEY.
 
+    TYPES:
+      "! The model paths a text of /texts was read from (absolute, or
+      "! relative to its binding context) - kept beside the JSON, not in it
+      "! (the snapshot is a contract), so the copilot can mask a text that
+      "! shows a sensitive field.
+      BEGIN OF ty_s_text_source,
+        text   TYPE string,
+        t_path TYPE string_table,
+      END OF ty_s_text_source.
+    TYPES ty_t_text_source TYPE STANDARD TABLE OF ty_s_text_source WITH EMPTY KEY.
+
     DATA mt_field       TYPE ty_t_field READ-ONLY.
     DATA mt_action      TYPE ty_t_action READ-ONLY.
     DATA mt_table       TYPE ty_t_table READ-ONLY.
     DATA mt_message     TYPE ty_t_message READ-ONLY.
     DATA mt_text        TYPE string_table READ-ONLY.
+    DATA mt_text_source TYPE ty_t_text_source READ-ONLY.
     DATA mt_unsupported TYPE string_table READ-ONLY.
     DATA mv_title       TYPE string READ-ONLY.
     DATA mv_layer       TYPE string READ-ONLY.
@@ -423,9 +435,18 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       IMPORTING
         val TYPE string.
 
+    "! The model paths a binding reads - a path, the parts of a composite
+    "! binding, the references of an expression.
+    CLASS-METHODS text_paths
+      IMPORTING
+        raw           TYPE string
+      RETURNING
+        VALUE(result) TYPE string_table.
+
     METHODS add_text
       IMPORTING
-        val TYPE string.
+        val    TYPE string
+        t_path TYPE string_table OPTIONAL.
 
     METHODS node
       IMPORTING
@@ -982,6 +1003,24 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD text_paths.
+
+    DATA(ls_binding) = z2ui5_cl_agent_viewxml=>parse_binding( raw ).
+    CASE ls_binding-kind.
+      WHEN z2ui5_cl_agent_viewxml=>cs_binding-literal.
+        RETURN.
+      WHEN z2ui5_cl_agent_viewxml=>cs_binding-path.
+        INSERT ls_binding-path INTO TABLE result.
+      WHEN z2ui5_cl_agent_viewxml=>cs_binding-expression.
+        result = z2ui5_cl_agent_viewxml=>expression_refs( ls_binding-expression ).
+      WHEN OTHERS.
+        LOOP AT ls_binding-t_part INTO DATA(ls_part) WHERE is_path = abap_true. "#EC CI_SORTSEQ
+          INSERT ls_part-path INTO TABLE result.
+        ENDLOOP.
+    ENDCASE.
+
+  ENDMETHOD.
+
   METHOD add_text.
 
     DATA(lv_text) = z2ui5_cl_agent_viewxml=>clip( val ).
@@ -989,6 +1028,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       RETURN.
     ENDIF.
     INSERT lv_text INTO TABLE mt_text.
+    IF t_path IS NOT INITIAL.
+      INSERT VALUE #( text   = lv_text
+                      t_path = t_path ) INTO TABLE mt_text_source.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -1673,12 +1716,15 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       DATA(lt_props) = text_props( lv_name ).
       IF lt_props IS NOT INITIAL.
         DATA(lt_parts) = VALUE string_table( ).
+        DATA(lt_source) = VALUE string_table( ).
         LOOP AT lt_props INTO DATA(lv_prop).
           DATA(lv_part) = text_of( node = ls_node
                                    name = lv_prop
                                    ctx  = ctx ).
           IF lv_part IS NOT INITIAL.
             INSERT lv_part INTO TABLE lt_parts.
+            INSERT LINES OF text_paths( z2ui5_cl_agent_viewxml=>attr( node = ls_node
+                                                                      name = lv_prop ) ) INTO TABLE lt_source.
           ENDIF.
         ENDLOOP.
         DATA(lv_text) = concat_lines_of( table = lt_parts
@@ -1689,9 +1735,11 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         IF lv_text IS NOT INITIAL.
           READ TABLE mt_label INDEX ctx-label INTO DATA(ls_label).
           IF sy-subrc = 0 AND ls_label-text IS NOT INITIAL.
-            add_text( |{ ls_label-text }: { lv_text }| ).
+            add_text( val    = |{ ls_label-text }: { lv_text }|
+                      t_path = lt_source ).
           ELSE.
-            add_text( lv_text ).
+            add_text( val    = lv_text
+                      t_path = lt_source ).
           ENDIF.
         ENDIF.
       ENDIF.

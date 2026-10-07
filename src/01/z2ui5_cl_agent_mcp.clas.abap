@@ -125,7 +125,12 @@ CLASS z2ui5_cl_agent_mcp DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE string.
 
-    METHODS client_of_session.
+    "! Names the audit entries after the session's client. Answers false
+    "! for a session id this endpoint does not know (ended, expired, another
+    "! user's, too long) - true without one.
+    METHODS client_of_session
+      RETURNING
+        VALUE(result) TYPE abap_bool.
 
     CLASS-METHODS rpc_result
       IMPORTING
@@ -301,7 +306,30 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
         RETURN.
     ENDTRY.
 
-    client_of_session( ).
+    " a session this endpoint ended (DELETE, a day unused) or never had:
+    " 404, so the client starts a new one (Streamable HTTP) - accepted
+    " silently, the client never learned, and its calls went into the audit
+    " log without its name. An initialize carries no session to check.
+    IF client_of_session( ) = abap_false.
+      DATA(lv_initialize) = abap_false.
+      IF lo_json->get_node_type( `/` ) = z2ui5_if_ajson_types=>node_type-array.
+        DATA(lv_messages) = lines( lo_json->members( `/` ) ).
+        DO lv_messages TIMES.
+          IF lo_json->get_string( |/{ sy-index }/method| ) = `initialize`.
+            lv_initialize = abap_true.
+          ENDIF.
+        ENDDO.
+      ELSE.
+        lv_initialize = xsdbool( lo_json->get_string( `/method` ) = `initialize` ).
+      ENDIF.
+      IF lv_initialize = abap_false.
+        result = http_error( status = 404
+                             reason = `Not Found`
+                             code   = cs_error-invalid_request
+                             text   = `unknown or ended MCP session - send initialize without Mcp-Session-Id to start a new one` ).
+        RETURN.
+      ENDIF.
+    ENDIF.
 
     IF lo_json->get_node_type( `/` ) = z2ui5_if_ajson_types=>node_type-array.
       " a batch (2025-03-26): every message answered, notifications not
@@ -351,6 +379,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
     " the client of an initialized MCP session names the audit entries
     IF ms_request-session_id IS INITIAL.
+      result = abap_true.
       RETURN.
     ENDIF.
     DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( ms_request-session_id ).
@@ -361,6 +390,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     SELECT SINGLE mcp_client, changed_at FROM z2ui5_t_ag_mcp WHERE id = @lv_session AND uname = @sy-uname
       INTO (@DATA(lv_client), @DATA(lv_changed)).
     IF sy-subrc = 0.
+      result = abap_true.
       mv_client = lv_client.
       " in use: kept - the cleanup at initialize goes by changed_at, and a
       " client connected for more than a day lost its row and its name in

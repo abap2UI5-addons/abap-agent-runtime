@@ -234,13 +234,15 @@ CLASS ltcl_mcp IMPLEMENTATION.
     DATA(lv_id) = CONV z2ui5_t_ag_mcp-id( lv_session ).
 
     " an id longer than the column is none: it names no client in the audit
-    " log ...
-    NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
-                                                content_type = `application/json`
-                                                session_id   = |{ lv_session }X|
-                                                body         = `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":` &&
-                                                               `{"name":"app_list","arguments":{"filter":"long_session_id"}}}` ) ).
+    " log - it is no session at all, answered 404 as the spec says ...
+    DATA(ls_long) = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                                content_type = `application/json`
+                                                                session_id   = |{ lv_session }X|
+                                                                body         = `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":` &&
+                                                                               `{"name":"app_list","arguments":{"filter":"long_session_id"}}}` ) ).
     COMMIT WORK.
+    cl_abap_unit_assert=>assert_equals( exp = 404
+                                        act = ls_long-status ).
     SELECT COUNT(*) FROM z2ui5_t_ag_log
       WHERE uname = @sy-uname AND operation = 'app_list' AND mcp_client = 'unit-test 1.0' AND timestampl >= @mv_start
       INTO @lv_count.
@@ -341,6 +343,13 @@ CLASS ltcl_mcp IMPLEMENTATION.
                                                 session_id = lv_session ) ).
     SELECT SINGLE mcp_client FROM z2ui5_t_ag_mcp WHERE id = @lv_id INTO @lv_client.
     cl_abap_unit_assert=>assert_subrc( exp = 4 ).
+    " a request on the ended session is a 404 - the client starts anew
+    cl_abap_unit_assert=>assert_equals(
+        exp = 404
+        act = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                          content_type = `application/json`
+                                                          session_id   = lv_session
+                                                          body         = `{"jsonrpc":"2.0","id":9,"method":"ping"}` ) )-status ).
 
   ENDMETHOD.
 

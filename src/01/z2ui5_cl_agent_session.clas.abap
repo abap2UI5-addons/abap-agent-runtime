@@ -232,6 +232,16 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RAISING
         z2ui5_cx_ui5_util_error.
 
+    "! Takes the session for this act: two calls on one session (an MCP
+    "! client calls tools in parallel) both ran the app's main( ) and both
+    "! fired the event - a document posted twice, two forks of the session.
+    "! The second finds changed_at moved and is refused before anything
+    "! runs. Committed at once: abap2UI5 rolls back around main( ), which
+    "! would take the claim and its row lock with it.
+    METHODS claim
+      RAISING
+        z2ui5_cx_ui5_util_error.
+
     METHODS save
       IMPORTING
         id_old TYPE clike OPTIONAL.
@@ -834,6 +844,9 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                                           row_raw   = lv_row
                                           t_picked  = lt_picked ).
               DATA(lv_id_old) = ms_row-id.
+              IF mv_mode <> cs_mode-copilot.
+                claim( ).
+              ENDIF.
               send( is_action = ls_action
                     t_arg     = lt_tval ).
               save( lv_id_old ).
@@ -1043,6 +1056,19 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                       path      = ls_db-path
                       val       = ls_val ) INTO TABLE mt_pending.
     ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD claim.
+
+    DATA(lv_now) = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
+    UPDATE z2ui5_t_ag_ses SET changed_at = @lv_now
+      WHERE id = @ms_row-id AND uname = @sy-uname AND changed_at = @ms_row-changed_at.
+    IF sy-dbcnt = 0.
+      fail( |session '{ ms_row-id }' is being continued by another call - wait for its answer and act on the session it returns| ).
+    ENDIF.
+    COMMIT WORK.
+    ms_row-changed_at = lv_now.
 
   ENDMETHOD.
 

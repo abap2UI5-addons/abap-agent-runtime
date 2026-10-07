@@ -315,12 +315,26 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         DO lv_tables TIMES.
           DATA(lv_table) = |/tables/{ sy-index }|.
           DATA(lv_path) = lo_json->get_string( |{ lv_table }/path| ).
+          DATA(ls_snap_table) = VALUE z2ui5_cl_agent_snapshot=>ty_s_table( ).
+          READ TABLE io_snap->mt_table INTO ls_snap_table
+               WITH KEY id = lo_json->get_string( |{ lv_table }/id| ). "#EC CI_SORTSEQ
           DATA(lv_columns) = lines( lo_json->members( |{ lv_table }/columns| ) ).
           DO lv_columns TIMES.
             DATA(lv_column) = lo_json->get_string( |{ lv_table }/columns/{ sy-index }/name| ).
             DATA(lv_column_masked) = z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                                                path = |{ lv_path }/{ lv_column }|
                                                                                name = lv_column ).
+            " a cell bound to several fields or an expression ("{IBAN} ({BANK})")
+            " is a column COL<n> - judged by the fields its binding reads
+            DATA(ls_cellspec) = VALUE z2ui5_cl_agent_snapshot=>ty_s_cellspec( ).
+            READ TABLE ls_snap_table-t_cellspec INTO ls_cellspec WITH KEY name = lv_column. "#EC CI_SORTSEQ
+            LOOP AT ls_cellspec-binding-t_part INTO DATA(ls_part) WHERE is_path = abap_true. "#EC CI_SORTSEQ
+              IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+                                                           path = |{ lv_path }/{ ls_part-path }|
+                                                           name = ls_part-path ) = abap_true.
+                lv_column_masked = abap_true.
+              ENDIF.
+            ENDLOOP.
             DATA(lv_rows) = lines( lo_json->members( |{ lv_table }/rows| ) ).
             DO lv_rows TIMES.
               " a cell by its model path too (/T_PARTNER/*/IBAN), as the audit log masks it

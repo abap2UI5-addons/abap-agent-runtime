@@ -500,7 +500,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         name          TYPE string
         ctx           TYPE ty_s_ctx
         row           TYPE string OPTIONAL
-        default       TYPE abap_bool
+        default_value TYPE abap_bool
       RETURNING
         VALUE(result) TYPE abap_bool.
 
@@ -1468,7 +1468,7 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                                            name  = name
                                                  IMPORTING found = lv_found ).
     IF lv_found = abap_false.
-      result = default.
+      result = default_value.
       RETURN.
     ENDIF.
     DATA(ls_val) = resolve( raw = lv_raw
@@ -1476,14 +1476,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                             row = row ).
     CASE ls_val-kind.
       WHEN z2ui5_cl_agent_viewxml=>cs_kind-undefined OR z2ui5_cl_agent_viewxml=>cs_kind-null OR space.
-        result = default.
+        result = default_value.
       WHEN z2ui5_cl_agent_viewxml=>cs_kind-string.
         IF ls_val-str = `true`.
           result = abap_true.
         ELSEIF ls_val-str = `false` OR ls_val-str IS INITIAL.
           result = abap_false.
         ELSE.
-          result = default.
+          result = default_value.
         ENDIF.
       WHEN OTHERS.
         result = z2ui5_cl_agent_viewxml=>val_truthy( ls_val ).
@@ -1533,19 +1533,19 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                                                name  = `labelFor`
                                                      IMPORTING found = lv_found ).
         IF lv_name = `sap.m.Label` AND lv_for IS INITIAL.
-          IF bool( node    = ls_child
-                   name    = `visible`
-                   ctx     = ctx
-                   default = abap_true ) = abap_false.
+          IF bool( node          = ls_child
+                   name          = `visible`
+                   ctx           = ctx
+                   default_value = abap_true ) = abap_false.
             CONTINUE.
           ENDIF.
           lv_label = label_new( text     = text_of( node = ls_child
                                                     name = `text`
                                                     ctx  = ctx )
-                                required = bool( node    = ls_child
-                                                 name    = `required`
-                                                 ctx     = ctx
-                                                 default = abap_false ) ).
+                                required = bool( node          = ls_child
+                                                 name          = `required`
+                                                 ctx           = ctx
+                                                 default_value = abap_false ) ).
           CONTINUE.
         ENDIF.
         IF lv_name = `sap.ui.core.Title` OR lv_name = `sap.m.Title` OR ends_with( val    = lv_name
@@ -1581,10 +1581,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                      ctx     = ctx ).
       RETURN.
     ENDIF.
-    IF bool( node    = ls_node
-             name    = `visible`
-             ctx     = ctx
-             default = abap_true ) = abap_false.
+    IF bool( node          = ls_node
+             name          = `visible`
+             ctx           = ctx
+             default_value = abap_true ) = abap_false.
       RETURN.
     ENDIF.
     DATA(ls_c) = ctx.
@@ -1688,10 +1688,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
           lv_label = label_new( text     = text_of( node = ls_label_ctl
                                                     name = `text`
                                                     ctx  = ctx )
-                                required = bool( node    = ls_label_ctl
-                                                 name    = `required`
-                                                 ctx     = ctx
-                                                 default = abap_false ) ).
+                                required = bool( node          = ls_label_ctl
+                                                 name          = `required`
+                                                 ctx           = ctx
+                                                 default_value = abap_false ) ).
         ENDIF.
       ENDIF.
       LOOP AT ls_node-t_child INTO DATA(lv_agg_id).
@@ -1884,18 +1884,18 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
-    DATA(lv_editable) = xsdbool( bool( node    = node
-                                       name    = `editable`
-                                       ctx     = ctx
-                                       default = abap_true ) = abap_true
-                             AND bool( node    = node
-                                       name    = `enabled`
-                                       ctx     = ctx
-                                       default = abap_true ) = abap_true
-                             AND bool( node    = node
-                                       name    = `displayOnly`
-                                       ctx     = ctx
-                                       default = abap_false ) = abap_false ).
+    DATA(lv_editable) = xsdbool( bool( node          = node
+                                       name          = `editable`
+                                       ctx           = ctx
+                                       default_value = abap_true ) = abap_true
+                             AND bool( node          = node
+                                       name          = `enabled`
+                                       ctx           = ctx
+                                       default_value = abap_true ) = abap_true
+                             AND bool( node          = node
+                                       name          = `displayOnly`
+                                       ctx           = ctx
+                                       default_value = abap_false ) = abap_false ).
     label_for( EXPORTING ctx      = ctx
                          id       = z2ui5_cl_agent_viewxml=>attr( node = node
                                                                   name = `id` )
@@ -1903,10 +1903,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                          required = lv_required ).
     READ TABLE mt_label INDEX ctx-label INTO DATA(ls_label).
     DATA(lv_label_required) = xsdbool( sy-subrc = 0 AND ls_label-required = abap_true ).
-    DATA(lv_required_all) = xsdbool( bool( node    = node
-                                           name    = `required`
-                                           ctx     = ctx
-                                           default = abap_false ) = abap_true
+    DATA(lv_required_all) = xsdbool( bool( node          = node
+                                           name          = `required`
+                                           ctx           = ctx
+                                           default_value = abap_false ) = abap_true
                                      OR ( lv_found = abap_true AND lv_required = abap_true )
                                      OR lv_label_required = abap_true ).
 
@@ -2125,10 +2125,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       DATA(lv_gate) = SWITCH string( ls_attr-name
                                      WHEN `navButtonPress`   THEN `showNavButton`
                                      WHEN `valueHelpRequest` THEN `showValueHelp` ).
-      IF lv_gate IS NOT INITIAL AND bool( node    = node
-                                          name    = lv_gate
-                                          ctx     = ctx
-                                          default = abap_false ) = abap_false.
+      IF lv_gate IS NOT INITIAL AND bool( node          = node
+                                          name          = lv_gate
+                                          ctx           = ctx
+                                          default_value = abap_false ) = abap_false.
         CONTINUE.
       ENDIF.
       DATA(lv_label) = COND string( WHEN override IS NOT INITIAL THEN override
@@ -2137,10 +2137,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                                        name    = name
                                                        trigger = ls_attr-name
                                                        field   = field ) ).
-      DATA(lv_enabled) = bool( node    = node
-                               name    = `enabled`
-                               ctx     = ctx
-                               default = abap_true ).
+      DATA(lv_enabled) = bool( node          = node
+                               name          = `enabled`
+                               ctx           = ctx
+                               default_value = abap_true ).
       DATA(lv_scope) = COND string( WHEN ctx-row_table IS NOT INITIAL THEN `row` ELSE `screen` ).
 
       IF ls_wire-fn = `eF`.
@@ -2428,11 +2428,11 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                       name = `description`
                                       ctx  = ctx
                                       row  = lv_row ).
-      IF lv_description IS NOT INITIAL AND bool( node    = ls_item
-                                                 name    = `markupDescription`
-                                                 ctx     = ctx
-                                                 row     = lv_row
-                                                 default = abap_false ) = abap_true.
+      IF lv_description IS NOT INITIAL AND bool( node          = ls_item
+                                                 name          = `markupDescription`
+                                                 ctx           = ctx
+                                                 row           = lv_row
+                                                 default_value = abap_false ) = abap_true.
         lv_description = strip_tags( lv_description ).
       ENDIF.
       " clipped: whitespace collapsed - empty when there is nothing but blanks
@@ -2599,9 +2599,9 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                           visible = COND #( WHEN lv_col_node > 0
                                             THEN bool( node    = node( doc = ctx-doc
                                                                        id  = lv_col_node )
-                                                       name    = `visible`
-                                                       ctx     = ctx
-                                                       default = abap_true )
+                                                       name          = `visible`
+                                                       ctx           = ctx
+                                                       default_value = abap_true )
                                             ELSE abap_true ) ) INTO TABLE lt_cell.
         ENDLOOP.
       ELSE.
@@ -2687,10 +2687,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         ENDIF.
         INSERT VALUE #( node    = lt_tnode[ 1 ]
                         header  = lv_header
-                        visible = bool( node    = ls_col
-                                        name    = `visible`
-                                        ctx     = ctx
-                                        default = abap_true ) ) INTO TABLE lt_cell.
+                        visible = bool( node          = ls_col
+                                        name          = `visible`
+                                        ctx           = ctx
+                                        default_value = abap_true ) ) INTO TABLE lt_cell.
       ENDLOOP.
     ENDIF.
 
@@ -2746,10 +2746,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     " selection
     IF dialog = abap_true.
       " a selection dialog always selects: one row (a pick confirms) or several
-      DATA(lv_mode) = COND string( WHEN bool( node    = node
-                                              name    = `multiSelect`
-                                              ctx     = ctx
-                                              default = abap_false ) = abap_true
+      DATA(lv_mode) = COND string( WHEN bool( node          = node
+                                              name          = `multiSelect`
+                                              ctx           = ctx
+                                              default_value = abap_false ) = abap_true
                                    THEN `Multi`
                                    ELSE `Single` ).
     ELSEIF kind = `m`.
@@ -2968,21 +2968,21 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD cell_ok.
 
-    result = xsdbool( bool( node    = node
-                            name    = `editable`
-                            ctx     = ctx
-                            row     = row
-                            default = abap_true ) = abap_true
-                  AND bool( node    = node
-                            name    = `enabled`
-                            ctx     = ctx
-                            row     = row
-                            default = abap_true ) = abap_true
-                  AND bool( node    = node
-                            name    = `displayOnly`
-                            ctx     = ctx
-                            row     = row
-                            default = abap_false ) = abap_false ).
+    result = xsdbool( bool( node          = node
+                            name          = `editable`
+                            ctx           = ctx
+                            row           = row
+                            default_value = abap_true ) = abap_true
+                  AND bool( node          = node
+                            name          = `enabled`
+                            ctx           = ctx
+                            row           = row
+                            default_value = abap_true ) = abap_true
+                  AND bool( node          = node
+                            name          = `displayOnly`
+                            ctx           = ctx
+                            row           = row
+                            default_value = abap_false ) = abap_false ).
 
   ENDMETHOD.
 

@@ -746,12 +746,12 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     llm_url = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-url ).
     llm_destination = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-destination ).
     llm_beta = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-beta ).
-    llm_fallback = z2ui5_cl_agent_settings=>check_llm( item    = z2ui5_cl_agent_settings=>cs_llm-fallback
-                                                       default = abap_true ).
+    llm_fallback = z2ui5_cl_agent_settings=>check_llm( item          = z2ui5_cl_agent_settings=>cs_llm-fallback
+                                                       default_value = abap_true ).
     llm_log_prompts = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-log_prompts ).
     llm_genui_samples = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-genui_samples ).
-    llm_genui_repair = z2ui5_cl_agent_settings=>check_llm( item    = z2ui5_cl_agent_settings=>cs_llm-genui_repair
-                                                           default = abap_true ).
+    llm_genui_repair = z2ui5_cl_agent_settings=>check_llm( item          = z2ui5_cl_agent_settings=>cs_llm-genui_repair
+                                                           default_value = abap_true ).
     llm_copilot = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot ).
     llm_copilot_act = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot_act ).
     CLEAR llm_key.

@@ -227,7 +227,7 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS check_llm
       IMPORTING
         item          TYPE clike
-        default       TYPE abap_bool DEFAULT abap_false
+        default_value TYPE abap_bool DEFAULT abap_false
       RETURNING
         VALUE(result) TYPE abap_bool.
 
@@ -697,7 +697,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     DATA(lv_value) = to_lower( get_llm( item ) ).
     result = COND #( WHEN lv_value = `on` OR lv_value = `x` OR lv_value = `true` THEN abap_true
                      WHEN lv_value = `off` OR lv_value = `-` OR lv_value = `false` THEN abap_false
-                     ELSE default ).
+                     ELSE default_value ).
 
   ENDMETHOD.
 

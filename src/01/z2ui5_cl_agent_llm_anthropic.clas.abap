@@ -91,7 +91,7 @@ CLASS z2ui5_cl_agent_llm_anthropic DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS setting
       IMPORTING
         item          TYPE string
-        default       TYPE string OPTIONAL
+        default_value TYPE string OPTIONAL
       RETURNING
         VALUE(result) TYPE string.
 
@@ -104,7 +104,7 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
 
     result = condense( z2ui5_cl_agent_settings=>get_llm( item ) ).
     IF result IS INITIAL.
-      result = default.
+      result = default_value.
     ENDIF.
 
   ENDMETHOD.
@@ -137,8 +137,8 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
     DATA lt_message TYPE string_table.
     DATA lt_config TYPE string_table.
 
-    DATA(lv_model) = setting( item    = z2ui5_cl_agent_settings=>cs_llm-model
-                              default = c_default_model ).
+    DATA(lv_model) = setting( item          = z2ui5_cl_agent_settings=>cs_llm-model
+                              default_value = c_default_model ).
 
     IF is_request-t_message IS INITIAL.
       RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
@@ -182,8 +182,8 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
       result = |{ result },"output_config":\{{ concat_lines_of( table = lt_config
                                                                sep   = `,` ) }\}|.
     ENDIF.
-    IF z2ui5_cl_agent_settings=>check_llm( item    = z2ui5_cl_agent_settings=>cs_llm-fallback
-                                           default = abap_true ) = abap_true
+    IF z2ui5_cl_agent_settings=>check_llm( item          = z2ui5_cl_agent_settings=>cs_llm-fallback
+                                           default_value = abap_true ) = abap_true
         AND takes_fallback( lv_model ) = abap_true.
       result = |{ result },"fallbacks":"default"|.
     ENDIF.
@@ -195,11 +195,11 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
 
     result-body = build_body( is_request ).
     result-destination = setting( z2ui5_cl_agent_settings=>cs_llm-destination ).
-    result-url = setting( item    = z2ui5_cl_agent_settings=>cs_llm-url
-                          default = COND #( WHEN result-destination IS INITIAL THEN c_default_url ELSE c_default_path ) ).
+    result-url = setting( item          = z2ui5_cl_agent_settings=>cs_llm-url
+                          default_value = COND #( WHEN result-destination IS INITIAL THEN c_default_url ELSE c_default_path ) ).
     TRY.
-        result-timeout = setting( item    = z2ui5_cl_agent_settings=>cs_llm-timeout
-                                  default = |{ c_default_timeout }| ).
+        result-timeout = setting( item          = z2ui5_cl_agent_settings=>cs_llm-timeout
+                                  default_value = |{ c_default_timeout }| ).
       CATCH cx_root.
         result-timeout = c_default_timeout.
     ENDTRY.
@@ -217,13 +217,13 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
       INSERT VALUE #( name  = `x-api-key`
                       value = lv_key ) INTO TABLE result-t_header.
     ENDIF.
-    IF z2ui5_cl_agent_settings=>check_llm( item    = z2ui5_cl_agent_settings=>cs_llm-fallback
-                                           default = abap_true ) = abap_true
-        AND takes_fallback( setting( item    = z2ui5_cl_agent_settings=>cs_llm-model
-                                     default = c_default_model ) ) = abap_true.
+    IF z2ui5_cl_agent_settings=>check_llm( item          = z2ui5_cl_agent_settings=>cs_llm-fallback
+                                           default_value = abap_true ) = abap_true
+        AND takes_fallback( setting( item          = z2ui5_cl_agent_settings=>cs_llm-model
+                                     default_value = c_default_model ) ) = abap_true.
       INSERT VALUE #( name  = `anthropic-beta`
-                      value = setting( item    = z2ui5_cl_agent_settings=>cs_llm-beta
-                                       default = c_default_beta ) ) INTO TABLE result-t_header.
+                      value = setting( item          = z2ui5_cl_agent_settings=>cs_llm-beta
+                                       default_value = c_default_beta ) ) INTO TABLE result-t_header.
     ENDIF.
 
   ENDMETHOD.

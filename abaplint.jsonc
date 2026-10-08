@@ -53,6 +53,9 @@
     "unknown_types": true,
     "xml_consistency": true,
     "xml_bom": true,
+    // a "! inside a parameter list is "ABAP Doc comment is in the wrong
+    // position" on a system - z2ui5_cl_agent_audit=>read reached a user
+    "wrong_abapdoc_position": true,
     "unreachable_code": true,
     "unused_variables": true,
     "unused_types": true,

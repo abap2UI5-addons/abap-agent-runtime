@@ -45,10 +45,10 @@ CLASS z2ui5_cl_agent_audit DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     "! The entries of one user (all users for an administrator), newest
     "! first, at most max_rows.
+    "! @parameter outcome | ok / error - the outcome filter, in the database (empty: all)
     CLASS-METHODS read
       IMPORTING
         uname         TYPE clike OPTIONAL
-        "! ok / error - the outcome filter, in the database (empty: all)
         outcome       TYPE clike OPTIONAL
         max_rows      TYPE i DEFAULT 500
       RETURNING

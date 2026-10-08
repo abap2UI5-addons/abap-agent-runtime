@@ -225,7 +225,7 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
     METHODS rows_of
       IMPORTING
         val           TYPE clike
-        default       TYPE i
+        default_value TYPE i
       RETURNING
         VALUE(result) TYPE i
       RAISING
@@ -570,12 +570,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
   METHOD rows_of.
 
     IF val IS INITIAL.
-      result = default.
+      result = default_value.
       RETURN.
     ENDIF.
     DATA(ls_arg) = z2ui5_cl_agent_viewxml=>describe_arg( val ).
     IF ls_arg-static = abap_false OR ls_arg-val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-number.
-      fail( |max_rows must be a number, not '{ z2ui5_cl_agent_viewxml=>echo( val ) }' - leaving it out means { default }| ).
+      fail( |max_rows must be a number, not '{ z2ui5_cl_agent_viewxml=>echo( val ) }' - leaving it out means { default_value }| ).
     ENDIF.
     " clamped before it becomes an integer - 10000000000 does not fit one
     IF ls_arg-val-num < 0.
@@ -642,8 +642,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DATA(lv_app) = to_upper( condense( CONV string( app ) ) ).
     TRY.
         check_enabled( ).
-        mv_max_rows = rows_of( val     = max_rows
-                               default = z2ui5_cl_agent_snapshot=>c_max_rows_default ).
+        mv_max_rows = rows_of( val           = max_rows
+                               default_value = z2ui5_cl_agent_snapshot=>c_max_rows_default ).
         IF lv_app IS INITIAL.
           fail( `pass app - the class to start (app_list names the apps enabled for agents)` ).
         ENDIF.
@@ -711,8 +711,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     TRY.
         check_enabled( ).
         load( session ).
-        mv_max_rows = rows_of( val     = max_rows
-                               default = ms_row-max_rows ).
+        mv_max_rows = rows_of( val           = max_rows
+                               default_value = ms_row-max_rows ).
         IF mv_max_rows = ms_row-max_rows AND ms_row-snapshot IS NOT INITIAL.
           result = VALUE #( text    = ms_row-snapshot
                             session = ms_row-id ).
@@ -747,8 +747,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     TRY.
         check_enabled( ).
         load( session ).
-        mv_max_rows = rows_of( val     = max_rows
-                               default = ms_row-max_rows ).
+        mv_max_rows = rows_of( val           = max_rows
+                               default_value = ms_row-max_rows ).
         lt_value = parse_input( values ).
         lt_arg = parse_input( json  = args
                               array = abap_true ).
@@ -921,8 +921,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     TRY.
         check_enabled( ).
-        mv_max_rows = rows_of( val     = max_rows
-                               default = z2ui5_cl_agent_snapshot=>c_max_rows_default ).
+        mv_max_rows = rows_of( val           = max_rows
+                               default_value = z2ui5_cl_agent_snapshot=>c_max_rows_default ).
         IF draft IS INITIAL.
           fail( `pass draft - the draft id of the screen to continue` ).
         ENDIF.

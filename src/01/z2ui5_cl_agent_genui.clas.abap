@@ -727,8 +727,8 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
                     content = concat_lines_of( table = lt_line
                                                sep   = cl_abap_char_utilities=>newline ) ) INTO TABLE lt_message.
 
-    DATA(lv_rounds) = COND i( WHEN z2ui5_cl_agent_settings=>check_llm( item    = z2ui5_cl_agent_settings=>cs_llm-genui_repair
-                                                                       default = abap_true ) = abap_true
+    DATA(lv_rounds) = COND i( WHEN z2ui5_cl_agent_settings=>check_llm( item          = z2ui5_cl_agent_settings=>cs_llm-genui_repair
+                                                                       default_value = abap_true ) = abap_true
                               THEN 2 ELSE 1 ).
     DATA(lv_system) = get_system( ).
     DATA(lv_schema) = get_schema( ).

@@ -562,7 +562,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDIF.
     IF z2ui5_cl_agent_settings=>check_enabled( ) = abap_false.
       fail( `the abap2UI5 agent endpoint is disabled on this system - an administrator enables it in the app ` &&
-            `Z2UI5_CL_AGENT_APP_ADMIN (README of abap2UI5-addons/agent, "Enabling the endpoint")` ).
+            `Z2UI5_CL_AGENT_APP_ADMIN (README of abap2UI5-addons/abap-agent-runtime, "Installation")` ).
     ENDIF.
 
   ENDMETHOD.

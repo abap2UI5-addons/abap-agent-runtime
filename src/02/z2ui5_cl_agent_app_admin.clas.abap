@@ -709,7 +709,7 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     is_admin = z2ui5_cl_agent_settings=>check_admin( ).
     admin_hint = COND #( WHEN z2ui5_cl_agent_settings=>check_admin_defined( ) = abap_false
                          THEN |No agent administrator is defined yet - nothing can be changed here. Run | &&
-                              |z2ui5_cl_agent_settings=>admin_add( '{ sy-uname }' ) once in this system (README, "Enabling the endpoint").|
+                              |z2ui5_cl_agent_settings=>admin_add( '{ sy-uname }' ) once in this system (README, "Installation").|
                          ELSE |{ sy-uname } is no agent administrator - the settings are shown read-only.| ).
 
     CLEAR: t_rule, url.

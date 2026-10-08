@@ -1,4 +1,16 @@
-# abap2UI5 agent
+# abap-agent-runtime
+
+[![abap2UI5-addons](https://img.shields.io/badge/abap2UI5--addons-connector-1873b4)](https://github.com/abap2UI5-addons)
+[![ABAP](https://img.shields.io/badge/ABAP-Cloud%20%7C%20Standard%20%E2%89%A5%207.50%20%7C%207.02-blue)](#installation)
+[![abap2UI5](https://img.shields.io/badge/requires-abap2UI5-blue)](https://github.com/abap2UI5/abap2UI5)
+[![headless-frontend](https://img.shields.io/badge/requires-headless--frontend-blue)](https://github.com/abap2UI5/headless-frontend)
+[![License](https://img.shields.io/github/license/abap2UI5-addons/abap-agent-runtime)](LICENSE)
+<br>
+[![ABAP Cloud](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ABAP_CLOUD.yaml?branch=main&label=ABAP%20Cloud)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ABAP_CLOUD.yaml)
+[![ABAP Standard](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ABAP_STANDARD.yaml?branch=main&label=ABAP%20Standard)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ABAP_STANDARD.yaml)
+[![ABAP 7.02](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ABAP_702.yaml?branch=main&label=ABAP%207.02)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ABAP_702.yaml)
+[![ABAP Unit](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ABAP_UNIT.yaml?branch=main&label=ABAP%20Unit)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ABAP_UNIT.yaml)
+[![check-abap2UI5](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/check-abap2UI5.yaml?branch=main&label=check-abap2UI5)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/check-abap2UI5.yaml)
 
 **Every abap2UI5 app is agent-operable.** An ABAP-native
 [MCP](https://modelcontextprotocol.io) endpoint inside your SAP system: AI
@@ -6,6 +18,8 @@ agents - Claude, Copilot Studio, Joule, any MCP client - read the screen of an
 abap2UI5 app as structured data, fill its fields and fire its events. As the
 real SAP user, through the app's own `main( )`, with the app's own validation
 and authority checks. No Node, no browser, no screen scraping.
+
+> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org).
 
 ```
 agent: app_start { "app": "z2ui5_cl_agent_demo" }
@@ -22,18 +36,6 @@ agent: app_act { "session": "...", "event": "SUBMIT" }
   <-   isError: "event SUBMIT needs a human - agents never fire it (the app classifies it confirm).
         Hand over to the user: open /sap/bc/z2ui5#/app/Z2UI5_CL_AGENT_DEMO/<draft> in the browser ..."
 ```
-
-On top of the endpoint, the addon brings **AI at runtime** into the SAP
-system - three features built on the same snapshot engine, settings and
-audit log ([AI at runtime](#ai-at-runtime)):
-
-- a **language model client** - the Claude Messages API out of the box, any
-  provider of your own (SAP AI Core, Bedrock, a gateway) by class name;
-- **generative UI** - an abap2UI5 view from a sentence, over data the app
-  hands over, validated against a closed vocabulary before it is built;
-- an **in-app copilot** - "ask this screen" for any opted-in app, grounded in
-  the agent snapshot of the screen the user is on, with proposed steps the
-  user confirms.
 
 ## Why
 
@@ -57,66 +59,30 @@ never past it:
 - **Opt-in, classified, audited.** Only apps that opt in are reachable; events
   that need a human are never fired by an agent; every call is logged.
 
-## Architecture
+On top of the endpoint, the addon brings **AI at runtime** into the SAP
+system - three features built on the same snapshot engine, settings and
+audit log ([AI at runtime](#ai-at-runtime)):
 
-```
- MCP client (Claude Code, Copilot Studio, Joule, ...)
-     |  POST /sap/bc/z2ui5_agent   JSON-RPC 2.0, MCP "Streamable HTTP"
-     |  logon: Basic / OAuth / certificate / principal propagation
-     v
- z2ui5_cl_agent_http        (ABAP Standard: if_http_extension, ICF node)
- z2ui5_cl_agent_http_cloud  (ABAP Cloud: if_http_service_extension)
-     |
- z2ui5_cl_agent_mcp         initialize, ping, tools/list, tools/call; origin check, audit commit
-     |
- z2ui5_cl_agent_session     app_list / app_start / app_describe / app_act
-     |    |      \__ z2ui5_cl_agent_settings   opt-in, policy (allowed/confirm/forbidden), admins
-     |    |      \__ z2ui5_cl_agent_audit      Z2UI5_T_AG_LOG
-     |    |      \__ Z2UI5_T_AG_SES            per session: simulator state, client work,
-     |    |                                    pending values, last snapshot (owner = sy-uname)
-     |    v
-     |  z2ui5_cl_agent_snapshot  layers + model -> agent snapshot v1 (+ the index an act needs)
-     |  z2ui5_cl_agent_viewxml   view XML, bindings, expressions, event wires
-     v
- z2ui5_cl_frontend_simulator  (abap2UI5/headless-frontend)  start / resume / set_json / click / close_layer
-     v
- abap2UI5 core: z2ui5_cl_ui5_handler -> your app's main( ) -> draft (Z2UI5_T_01)
-```
+- a **language model client** - the Claude Messages API out of the box, any
+  provider of your own (SAP AI Core, Bedrock, a gateway) by class name;
+- **generative UI** - an abap2UI5 view from a sentence, over data the app
+  hands over, validated against a closed vocabulary before it is built;
+- an **in-app copilot** - "ask this screen" for any opted-in app, grounded in
+  the agent snapshot of the screen the user is on, with proposed steps the
+  user confirms.
 
-Every MCP call is one HTTP request. A session survives between requests as the
-abap2UI5 **draft** (the backend state, owned by the user, expiring with the
-draft expiry of your abap2UI5 configuration) plus a row in `Z2UI5_T_AG_SES`
-(what the browser would remember: the view of every layer, the pending
-values). `app_describe` answers from that row without a roundtrip; `app_act`
-resumes the simulator from it.
+## Installation
 
-## What an agent sees: agent snapshot v1
+**Requirements**
 
-The snapshot is the shared contract of three implementations - the
-[MCP server](https://github.com/abap2UI5/mcp-server) (Node, for development),
-the VS Code extension, and this addon - specified in
-[docs/agent-snapshot.md](https://github.com/abap2UI5/mcp-server/blob/main/docs/agent-snapshot.md)
-of the MCP server: `fields` (id, model path, label, kind, value, required,
-editable, choice values), `actions` (event, arguments with descriptors such as
-`$row:NAME`, label, trigger, enabled, row scope), `tables` (columns, the first
-rows, selection - the selection dialogs `SelectDialog` / `TableSelectDialog`
-included), `messages` (toast, message box, MessageStrip, value states, the
-app's message table, the items of a `MessagePopover` / `MessageView` with
-their subtitle and description), `texts`, `unsupported`, and `pending`.
+- ABAP Cloud (BTP ABAP environment, S/4HANA Cloud Public Edition) or ABAP
+  Standard 7.50 or higher (on-premise, S/4HANA, NetWeaver); the 7.02
+  downport is linted in CI (`ABAP_702`)
+- [abap2UI5](https://github.com/abap2UI5/abap2UI5) and
+  [abap2UI5/headless-frontend](https://github.com/abap2UI5/headless-frontend),
+  the simulator this addon runs on - installed first, see the steps
 
-`z2ui5_cl_agent_snapshot` is an ABAP port of the reference implementation
-(`lib/viewxml.mjs`, `lib/snapshot.mjs`, mcp-server commit `6bd3cc3`). Measured
-against it on the 15 recorded sessions of the MCP server (every step, at 20
-and at 2 rows) plus 12 synthetic views (selection dialogs, row event
-arguments, message lists among them): **110 of 110 snapshots
-byte-identical**. One deliberate extension: an
-action the app or the settings classify `confirm` or `forbidden` carries
-`"policy"` - without such a classification the output is the reference's,
-key for key.
-
-## Install
-
-Requires, in this order, each with [abapGit](https://abapgit.org):
+**Steps** - in this order, each with [abapGit](https://abapgit.org):
 
 1. [abap2UI5](https://github.com/abap2UI5/abap2UI5) - the framework
 2. [abap2UI5/headless-frontend](https://github.com/abap2UI5/headless-frontend) -
@@ -135,17 +101,8 @@ does not exist in ABAP Cloud, `if_http_service_extension` not on 7.50), so
 `.github/workflows/publish-branches.yaml` generates `standard` and `cloud` from
 every push to `main`.
 
-| Package | Objects |
-| --- | --- |
-| `src/01` engine | `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml`, `z2ui5_cl_agent_snapshot`, `z2ui5_cl_agent_session`, `z2ui5_cl_agent_settings`, `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp`; AI at runtime: `z2ui5_if_agent_llm`, `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http`, `z2ui5_cl_agent_llm` (factory, checks, audit), `z2ui5_cl_agent_llm_anthropic`, `z2ui5_cl_agent_llm_double`, `z2ui5_cl_agent_genui`, `z2ui5_cl_agent_gen_vocab` (generated), `z2ui5_cl_agent_assist` (copilot engine); tables `Z2UI5_T_AG_SET` (settings), `Z2UI5_T_AG_SES` (sessions), `Z2UI5_T_AG_LOG` (audit), `Z2UI5_T_AG_MCP` (MCP client sessions) |
-| `src/02` apps | `z2ui5_cl_agent_app_admin` (settings), `z2ui5_cl_agent_app_audit` (audit log), `z2ui5_cl_agent_demo` (an opted-in example app, with the copilot), `z2ui5_cl_agent_genui_demo` (generative UI), `z2ui5_cl_agent_copilot` (the copilot popup) |
-| `src/03` ABAP Standard entry | `z2ui5_cl_agent_http` and the ICF node `/sap/bc/z2ui5_agent`; `z2ui5_cl_agent_llm_std` (the language model's HTTP call, `cl_http_client`) |
-| `src/04` ABAP Cloud entry | `z2ui5_cl_agent_http_cloud`; `z2ui5_cl_agent_llm_cloud` (the language model's HTTP call, `cl_web_http_client_manager`) |
-
-## Enabling the endpoint
-
-The endpoint is **disabled** after installation - every tool call is refused
-until an administrator enables it.
+**Start** - the endpoint is **disabled** after installation - every tool call
+is refused until an administrator enables it.
 
 1. **Add the first agent administrator** - once, in the system, as a developer:
    execute `z2ui5_cl_agent_settings=>admin_add( '<USER>' )` and commit, e.g.
@@ -175,9 +132,14 @@ until an administrator enables it.
      business user via principal propagation / OAuth - is the user the agent
      runs as. The HTTP service and its scenario are system-specific objects
      and are not shipped in this repository.
-4. **Opt your apps in** (next section) - nothing is reachable before that.
+4. **Opt your apps in** ([Opting an app in](#opting-an-app-in)) - nothing is reachable before that.
 
-## Opting an app in
+Then connect a client ([Connecting a client](#connecting-a-client)) and ask it
+to `app_list`; `z2ui5_cl_agent_demo` is a complete opted-in example app.
+
+## Usage
+
+### Opting an app in
 
 ```abap
 CLASS zcl_sales_order_app DEFINITION PUBLIC.
@@ -200,7 +162,7 @@ can also allow classes that do not implement the interface (an `APP` rule with
 and classify events on top of what the app says - the stricter verdict wins.
 `z2ui5_cl_agent_demo` is a complete example.
 
-## Connecting a client
+### Connecting a client
 
 The endpoint speaks MCP *Streamable HTTP* (revisions 2025-11-25, 2025-06-18,
 2025-03-26 and 2024-11-05) with JSON responses; any client that supports
@@ -232,7 +194,7 @@ BTP destination-backed tool of a Joule agent (Joule Studio); the destination
 carries the authentication (principal propagation recommended, so Joule acts
 as the logged-on business user).
 
-## The tools
+### The tools
 
 | Tool | Input | Answer |
 | --- | --- | --- |
@@ -271,6 +233,72 @@ the next snapshot. So is an act whose values disable its action
 Every refusal is a tool result with `isError: true` and a sentence naming what
 was wrong and what is allowed - and a refused act sends nothing and changes
 nothing.
+
+## Architecture
+
+```
+ MCP client (Claude Code, Copilot Studio, Joule, ...)
+     |  POST /sap/bc/z2ui5_agent   JSON-RPC 2.0, MCP "Streamable HTTP"
+     |  logon: Basic / OAuth / certificate / principal propagation
+     v
+ z2ui5_cl_agent_http        (ABAP Standard: if_http_extension, ICF node)
+ z2ui5_cl_agent_http_cloud  (ABAP Cloud: if_http_service_extension)
+     |
+ z2ui5_cl_agent_mcp         initialize, ping, tools/list, tools/call; origin check, audit commit
+     |
+ z2ui5_cl_agent_session     app_list / app_start / app_describe / app_act
+     |    |      \__ z2ui5_cl_agent_settings   opt-in, policy (allowed/confirm/forbidden), admins
+     |    |      \__ z2ui5_cl_agent_audit      Z2UI5_T_AG_LOG
+     |    |      \__ Z2UI5_T_AG_SES            per session: simulator state, client work,
+     |    |                                    pending values, last snapshot (owner = sy-uname)
+     |    v
+     |  z2ui5_cl_agent_snapshot  layers + model -> agent snapshot v1 (+ the index an act needs)
+     |  z2ui5_cl_agent_viewxml   view XML, bindings, expressions, event wires
+     v
+ z2ui5_cl_frontend_simulator  (abap2UI5/headless-frontend)  start / resume / set_json / click / close_layer
+     v
+ abap2UI5 core: z2ui5_cl_ui5_handler -> your app's main( ) -> draft (Z2UI5_T_01)
+```
+
+Every MCP call is one HTTP request. A session survives between requests as the
+abap2UI5 **draft** (the backend state, owned by the user, expiring with the
+draft expiry of your abap2UI5 configuration) plus a row in `Z2UI5_T_AG_SES`
+(what the browser would remember: the view of every layer, the pending
+values). `app_describe` answers from that row without a roundtrip; `app_act`
+resumes the simulator from it.
+
+### Packages
+
+| Package | Objects |
+| --- | --- |
+| `src/01` engine | `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml`, `z2ui5_cl_agent_snapshot`, `z2ui5_cl_agent_session`, `z2ui5_cl_agent_settings`, `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp`; AI at runtime: `z2ui5_if_agent_llm`, `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http`, `z2ui5_cl_agent_llm` (factory, checks, audit), `z2ui5_cl_agent_llm_anthropic`, `z2ui5_cl_agent_llm_double`, `z2ui5_cl_agent_genui`, `z2ui5_cl_agent_gen_vocab` (generated), `z2ui5_cl_agent_assist` (copilot engine); tables `Z2UI5_T_AG_SET` (settings), `Z2UI5_T_AG_SES` (sessions), `Z2UI5_T_AG_LOG` (audit), `Z2UI5_T_AG_MCP` (MCP client sessions) |
+| `src/02` apps | `z2ui5_cl_agent_app_admin` (settings), `z2ui5_cl_agent_app_audit` (audit log), `z2ui5_cl_agent_demo` (an opted-in example app, with the copilot), `z2ui5_cl_agent_genui_demo` (generative UI), `z2ui5_cl_agent_copilot` (the copilot popup) |
+| `src/03` ABAP Standard entry | `z2ui5_cl_agent_http` and the ICF node `/sap/bc/z2ui5_agent`; `z2ui5_cl_agent_llm_std` (the language model's HTTP call, `cl_http_client`) |
+| `src/04` ABAP Cloud entry | `z2ui5_cl_agent_http_cloud`; `z2ui5_cl_agent_llm_cloud` (the language model's HTTP call, `cl_web_http_client_manager`) |
+
+## What an agent sees: agent snapshot v1
+
+The snapshot is the shared contract of three implementations - the
+[MCP server](https://github.com/abap2UI5/mcp-server) (Node, for development),
+the VS Code extension, and this addon - specified in
+[docs/agent-snapshot.md](https://github.com/abap2UI5/mcp-server/blob/main/docs/agent-snapshot.md)
+of the MCP server: `fields` (id, model path, label, kind, value, required,
+editable, choice values), `actions` (event, arguments with descriptors such as
+`$row:NAME`, label, trigger, enabled, row scope), `tables` (columns, the first
+rows, selection - the selection dialogs `SelectDialog` / `TableSelectDialog`
+included), `messages` (toast, message box, MessageStrip, value states, the
+app's message table, the items of a `MessagePopover` / `MessageView` with
+their subtitle and description), `texts`, `unsupported`, and `pending`.
+
+`z2ui5_cl_agent_snapshot` is an ABAP port of the reference implementation
+(`lib/viewxml.mjs`, `lib/snapshot.mjs`, mcp-server commit `6bd3cc3`). Measured
+against it on the 15 recorded sessions of the MCP server (every step, at 20
+and at 2 rows) plus 12 synthetic views (selection dialogs, row event
+arguments, message lists among them): **110 of 110 snapshots
+byte-identical**. One deliberate extension: an
+action the app or the settings classify `confirm` or `forbidden` carries
+`"policy"` - without such a classification the output is the reference's,
+key for key.
 
 ## Security model
 
@@ -634,7 +662,12 @@ first run, refreshed on every later one), `npm ci` in abap2UI5,
 headless-frontend's `src/` and this repository's `src/01` and `src/02` copied
 in as extra packages, `npm run downport && npm run auto_transpile`, then the
 generated tests - each one printed, exit code 1 on any failure or when none
-ran. The first run takes a few minutes. See [AGENTS.md](AGENTS.md).
+ran. The first run takes a few minutes.
+
+## Contributing
+
+Issues and pull requests are welcome. See [AGENTS.md](AGENTS.md) for the
+conventions of this repository.
 
 ## License
 

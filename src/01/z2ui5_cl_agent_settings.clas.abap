@@ -113,7 +113,7 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     "! Whether the user may change the settings. Nobody may until the first
     "! administrator is added - by admin_add( ) run in the system (README,
-    "! "Enabling the endpoint").
+    "! "Installation").
     CLASS-METHODS check_admin
       IMPORTING
         uname         TYPE clike OPTIONAL
@@ -353,7 +353,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
 
   METHOD admin_add.
 
-    " the bootstrap, run once in the system (README, "Enabling the endpoint") -
+    " the bootstrap, run once in the system (README, "Installation") -
     " committed here, as nothing else would commit it there
     save( kind  = cs_kind-admin
           app   = to_upper( uname )

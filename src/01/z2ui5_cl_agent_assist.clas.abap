@@ -681,6 +681,14 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       result-error = `only a validated proposal runs`.
       RETURN.
     ENDIF.
+    " the administrator's word counts at the click as well: a proposal made
+    " before the copilot (or its actions) was switched off does not run after
+    IF z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot ) = abap_false
+        OR z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot_act ) = abap_false.
+      result-error = `the copilot may not act on this system (setting copilot_act) - nothing was changed`.
+      result-session = session.
+      RETURN.
+    ENDIF.
     DATA(lo_session) = session_new( ).
     DATA(lv_fire) = xsdbool( is_proposal-event IS NOT INITIAL AND is_proposal-needs_human = abap_false ).
     " the session validates all of it again - and never fires a confirm or

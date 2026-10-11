@@ -26,6 +26,7 @@ CLASS ltcl_copilot DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGER
     METHODS protected_field_rejected FOR TESTING RAISING cx_static_check.
     METHODS confirm_needs_the_click FOR TESTING RAISING cx_static_check.
     METHODS act_off_answers_only FOR TESTING RAISING cx_static_check.
+    METHODS act_off_after_proposal FOR TESTING RAISING cx_static_check.
     METHODS switched_off FOR TESTING RAISING cx_static_check.
     METHODS agents_never_open_it FOR TESTING RAISING cx_static_check.
     METHODS multichoice_filled FOR TESTING RAISING cx_static_check.
@@ -320,6 +321,40 @@ CLASS ltcl_copilot IMPLEMENTATION.
                                         exp = `Erin` ).
     cl_abap_unit_assert=>assert_equals( act = sim->get_value( `STATUS` )
                                         exp = `` ).
+
+  ENDMETHOD.
+
+  METHOD act_off_after_proposal.
+
+    DATA(sim) = open( ).
+    mo_double->add_answer( answer( text    = `I can add a request for Dave.`
+                                   wanted  = abap_true
+                                   summary = `add a request for Dave`
+                                   event   = `ADD`
+                                   values  = `{"field":"/NAME","value":"Dave"}` ) ).
+    ask( sim      = sim
+         question = `Add a request for Dave` ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_value( name  = `HAS_PROPOSAL`
+                                                              layer = c_popup )
+                                        exp = `true` ).
+
+    " switched off while the proposal is on the screen - the click runs nothing
+    " (committed: the roundtrip of the click rolls back what is still open)
+    setting( item  = z2ui5_cl_agent_settings=>cs_llm-copilot_act
+             value = `off` ).
+    COMMIT WORK.
+    sim->click( event = `DO`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
+                                         exp = `*Not done: the copilot may not act on this system*` ).
+    sim->click( event = `CLOSE`
+                layer = c_popup ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_app( )
+                                        exp = c_demo ).
+    cl_abap_unit_assert=>assert_equals( act = sim->get_value( `STATUS` )
+                                        exp = `` ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( )
+                                         exp = `*"NAME":"Carol"*` ).
 
   ENDMETHOD.
 

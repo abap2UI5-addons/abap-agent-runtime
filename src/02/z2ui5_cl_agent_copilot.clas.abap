@@ -130,6 +130,9 @@ CLASS z2ui5_cl_agent_copilot IMPLEMENTATION.
 
   METHOD popup_display.
 
+    " afterClose: Escape closes the dialog in the browser alone - without
+    " the event the copilot stayed the current app, behind the caller's
+    " screen, whose events it ignores
     DATA(popup) = z2ui5_cl_ui5_view_builder=>factory( ).
     DATA(dialog) = popup->ele( n = `FragmentDefinition` ns = `core`
         )->a( n = `xmlns`      v = `sap.m`
@@ -137,7 +140,8 @@ CLASS z2ui5_cl_agent_copilot IMPLEMENTATION.
         )->ele( `Dialog`
             )->a( n = `title`        v = client->_bind( title )
             )->a( n = `contentWidth` v = `40rem`
-            )->a( n = `resizable`    v = `true` ).
+            )->a( n = `resizable`    v = `true`
+            )->a( n = `afterClose`   v = client->_event( `CLOSE` ) ).
 
     DATA(content) = dialog->ele( `content` ).
 

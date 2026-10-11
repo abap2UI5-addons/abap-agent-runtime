@@ -681,7 +681,7 @@ CLASS ltcl_session IMPLEMENTATION.
     ok( ls_result ).
     SELECT SINGLE args FROM z2ui5_t_ag_log
       WHERE uname = @sy-uname AND session_id = @ls_result-session AND operation = 'app_start'
-      INTO @DATA(lv_args).
+      INTO @DATA(lv_args). "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_subrc( ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"IBAN":"***"*`
                                          act = lv_args ).
@@ -703,7 +703,7 @@ CLASS ltcl_session IMPLEMENTATION.
     ok( ls_act ).
     SELECT SINGLE args FROM z2ui5_t_ag_log
       WHERE uname = @sy-uname AND session_id = @ls_act-session AND operation = 'app_act'
-      INTO @DATA(lv_args).
+      INTO @DATA(lv_args). "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_subrc( ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"IBAN":"***"*`
                                          act = lv_args ).
@@ -777,7 +777,7 @@ CLASS ltcl_session IMPLEMENTATION.
     COMMIT WORK.
     SELECT SINGLE args FROM z2ui5_t_ag_log
       WHERE uname = @sy-uname AND session_id = 'CUT_SURROGATE_PAIR' AND timestampl >= @mv_start
-      INTO @lv_args.
+      INTO @lv_args. "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_subrc( ).
     cl_abap_unit_assert=>assert_equals( exp = |{ repeat( val = `a`
                                                          occ = z2ui5_cl_agent_audit=>c_max_args - 4 ) }...|
@@ -818,7 +818,7 @@ CLASS ltcl_session IMPLEMENTATION.
     lo_sim->set_value( name  = `URL`
                        value = `/sap/bc/unit_handover` ).
     lo_sim->click( `URL_SAVE` ).
-    SELECT SINGLE value FROM z2ui5_t_ag_set WHERE kind = 'URL' INTO @DATA(lv_url).
+    SELECT SINGLE value FROM z2ui5_t_ag_set WHERE kind = 'URL' INTO @DATA(lv_url). "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_equals( exp = `/sap/bc/unit_handover`
                                         act = lv_url ).
     SELECT COUNT(*) FROM z2ui5_t_ag_log

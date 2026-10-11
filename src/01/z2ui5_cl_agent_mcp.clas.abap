@@ -626,7 +626,13 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDLOOP.
     lv_type = io_json->get_node_type( |{ lv_base }/values| ).
     IF lv_type = z2ui5_if_ajson_types=>node_type-object.
-      lv_values = io_json->slice( |{ lv_base }/values| )->stringify( ).
+      TRY.
+          lv_values = io_json->slice( |{ lv_base }/values| )->stringify( ).
+        CATCH z2ui5_cx_ajson_error INTO DATA(lx_values).
+          result = tool_result( text     = |values: { lx_values->get_text( ) }|
+                                is_error = abap_true ).
+          RETURN.
+      ENDTRY.
     ELSEIF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ajson_types=>node_type-null.
       result = tool_result( text     = `values is an object: { "<field id, path or name>": value }`
                             is_error = abap_true ).
@@ -634,7 +640,13 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDIF.
     lv_type = io_json->get_node_type( |{ lv_base }/args| ).
     IF lv_type = z2ui5_if_ajson_types=>node_type-array.
-      lv_args = io_json->slice( |{ lv_base }/args| )->stringify( ).
+      TRY.
+          lv_args = io_json->slice( |{ lv_base }/args| )->stringify( ).
+        CATCH z2ui5_cx_ajson_error INTO DATA(lx_args).
+          result = tool_result( text     = |args: { lx_args->get_text( ) }|
+                                is_error = abap_true ).
+          RETURN.
+      ENDTRY.
     ELSEIF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ajson_types=>node_type-null.
       result = tool_result( text     = `args is an array, positional to the action's args (null where the client should fill in the value)`
                             is_error = abap_true ).

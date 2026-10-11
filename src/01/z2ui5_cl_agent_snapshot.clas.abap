@@ -1195,13 +1195,18 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       DATA(lv_method_type) = lo_json->get_node_type( |/{ lv_base + 2 }| ).
       DATA(lv_text_path) = |/{ lv_base + 3 }|.
       DATA(lv_text_type) = lo_json->get_node_type( lv_text_path ).
-      DATA(lv_text) = COND string( WHEN lv_text_type = z2ui5_if_ajson_types=>node_type-object
-                                     OR lv_text_type = z2ui5_if_ajson_types=>node_type-array
-                                   THEN lo_json->slice( lv_text_path )->stringify( )
-                                   WHEN lv_text_type = z2ui5_if_ajson_types=>node_type-null
-                                     OR lv_text_type IS INITIAL
-                                   THEN ``
-                                   ELSE lo_json->get( lv_text_path ) ).
+      DATA(lv_text) = ``.
+      TRY.
+          lv_text = COND string( WHEN lv_text_type = z2ui5_if_ajson_types=>node_type-object
+                                   OR lv_text_type = z2ui5_if_ajson_types=>node_type-array
+                                 THEN lo_json->slice( lv_text_path )->stringify( )
+                                 WHEN lv_text_type = z2ui5_if_ajson_types=>node_type-null
+                                   OR lv_text_type IS INITIAL
+                                 THEN ``
+                                 ELSE lo_json->get( lv_text_path ) ).
+        CATCH z2ui5_cx_ajson_error.
+          CLEAR lv_text.
+      ENDTRY.
       DATA(lv_opt) = |/{ lv_base + 4 }|.
       DATA(lv_has_opt) = xsdbool( lo_json->get_node_type( lv_opt ) = z2ui5_if_ajson_types=>node_type-object ).
       CLEAR lv_onclose.
@@ -1296,7 +1301,11 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       WHILE lv_index <= lv_count.
         DATA(lv_type) = lo_json->get_node_type( |/{ lv_index }| ).
         IF lv_type = z2ui5_if_ajson_types=>node_type-object OR lv_type = z2ui5_if_ajson_types=>node_type-array.
-          INSERT lo_json->slice( |/{ lv_index }| )->stringify( ) INTO TABLE lt_part.
+          TRY.
+              INSERT lo_json->slice( |/{ lv_index }| )->stringify( ) INTO TABLE lt_part.
+            CATCH z2ui5_cx_ajson_error.
+              INSERT COND #( WHEN lv_type = z2ui5_if_ajson_types=>node_type-array THEN `[]` ELSE `{}` ) INTO TABLE lt_part.
+          ENDTRY.
         ELSEIF lv_type = z2ui5_if_ajson_types=>node_type-null.
           INSERT `null` INTO TABLE lt_part.
         ELSE.

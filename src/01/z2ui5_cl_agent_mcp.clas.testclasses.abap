@@ -90,14 +90,14 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS invalid_id          FOR TESTING.
     METHODS notification        FOR TESTING.
     METHODS ping                FOR TESTING.
-    METHODS initialize          FOR TESTING.
+    METHODS initialize          FOR TESTING RAISING cx_static_check.
     METHODS version_negotiation FOR TESTING.
     METHODS tools_list          FOR TESTING.
     METHODS unknown_method      FOR TESTING.
     METHODS unknown_tool        FOR TESTING.
     METHODS tool_argument_types FOR TESTING.
     METHODS unknown_argument    FOR TESTING.
-    METHODS tool_call_session   FOR TESTING.
+    METHODS tool_call_session   FOR TESTING RAISING cx_static_check.
     METHODS batch               FOR TESTING.
     METHODS batch_audit         FOR TESTING.
 
@@ -459,7 +459,7 @@ CLASS ltcl_mcp IMPLEMENTATION.
 
     " the audit entry carries the client of the MCP session
     DATA(lv_session) = CONV z2ui5_t_ag_log-session_id( lo_snap->get_string( `/session` ) ).
-    SELECT SINGLE mcp_client FROM z2ui5_t_ag_log WHERE session_id = @lv_session AND operation = 'app_start' INTO @DATA(lv_client).
+    SELECT SINGLE mcp_client FROM z2ui5_t_ag_log WHERE session_id = @lv_session AND operation = 'app_start' INTO @DATA(lv_client). "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_equals( exp = `unit-test 1.0`
                                         act = lv_client ).
 

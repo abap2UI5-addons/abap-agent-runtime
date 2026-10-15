@@ -12,6 +12,23 @@
 [![ABAP Unit](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ABAP_UNIT.yaml?branch=main&label=ABAP%20Unit)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ABAP_UNIT.yaml)
 [![check-abap2UI5](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/check-abap2UI5.yaml?branch=main&label=check-abap2UI5)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/check-abap2UI5.yaml)
 
+> **Status: experimental - not yet in a release; details can still
+> change.** Everything described here is on `main` and in the generated
+> `standard` / `cloud` branches, and is what the first release (0.1.0,
+> [CHANGELOG.md](CHANGELOG.md)) will carry. What works: the MCP endpoint with the four app tools, the agent
+> snapshot v1 (byte-identical with the reference on its recorded sessions),
+> opt-in, policy and audit, the language model client, generative UI and the
+> in-app copilot. How it is verified: the ABAP Unit tests of every class run
+> on abap2UI5's transpiled Node runtime (`ABAP_UNIT`), the sources lint as
+> ABAP Standard 7.50 and ABAP Cloud (`ABAP_STANDARD`, `ABAP_CLOUD`), and the
+> 7.02 downport is lint-only (`ABAP_702` - no 7.02 system has run it). It
+> has been pulled into a 7.5x on-premise system (the activation fixes of
+> 2026-10-08 came from that), not yet run in production use, and the ABAP
+> Cloud HTTP service setup is written down but still *to verify on your
+> system* ([Installation](#installation)). The API - `z2ui5_if_agent_app`,
+> the tool arguments, the `policy` snapshot extension, the settings - may
+> change before 1.0; CHANGELOG.md says when it does.
+
 **Every abap2UI5 app is agent-operable.** An ABAP-native
 [MCP](https://modelcontextprotocol.io) endpoint inside your SAP system: AI
 agents - Claude, Copilot Studio, Joule, any MCP client - read the screen of an
@@ -99,7 +116,12 @@ audit log ([AI at runtime](#ai-at-runtime)):
 HTTP entry classes cannot both activate on one system (`if_http_extension`
 does not exist in ABAP Cloud, `if_http_service_extension` not on 7.50), so
 `.github/workflows/publish-branches.yaml` generates `standard` and `cloud` from
-every push to `main`.
+every push to `main`. The branches move with `main`; a release tags them as
+`X.Y.Z-standard` and `X.Y.Z-cloud` ([RELEASING.md](RELEASING.md)), and
+abapGit pulls a tag like a branch - pin one to install a fixed version.
+There is no release yet (see [Status](#abap-agent-runtime) at the top); the
+installed version is `z2ui5_if_agent_app=>version`, which abapGit shows for
+the repository.
 
 **Start** - the endpoint is **disabled** after installation - every tool call
 is refused until an administrator enables it.
@@ -291,14 +313,20 @@ app's message table, the items of a `MessagePopover` / `MessageView` with
 their subtitle and description), `texts`, `unsupported`, and `pending`.
 
 `z2ui5_cl_agent_snapshot` is an ABAP port of the reference implementation
-(`lib/viewxml.mjs`, `lib/snapshot.mjs`, mcp-server commit `6bd3cc3`). Measured
-against it on the 15 recorded sessions of the MCP server (every step, at 20
-and at 2 rows) plus 12 synthetic views (selection dialogs, row event
-arguments, message lists among them): **110 of 110 snapshots
-byte-identical**. One deliberate extension: an
-action the app or the settings classify `confirm` or `forbidden` carries
-`"policy"` - without such a classification the output is the reference's,
-key for key.
+(`lib/viewxml.mjs`, `lib/snapshot.mjs`). Measured against it on the 15
+recorded sessions of the MCP server (every step, at 20 and at 2 rows) plus
+12 synthetic views (selection dialogs, row event arguments, message lists
+among them): **110 of 110 snapshots byte-identical** - measured at the
+reference's commit `6bd3cc3`, whose history has since been squashed; the
+reference's changes to the two modules up to its commit `dcadb48` (the
+parity base in AGENTS.md) are ported, the last one being how a
+`FormattedText` loses its tags. The snapshot validates against the
+normative schema, abap2UI5/protocol
+[`schema/snapshot.schema.json`](https://github.com/abap2UI5/protocol/blob/main/schema/snapshot.schema.json)
+(the unit tests' expected snapshots were checked against it). One deliberate
+extension: an action the app or the settings classify `confirm` or
+`forbidden` carries `"policy"` - without such a classification the output is
+the reference's, key for key.
 
 ## Security model
 
@@ -644,8 +672,14 @@ npm run lint            # abaplint, ABAP Standard 7.50, the strict rule set
 npm run lint:cloud      # ABAP Cloud
 npm run check:abap2ui5  # the abap2UI5 linter on the apps (package 02)
 npm run genui:check     # z2ui5_cl_agent_gen_vocab is what the pinned profile generates
+npm run check:version   # package.json, z2ui5_if_agent_app=>version and CHANGELOG.md agree
 npm run unit            # the ABAP Unit tests on abap2UI5's transpiled runtime
 ```
+
+`npm run check` runs everything but `unit`. Every user-visible change gets
+an entry under `## Unreleased` in [CHANGELOG.md](CHANGELOG.md);
+[RELEASING.md](RELEASING.md) is how a release is cut from it (one tag,
+`.github/workflows/release.yaml`).
 
 The ABAP_702 workflow downports `src/` - together with headless-frontend,
 cloned into `src/zz_headless_frontend` - and lints the result as 7.02 (CI only,

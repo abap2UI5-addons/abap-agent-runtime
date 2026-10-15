@@ -30,7 +30,9 @@ in step with every change.
 | `src/03/` | ABAP Standard entry: `z2ui5_cl_agent_http` (`if_http_extension`) + ICF node `/sap/bc/z2ui5_agent` (SICF); `z2ui5_cl_agent_llm_std` (the model's POST, `cl_http_client`) |
 | `src/04/` | ABAP Cloud entry: `z2ui5_cl_agent_http_cloud` (`if_http_service_extension`); `z2ui5_cl_agent_llm_cloud` (the model's POST, `cl_web_http_client_manager`) |
 | `.github/abaplint/` | `abap_cloud.jsonc` (excludes 03), `abap_702.jsonc` (excludes 04, downport) |
-| `.github/workflows/` | `ABAP_STANDARD`, `ABAP_CLOUD`, `ABAP_702`, `ABAP_UNIT`, `check-abap2UI5`, `genui-vocab`, `publish-branches` |
+| `.github/workflows/` | `ABAP_STANDARD`, `ABAP_CLOUD`, `ABAP_702`, `ABAP_UNIT`, `check-abap2UI5`, `genui-vocab`, `publish-branches`, `release` (on a tag only - RELEASING.md) |
+| `.github/scripts/release-gate.mjs` | `npm run check:version` (every push, part of `npm run check`) / `check:release` (before a tag; `release.yaml` runs it with `--tag`) - `package.json`, `z2ui5_if_agent_app=>version` and `CHANGELOG.md` agree |
+| `CHANGELOG.md`, `RELEASING.md` | what changed (every user-visible change under `## Unreleased`), and how a release is cut: one tag `X.Y.Z`, the generated branches tagged `X.Y.Z-standard` / `X.Y.Z-cloud` |
 | `.github/scripts/unit.mjs` | `npm run unit` - the ABAP Unit tests on abap2UI5's transpiled runtime, in `.unit/` (git-ignored); `ABAP_UNIT` runs it |
 | `.github/scripts/genui-vocab.mjs` | `npm run genui:vocab` / `genui:check` / `genui:drift` - generates `z2ui5_cl_agent_gen_vocab` from `.github/genui/portable-v1.json` (pinned copy of abap2UI5/protocol `profiles/portable-v1.json`) and the linter's UI5 metadata and icon data |
 | `abaplint.jsonc` | ABAP Standard 7.50, the strict rule set (excludes 04) |
@@ -44,11 +46,26 @@ in step with every change.
   Change the reference first, or record a deviation in README ("What an agent
   sees") - never drift silently. The unit tests compare whole snapshots against
   the reference's output; regenerate their fixtures from the reference, do not
-  edit expected JSON by hand. **Parity base:** abap2UI5/mcp-server
-  `6bd3cc3` ("Agent snapshot: selection dialogs and message lists") -
-  `lib/snapshot.mjs`, `lib/viewxml.mjs` and the act part of
-  `lib/appclient.mjs` (the pick, row event `$parameters`); diff the reference
-  from there when porting its next change, and move this line with it.
+  edit expected JSON by hand. The normative shape is abap2UI5/protocol
+  `profiles/semantic.md` + `schema/snapshot.schema.json` (the reference's
+  page points there); the expected snapshots of `ltcl_snapshot` validate
+  against that schema. **Parity base:** abap2UI5/mcp-server `dcadb48` ("npm
+  backend: transpile the dev apps WITH the framework on a release that
+  can") - `lib/snapshot.mjs`, `lib/viewxml.mjs` and the act part of
+  `lib/appclient.mjs` (the pick, the action re-read after the values, row
+  event `$parameters`); diff the reference from there when porting its next
+  change, and move this line with it. The earlier base `6bd3cc3` no longer
+  exists in the reference's history (squashed into `ea4e9fa`); of the
+  reference's changes since, only `stripTags` changed the output and is
+  ported, the rest is JS-specific (prototype paths, `Object.hasOwn`,
+  regex performance) or already how this addon behaved (`model:` key of a
+  binding, `${$parameters>/}` as a whole, the action re-read).
+- **The version lives in two files** - `package.json` and
+  `z2ui5_if_agent_app=>version` (`.abapgit.xml` `VERSION_CONSTANT`, what
+  abapGit shows in a system) - and is the *next* release; `npm run
+  check:version` keeps them together. Every user-visible change gets a line
+  under `## Unreleased` in `CHANGELOG.md`; RELEASING.md cuts the release.
+  Never put a release number in a comment or a workflow: it goes stale.
 - **Agents never fire `confirm` / `forbidden` events**, and the addon's own
   apps (`z2ui5_cl_agent_app_*`, the copilot `z2ui5_cl_agent_copilot*`) are
   never agent-operable (`z2ui5_cl_agent_settings=>check_app`); the copilot
@@ -125,7 +142,7 @@ in step with every change.
 
 ```
 npm ci
-npm run lint && npm run lint:cloud && npm run check:abap2ui5 && npm run genui:check
+npm run check       # lint, lint:cloud, check:abap2ui5, genui:check, check:version
 npm run unit        # ABAP Unit, transpiled - minutes on the first run
 ```
 

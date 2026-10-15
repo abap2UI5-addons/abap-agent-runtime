@@ -24,6 +24,11 @@
 "! state of it.
 INTERFACE z2ui5_if_agent_app PUBLIC.
 
+  "! The version of this addon - what abapGit shows for the repository
+  "! (.abapgit.xml VERSION_CONSTANT) and what a release tags; package.json
+  "! carries the same number (npm run check:version).
+  CONSTANTS version TYPE string VALUE `0.1.0`.
+
   CONSTANTS:
     "! What an agent may do with an event.
     "!   allowed   - an agent fires it like a user presses the button

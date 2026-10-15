@@ -1,0 +1,174 @@
+name: release
+
+# Cuts a release from one tag: the GitHub release for `X.Y.Z`, and the tags
+# `X.Y.Z-standard` and `X.Y.Z-cloud` on the two generated branches abapGit
+# installs from (publish-branches.yaml) - something that does not move, for
+# a system that pins what it pulled.
+#
+# It runs on a pushed tag ONLY - no branch push, no manual dispatch, so no
+# publishing step can ever run on a branch. It decides nothing:
+# it publishes what the tag points at, after checking that the tree agrees
+# with itself and is green on exactly that commit:
+#
+#   - the tag, package.json and z2ui5_if_agent_app=>version name the same
+#     version, CHANGELOG.md has its section and nothing is left under
+#     "## Unreleased" (.github/scripts/release-gate.mjs --tag)
+#   - npm run check (abaplint Standard and Cloud, the abap2UI5 linter, the
+#     generated vocabulary, check:version), npm run unit (the ABAP Unit tests
+#     on abap2UI5's transpiled runtime) and the 7.02 downport lint - the
+#     same steps the push workflows run, on the tagged commit rather than on
+#     whatever was green on main that day
+#   - the `standard` and `cloud` branch heads were generated from the tagged
+#     commit (their commit message names it) - a stale branch fails the job
+#     instead of being tagged as the release
+#
+# To cut a release (RELEASING.md is the longer version):
+#
+#   1. move the "## Unreleased" entries in CHANGELOG.md under
+#      "## X.Y.Z - YYYY-MM-DD"
+#   2. bump package.json AND src/01/z2ui5_if_agent_app.intf.abap
+#   3. npm run check:release
+#   4. commit, merge to main, wait for publish-branches to run green, then:
+#      git tag X.Y.Z && git push origin X.Y.Z
+#      (by name: --follow-tags pushes annotated tags only)
+#
+# The rehearsal is local: npm run check:release, npm run check, npm run unit
+# (RELEASING.md, step 3) - the same checks this job runs first.
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # belt and braces: should a trigger ever be added, still a tag push only
+    if: github.repository == 'abap2UI5-addons/abap-agent-runtime' && github.event_name == 'push' && github.ref_type == 'tag'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # the branch tags are placed on the generated branches, which have
+        # to be fetched
+        fetch-depth: 0
+    # what npm run unit builds in (ABAP_UNIT.yaml does the same)
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: abap2UI5/abap2UI5
+        ref: main
+        path: .unit/abap2UI5
+        persist-credentials: false
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: abap2UI5/headless-frontend
+        ref: main
+        path: .unit/headless-frontend
+        persist-credentials: false
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: .unit/abap2UI5/package-lock.json
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .unit/abap2UI5/node/deps
+        key: abap-deps-${{ runner.os }}-${{ hashFiles('.unit/abap2UI5/package-lock.json') }}
+    - run: npm ci
+
+    # Everything the tag claims, before anything is published. A mismatch
+    # found here costs a minute; found afterwards it costs a version number,
+    # because a pushed tag has already been fetched.
+    - name: The tag, the two versions and the changelog agree
+      env:
+        TAG: ${{ github.ref_name }}
+      run: node .github/scripts/release-gate.mjs --release --tag "$TAG"
+
+    - name: npm run check
+      run: npm run check
+
+    - name: npm run unit
+      run: npm run unit
+      env:
+        UNIT_NO_FETCH: '1'
+
+    # last of the checks: the downport rewrites src/ in place (ABAP_702.yaml
+    # does the same; nothing after this step reads the sources)
+    - name: 7.02 downport lint
+      run: |
+        mkdir -p src/zz_headless_frontend
+        cp .unit/headless-frontend/src/* src/zz_headless_frontend/
+        npm run downport
+        npx abaplint .github/abaplint/abap_702.jsonc
+
+    # The changelog section for this version, as the release body - from
+    # the file, so the release notes and the changelog never differ.
+    - name: Release notes from CHANGELOG.md
+      id: notes
+      run: |
+        VERSION="$(node -p "require('./package.json').version")"
+        node -e '
+          const fs = require("fs");
+          const version = process.argv[1];
+          const sections = fs.readFileSync("CHANGELOG.md", "utf8").split(/^(?=## )/m).filter((s) => s.startsWith("## "));
+          const head = (s) => s.split("\n")[0].trim();
+          const at = sections.find((s) => head(s).startsWith("## " + version + " - ") && /^## \S+ - \d{4}-\d{2}-\d{2}$/.test(head(s)));
+          if (!at) { console.error(`no CHANGELOG.md section for ${version}`); process.exit(1); }
+          fs.writeFileSync("release-notes.md", at.split("\n").slice(1).join("\n").trim() + "\n");
+        ' "$VERSION"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "--- release notes ---"
+        cat release-notes.md
+
+    # The two branches abapGit installs from. publish-branches.yaml rebuilds
+    # them from main on every push, so at tag time they already hold the
+    # released commit without the other platform's entry package - but that
+    # is a promise about the workflow, not about this moment: a failed or
+    # still-running generation would let this step tag a stale branch. The
+    # generated commit's message names the main commit it was built from;
+    # assert it names the one being released before anything immutable is
+    # created.
+    - name: The generated branches were built from this commit
+      run: |
+        for BRANCH in standard cloud; do
+          git fetch origin "$BRANCH:$BRANCH"
+          echo "$BRANCH head: $(git log -1 --format='%h %s' "$BRANCH")"
+          if ! git log -1 --format=%s "$BRANCH" | grep -q "generate $BRANCH from $GITHUB_SHA"; then
+            echo "::error::The $BRANCH branch head was not generated from $GITHUB_SHA."
+            echo "::error::publish-branches has not rebuilt $BRANCH from the release commit yet - wait for its run on this commit to finish green, then re-run this job."
+            exit 1
+          fi
+        done
+
+    - name: Publish the release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.notes.outputs.version }}
+      run: |
+        gh release create "$VERSION" \
+          --title "$VERSION" \
+          --notes-file release-notes.md \
+          --verify-tag
+
+    - name: Tag the generated branches
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.notes.outputs.version }}
+      run: |
+        for BRANCH in standard cloud; do
+          git tag "$VERSION-$BRANCH" "$BRANCH"
+          git push origin "$VERSION-$BRANCH"
+          gh release create "$VERSION-$BRANCH" \
+            --title "$VERSION-$BRANCH" \
+            --notes "[$VERSION](../../releases/tag/$VERSION) as abapGit installs it on ABAP ${BRANCH/standard/Standard}: the \`$BRANCH\` branch generated from the release commit by publish-branches (main without the other platform's entry package). Pull this tag instead of the moving branch to pin the installed version." \
+            --verify-tag
+        done

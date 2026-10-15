@@ -3442,6 +3442,17 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                       off = lv_pos ).
         RETURN.
       ENDIF.
+      " the reference's <[^<>]*>: a tag holds no `<`, so it starts at the
+      " last `<` before its `>` - what stands in front of that is text
+      DO.
+        DATA(lv_next) = find( val = val
+                              sub = `<`
+                              off = lv_lt + 1 ).
+        IF lv_next < 0 OR lv_next > lv_gt.
+          EXIT.
+        ENDIF.
+        lv_lt = lv_next.
+      ENDDO.
       result = result && substring( val = val
                                     off = lv_pos
                                     len = lv_lt - lv_pos ) && ` `.

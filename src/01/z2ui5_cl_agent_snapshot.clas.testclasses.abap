@@ -25,6 +25,7 @@ CLASS ltcl_snapshot DEFINITION FINAL
     METHODS secret_path     FOR TESTING.
     METHODS named_model_key FOR TESTING.
     METHODS text_sources    FOR TESTING.
+    METHODS formatted_tags  FOR TESTING.
 
     METHODS synthetic
       IMPORTING
@@ -482,6 +483,19 @@ CLASS ltcl_snapshot IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = -1
                                         act = find( val = lo_snap->get_json( )
                                                     sub = `t_path` ) ).
+
+  ENDMETHOD.
+
+  METHOD formatted_tags.
+
+    " a FormattedText loses its tags, as the reference strips them: a tag
+    " holds no `<` (lib/snapshot.mjs stripTags, <[^<>]*>), so a stray `<`
+    " in front of one is text and one without a `>` stays
+    DATA(lo_snap) = synthetic( xml   = `<FormattedText htmlText="a &lt;b &lt;i&gt;c&lt;/i&gt;"/>` &&
+                                       `<FormattedText htmlText="x &lt;y"/>`
+                               model = `{}` ).
+    cl_abap_unit_assert=>assert_char_cp( exp = `*"texts":["a <b c","x <y"]*`
+                                         act = lo_snap->get_json( ) ).
 
   ENDMETHOD.
 

@@ -681,9 +681,11 @@ an entry under `## Unreleased` in [CHANGELOG.md](CHANGELOG.md);
 [RELEASING.md](RELEASING.md) is how a release is cut from it (one tag,
 `.github/workflows/release.yaml`).
 
-The ABAP_702 workflow downports `src/` - together with headless-frontend,
-cloned into `src/zz_headless_frontend` - and lints the result as 7.02 (CI only,
-never commit downported source).
+The ABAP_702 workflow downports `src/` and lints the result as 7.02 against the
+702 branches of abap2UI5 and headless-frontend. On every push to `main`,
+publish-702 writes the downported source (without package 04) to the `702`
+branch - install from there on NetWeaver 7.02, together with the `702` branches
+of abap2UI5 and headless-frontend. Never commit to it.
 
 **Unit tests.** `npm run unit` runs the `Z2UI5_CL_AGENT*` tests - all of them,
 the `DANGEROUS` ones included - on the transpiled runtime abap2UI5 uses for its

@@ -55,14 +55,14 @@ and by its lint targets, not yet on a system in production use, and its API -
   `confirm`, `forbidden`) and its sensitive paths in `describe( )`;
   administrators allow or deny apps, classify events and mark fields in the
   settings app `z2ui5_cl_agent_app_admin` (`z2ui5_cl_agent_settings`, table
-  `Z2UI5_T_AG_SET`). The endpoint is disabled after installation until an
+  `Z2UI5_T_17`). The endpoint is disabled after installation until an
   administrator enables it.
 - Agents never fire `confirm` or `forbidden` events: a `confirm` event is
   refused with the handover URL of the prepared draft, so the user presses
   the button in the browser.
-- Every call is logged (`z2ui5_cl_agent_audit`, `Z2UI5_T_AG_LOG`, the audit
+- Every call is logged (`z2ui5_cl_agent_audit`, `Z2UI5_T_14`, the audit
   app `z2ui5_cl_agent_app_audit`), sensitive values masked; sessions in
-  `Z2UI5_T_AG_SES`, MCP sessions in `Z2UI5_T_AG_MCP`, always filtered by the
+  `Z2UI5_T_16`, MCP sessions in `Z2UI5_T_15`, always filtered by the
   request's user.
 - `z2ui5_cl_agent_demo`: an opted-in example app with the copilot, driven by
   the unit tests.

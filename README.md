@@ -99,6 +99,18 @@ audit log ([AI at runtime](#ai-at-runtime)):
   [abap2UI5/headless-frontend](https://github.com/abap2UI5/headless-frontend),
   the simulator this addon runs on - installed first, see the steps
 
+**Renumbered tables (2026-11).** The tables follow the numbering all addons share now: `Z2UI5_T_AG_LOG` is `Z2UI5_T_14`, `Z2UI5_T_AG_MCP` is `Z2UI5_T_15`, `Z2UI5_T_AG_SES` is `Z2UI5_T_16`, `Z2UI5_T_AG_SET` is `Z2UI5_T_17`. The pull creates the new tables empty, and the data stays in the old ones. Copy it once per client before you delete an old table - for each pair, in a scratch report:
+
+```abap
+DATA lr_rows TYPE REF TO data.
+FIELD-SYMBOLS <rows> TYPE STANDARD TABLE.
+CREATE DATA lr_rows TYPE STANDARD TABLE OF ('Z2UI5_T_14').
+ASSIGN lr_rows->* TO <rows>.
+SELECT * FROM ('Z2UI5_T_AG_LOG') INTO TABLE <rows>.
+MODIFY ('Z2UI5_T_14') FROM TABLE <rows>.
+COMMIT WORK.
+```
+
 **Steps** - in this order, each with [abapGit](https://abapgit.org):
 
 1. [abap2UI5](https://github.com/abap2UI5/abap2UI5) - the framework
@@ -270,8 +282,8 @@ nothing.
      |
  z2ui5_cl_agent_session     app_list / app_start / app_describe / app_act
      |    |      \__ z2ui5_cl_agent_settings   opt-in, policy (allowed/confirm/forbidden), admins
-     |    |      \__ z2ui5_cl_agent_audit      Z2UI5_T_AG_LOG
-     |    |      \__ Z2UI5_T_AG_SES            per session: simulator state, client work,
+     |    |      \__ z2ui5_cl_agent_audit      Z2UI5_T_14
+     |    |      \__ Z2UI5_T_16                per session: simulator state, client work,
      |    |                                    pending values, last snapshot (owner = sy-uname)
      |    v
      |  z2ui5_cl_agent_snapshot  layers + model -> agent snapshot v1 (+ the index an act needs)
@@ -284,7 +296,7 @@ nothing.
 
 Every MCP call is one HTTP request. A session survives between requests as the
 abap2UI5 **draft** (the backend state, owned by the user, expiring with the
-draft expiry of your abap2UI5 configuration) plus a row in `Z2UI5_T_AG_SES`
+draft expiry of your abap2UI5 configuration) plus a row in `Z2UI5_T_16`
 (what the browser would remember: the view of every layer, the pending
 values). `app_describe` answers from that row without a roundtrip; `app_act`
 resumes the simulator from it.
@@ -293,7 +305,7 @@ resumes the simulator from it.
 
 | Package | Objects |
 | --- | --- |
-| `src/01` engine | `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml`, `z2ui5_cl_agent_snapshot`, `z2ui5_cl_agent_session`, `z2ui5_cl_agent_settings`, `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp`; AI at runtime: `z2ui5_if_agent_llm`, `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http`, `z2ui5_cl_agent_llm` (factory, checks, audit), `z2ui5_cl_agent_llm_anthropic`, `z2ui5_cl_agent_llm_double`, `z2ui5_cl_agent_genui`, `z2ui5_cl_agent_gen_vocab` (generated), `z2ui5_cl_agent_assist` (copilot engine); tables `Z2UI5_T_AG_SET` (settings), `Z2UI5_T_AG_SES` (sessions), `Z2UI5_T_AG_LOG` (audit), `Z2UI5_T_AG_MCP` (MCP client sessions) |
+| `src/01` engine | `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml`, `z2ui5_cl_agent_snapshot`, `z2ui5_cl_agent_session`, `z2ui5_cl_agent_settings`, `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp`; AI at runtime: `z2ui5_if_agent_llm`, `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http`, `z2ui5_cl_agent_llm` (factory, checks, audit), `z2ui5_cl_agent_llm_anthropic`, `z2ui5_cl_agent_llm_double`, `z2ui5_cl_agent_genui`, `z2ui5_cl_agent_gen_vocab` (generated), `z2ui5_cl_agent_assist` (copilot engine); tables `Z2UI5_T_17` (settings), `Z2UI5_T_16` (sessions), `Z2UI5_T_14` (audit), `Z2UI5_T_15` (MCP client sessions) |
 | `src/02` apps | `z2ui5_cl_agent_app_admin` (settings), `z2ui5_cl_agent_app_audit` (audit log), `z2ui5_cl_agent_demo` (an opted-in example app, with the copilot), `z2ui5_cl_agent_genui_demo` (generative UI), `z2ui5_cl_agent_copilot` (the copilot popup) |
 | `src/03` ABAP Standard entry | `z2ui5_cl_agent_http` and the ICF node `/sap/bc/z2ui5_agent`; `z2ui5_cl_agent_llm_std` (the language model's HTTP call, `cl_http_client`) |
 | `src/04` ABAP Cloud entry | `z2ui5_cl_agent_http_cloud`; `z2ui5_cl_agent_llm_cloud` (the language model's HTTP call, `cl_web_http_client_manager`) |
@@ -347,7 +359,7 @@ the reference's, key for key.
   draft service binds drafts to their creator, and a session expires with its
   draft. Only the current draft id of a session is accepted - as it was
   answered: an id with anything appended is unknown, never its prefix.
-- **Audit log** (`Z2UI5_T_AG_LOG`, app `z2ui5_cl_agent_app_audit`): timestamp,
+- **Audit log** (`Z2UI5_T_14`, app `z2ui5_cl_agent_app_audit`): timestamp,
   user, session, app, operation, event, arguments (truncated; values masked for
   password inputs - and any field on the model path of one - and for fields
   the app or the settings mark sensitive),
@@ -430,7 +442,7 @@ user's click.
  z2ui5_cl_agent_genui         z2ui5_cl_agent_assist  ->  z2ui5_cl_agent_session (mode copilot)
      \________________   ________/                         snapshot, app_check, app_act, policy
                       v v
- z2ui5_cl_agent_llm   factory + wrapper: settings, stop reasons, JSON, audit (Z2UI5_T_AG_LOG)
+ z2ui5_cl_agent_llm   factory + wrapper: settings, stop reasons, JSON, audit (Z2UI5_T_14)
      |
  z2ui5_if_agent_llm   z2ui5_cl_agent_llm_anthropic | your class (AI Core, Bedrock, ...) | the double
      |
@@ -444,7 +456,7 @@ administrators only - every change is audited):
 
 | Setting | |
 | --- | --- |
-| API key | sent as `x-api-key`. Write-only: the app shows *set* / *not set*, never the key; *Remove key* deletes it. A typed key is cleared after every event, so it never stays in the app's draft - only *Save* stores it. Stored in `Z2UI5_T_AG_SET` (kind `LLM`) - protect the table like any credential store, or leave the key empty and let the destination authenticate |
+| API key | sent as `x-api-key`. Write-only: the app shows *set* / *not set*, never the key; *Remove key* deletes it. A typed key is cleared after every event, so it never stays in the app's draft - only *Save* stores it. Stored in `Z2UI5_T_17` (kind `LLM`) - protect the table like any credential store, or leave the key empty and let the destination authenticate |
 | Destination | **ABAP Standard:** an SM59 destination of type G (host `api.anthropic.com`, port 443, SSL active, client identity `ANONYM` or `DFAULT`, proxy if your landscape needs one); the URL field is then the path (default `/v1/messages`). **ABAP Cloud:** a communication arrangement as `SCENARIO/SERVICE_ID` (or `SCENARIO/SERVICE_ID/COMM_SYSTEM`) - a customer communication scenario with an outbound HTTP service whose system points at `https://api.anthropic.com` (*to verify on your system*) |
 | URL | without a destination the full URL, default `https://api.anthropic.com/v1/messages` (ABAP Standard: the server certificate chain must be in the `ANONYM` PSE, `STRUST`; ABAP Cloud: `cl_http_destination_provider=>create_by_url`) |
 | Model / effort | default `claude-opus-5-5` / `low` (thinking is always on for this model and is never configured; `output_config.effort` is the only control - `low` keeps generated views and answers interactive) |
@@ -493,7 +505,7 @@ and enter `ZCL_LLM_AI_CORE` as the provider class. Unit tests use
 
 ### Privacy and audit
 
-- **Every call is audited** in `Z2UI5_T_AG_LOG` (written in the caller's
+- **Every call is audited** in `Z2UI5_T_14` (written in the caller's
   LUW - the endpoint, `generate( )` and the copilot commit it; operation `llm`, visible in
   `z2ui5_cl_agent_app_audit`): user, app, purpose (`genui`, `copilot`,
   `test`), provider, model, effort, stop reason, input and output tokens,

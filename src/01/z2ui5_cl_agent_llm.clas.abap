@@ -14,7 +14,7 @@
 "! of the settings, refuses an answer that stopped for refusal, max_tokens
 "! or a full context window (z2ui5_cx_agent_llm - never parsed), parses a
 "! structured answer into json, and writes one audit entry per call into
-"! Z2UI5_T_AG_LOG (operation llm): who, which app, purpose, model, tokens,
+"! Z2UI5_T_14 (operation llm): who, which app, purpose, model, tokens,
 "! duration, outcome - the prompt and the answer only when the setting
 "! log_prompts is on.
 "!

@@ -104,7 +104,7 @@
       "patternKind": "required",
       "clas": "^Z2UI5_C[LX]_AGENT",
       "intf": "^Z2UI5_IF_AGENT",
-      "tabl": "^Z2UI5_T_AG_"
+      "tabl": "^Z2UI5_T_\\d{2}$"
     },
     "functional_writing": true,
     "no_chained_assignment": true,

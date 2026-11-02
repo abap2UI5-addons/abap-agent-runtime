@@ -7,7 +7,7 @@
 "! protocol inside ABAP, so every act runs the app's own main( ) as the
 "! SAP user of the request, with the app's own validation and authority
 "! checks. Every operation is one HTTP request; between requests a session
-"! lives in Z2UI5_T_AG_SES: the simulator's get_state( ) (the view of
+"! lives in Z2UI5_T_16: the simulator's get_state( ) (the view of
 "! every layer), the client work of the last response, the pending values
 "! and the last snapshot - so app_describe needs no roundtrip and app_act
 "! resume( )s the session. A session belongs to its user only and expires
@@ -201,10 +201,10 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA mv_mode TYPE string.
     DATA mv_dry_run TYPE abap_bool.
     DATA mo_sim TYPE REF TO z2ui5_cl_frontend_simulator.
-    DATA ms_row TYPE z2ui5_t_ag_ses.
+    DATA ms_row TYPE z2ui5_t_16.
     "! changed_at before and after claim( ), for release( ).
-    DATA mv_claimed_from TYPE z2ui5_t_ag_ses-changed_at.
-    DATA mv_claimed_until TYPE z2ui5_t_ag_ses-changed_at.
+    DATA mv_claimed_from TYPE z2ui5_t_16-changed_at.
+    DATA mv_claimed_until TYPE z2ui5_t_16-changed_at.
     "! How long a claim holds a session - longer than any request runs.
     CONSTANTS c_claim_seconds TYPE i VALUE 600.
     DATA mt_custom TYPE string_table.
@@ -757,7 +757,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             mo_sim = z2ui5_cl_frontend_simulator=>resume( id    = ms_row-id
                                                           state = ms_row-state ).
           CATCH cx_root INTO DATA(lx_resume).
-            DELETE FROM z2ui5_t_ag_ses WHERE id = @ms_row-id.
+            DELETE FROM z2ui5_t_16 WHERE id = @ms_row-id.
             fail( |session '{ ms_row-id }' cannot be continued - { lx_resume->get_text( ) }; app_start { ms_row-app_start } again| ).
         ENDTRY.
         analyze( ).
@@ -1019,7 +1019,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   METHOD load.
 
-    DATA lv_id TYPE z2ui5_t_ag_ses-id.
+    DATA lv_id TYPE z2ui5_t_16-id.
     DATA lt_open TYPE string_table.
     DATA lt_pending_db TYPE ty_t_pending_db.
 
@@ -1032,18 +1032,18 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DATA(lv_fits) = xsdbool( lv_id = condense( session ) ).
     DATA(lv_found) = abap_false.
     IF lv_fits = abap_true.
-      SELECT SINGLE * FROM z2ui5_t_ag_ses WHERE id = @lv_id AND uname = @sy-uname INTO @ms_row.
+      SELECT SINGLE * FROM z2ui5_t_16 WHERE id = @lv_id AND uname = @sy-uname INTO @ms_row.
       lv_found = xsdbool( sy-subrc = 0 ).
     ENDIF.
     IF lv_found = abap_false.
       IF lv_fits = abap_true.
-        SELECT SINGLE id FROM z2ui5_t_ag_ses WHERE id_prev = @lv_id AND uname = @sy-uname INTO @DATA(lv_current). "#EC CI_NOORDER
+        SELECT SINGLE id FROM z2ui5_t_16 WHERE id_prev = @lv_id AND uname = @sy-uname INTO @DATA(lv_current). "#EC CI_NOORDER
         IF sy-subrc = 0.
           fail( |session '{ lv_id }' is an earlier state of this app session - continue with the current one: | &&
                 |'{ lv_current }' (app_describe shows it)| ).
         ENDIF.
       ENDIF.
-      SELECT id, app FROM z2ui5_t_ag_ses WHERE uname = @sy-uname ORDER BY changed_at DESCENDING INTO TABLE @DATA(lt_session).
+      SELECT id, app FROM z2ui5_t_16 WHERE uname = @sy-uname ORDER BY changed_at DESCENDING INTO TABLE @DATA(lt_session).
       LOOP AT lt_session INTO DATA(ls_session).
         INSERT |{ ls_session-id } ({ ls_session-app })| INTO TABLE lt_open.
       ENDLOOP.
@@ -1055,7 +1055,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                          time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
                          seconds = 3600 * z2ui5_cl_agent_settings=>get_expiry_hours( ) ).
     IF ms_row-changed_at < lv_limit.
-      DELETE FROM z2ui5_t_ag_ses WHERE id = @lv_id.
+      DELETE FROM z2ui5_t_16 WHERE id = @lv_id.
       fail( |session '{ lv_id }' expired with its draft - app_start { ms_row-app_start } again| ).
     ENDIF.
 
@@ -1097,7 +1097,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDIF.
     DATA(lv_until) = z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = lv_now
                                                                        seconds = 0 - c_claim_seconds ).
-    UPDATE z2ui5_t_ag_ses SET changed_at = @lv_until
+    UPDATE z2ui5_t_16 SET changed_at = @lv_until
       WHERE id = @ms_row-id AND uname = @sy-uname AND changed_at = @ms_row-changed_at.
     IF sy-dbcnt = 0.
       fail( |session '{ ms_row-id }' is being continued by another call - wait for its answer and act on the session it returns| ).
@@ -1114,7 +1114,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     IF mv_claimed_until IS INITIAL.
       RETURN.
     ENDIF.
-    UPDATE z2ui5_t_ag_ses SET changed_at = @mv_claimed_from
+    UPDATE z2ui5_t_16 SET changed_at = @mv_claimed_from
       WHERE id = @ms_row-id AND uname = @sy-uname AND changed_at = @mv_claimed_until.
     COMMIT WORK.
     ms_row-changed_at = mv_claimed_from.
@@ -1159,17 +1159,17 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDIF.
 
     IF id_old IS NOT INITIAL AND id_old <> mo_sim->get_id( ).
-      DELETE FROM z2ui5_t_ag_ses WHERE id = @id_old.
+      DELETE FROM z2ui5_t_16 WHERE id = @id_old.
       ms_row-id_prev = id_old.
     ENDIF.
     ms_row-id = mo_sim->get_id( ).
-    MODIFY z2ui5_t_ag_ses FROM @ms_row.
+    MODIFY z2ui5_t_16 FROM @ms_row.
 
     " sessions whose drafts are gone are gone as well
     DATA(lv_limit) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
                          time    = ms_row-changed_at
                          seconds = 3600 * z2ui5_cl_agent_settings=>get_expiry_hours( ) ).
-    DELETE FROM z2ui5_t_ag_ses WHERE changed_at < @lv_limit.
+    DELETE FROM z2ui5_t_16 WHERE changed_at < @lv_limit.
 
   ENDMETHOD.
 
@@ -2623,7 +2623,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDTRY.
     IF mo_sim->is_sticky( ) = abap_true.
       app_rollback( ).
-      DELETE FROM z2ui5_t_ag_ses WHERE id = @ms_row-id.
+      DELETE FROM z2ui5_t_16 WHERE id = @ms_row-id.
       fail( |the app switched to a stateful session (set_session_stateful) - such a session lives in one request only, | &&
             |so this agent session ended; app_start { ms_row-app_start } again| ).
     ENDIF.

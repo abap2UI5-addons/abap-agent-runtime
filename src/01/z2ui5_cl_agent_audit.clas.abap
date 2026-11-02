@@ -1,4 +1,4 @@
-"! The audit log of the agent endpoint - table Z2UI5_T_AG_LOG.
+"! The audit log of the agent endpoint - table Z2UI5_T_14.
 "!
 "! One row per tool call: when, which SAP user, which session and app,
 "! which operation and event, the arguments (values masked where the app
@@ -37,7 +37,7 @@ CLASS z2ui5_cl_agent_audit DEFINITION PUBLIC FINAL CREATE PUBLIC.
         client    TYPE string,
       END OF ty_s_entry.
 
-    TYPES ty_t_log TYPE STANDARD TABLE OF z2ui5_t_ag_log WITH EMPTY KEY.
+    TYPES ty_t_log TYPE STANDARD TABLE OF z2ui5_t_14 WITH EMPTY KEY.
 
     CLASS-METHODS log
       IMPORTING
@@ -74,7 +74,7 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
 
   METHOD log.
 
-    DATA ls_row TYPE z2ui5_t_ag_log.
+    DATA ls_row TYPE z2ui5_t_14.
 
     TRY.
         ls_row-id = z2ui5_cl_ui5_util_context=>uuid_get_c32( ).
@@ -92,7 +92,7 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
           ls_row-args = |{ z2ui5_cl_agent_viewxml=>cut( val = ls_row-args
                                                         len = c_max_args - 3 ) }...|.
         ENDIF.
-        INSERT z2ui5_t_ag_log FROM @ls_row.
+        INSERT z2ui5_t_14 FROM @ls_row.
       CATCH cx_root ##NO_HANDLER.
         " the audit must never break the call it records
     ENDTRY.
@@ -101,8 +101,8 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
 
   METHOD read.
 
-    DATA lt_uname TYPE RANGE OF z2ui5_t_ag_log-uname.
-    DATA lt_outcome TYPE RANGE OF z2ui5_t_ag_log-outcome.
+    DATA lt_uname TYPE RANGE OF z2ui5_t_14-uname.
+    DATA lt_outcome TYPE RANGE OF z2ui5_t_14-outcome.
 
     IF uname IS SUPPLIED.
       INSERT VALUE #( sign = `I` option = `EQ` low = to_upper( uname ) ) INTO TABLE lt_uname.
@@ -112,7 +112,7 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
     IF outcome IS NOT INITIAL.
       INSERT VALUE #( sign = `I` option = `EQ` low = outcome ) INTO TABLE lt_outcome.
     ENDIF.
-    SELECT * FROM z2ui5_t_ag_log WHERE uname IN @lt_uname AND outcome IN @lt_outcome
+    SELECT * FROM z2ui5_t_14 WHERE uname IN @lt_uname AND outcome IN @lt_outcome
       ORDER BY timestampl DESCENDING
       INTO TABLE @result
       UP TO @max_rows ROWS.
@@ -129,7 +129,7 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
     DATA(lv_limit) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
                          time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
                          seconds = days * 86400 ).
-    DELETE FROM z2ui5_t_ag_log WHERE timestampl < @lv_limit.
+    DELETE FROM z2ui5_t_14 WHERE timestampl < @lv_limit.
     result = sy-dbcnt.
 
   ENDMETHOD.

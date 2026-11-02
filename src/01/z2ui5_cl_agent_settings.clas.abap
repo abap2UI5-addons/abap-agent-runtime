@@ -1,4 +1,4 @@
-"! The agent endpoint's settings and policy - table Z2UI5_T_AG_SET.
+"! The agent endpoint's settings and policy - table Z2UI5_T_17.
 "!
 "! One row per setting, keyed by KIND / APP / ITEM:
 "!   ENABLED    APP *            VALUE X       the endpoint answers tool calls
@@ -83,7 +83,7 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
     "! forbidden for agents on every screen: the copilot is for people.
     CONSTANTS c_copilot_event TYPE string VALUE `Z2UI5_AGENT_COPILOT`.
 
-    TYPES ty_t_setting TYPE STANDARD TABLE OF z2ui5_t_ag_set WITH EMPTY KEY.
+    TYPES ty_t_setting TYPE STANDARD TABLE OF z2ui5_t_17 WITH EMPTY KEY.
 
     TYPES:
       "! An app an agent may start. source: interface (it implements
@@ -293,7 +293,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     IF gv_loaded = abap_true.
       RETURN.
     ENDIF.
-    SELECT * FROM z2ui5_t_ag_set INTO TABLE @gt_setting ORDER BY PRIMARY KEY.
+    SELECT * FROM z2ui5_t_17 INTO TABLE @gt_setting ORDER BY PRIMARY KEY.
     gv_loaded = abap_true.
 
   ENDMETHOD.
@@ -364,7 +364,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
 
   METHOD save.
 
-    DATA ls_row TYPE z2ui5_t_ag_set.
+    DATA ls_row TYPE z2ui5_t_17.
 
     ls_row-kind = to_upper( kind ).
     ls_row-app = to_upper( app ).
@@ -372,14 +372,14 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ls_row-value = value.
     ls_row-changed_by = sy-uname.
     ls_row-changed_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
-    MODIFY z2ui5_t_ag_set FROM @ls_row.
+    MODIFY z2ui5_t_17 FROM @ls_row.
     refresh( ).
 
   ENDMETHOD.
 
   METHOD check_fits.
 
-    DATA ls_row TYPE z2ui5_t_ag_set.
+    DATA ls_row TYPE z2ui5_t_17.
 
     " the characters the columns hold
     DATA(lv_app) = CAST cl_abap_elemdescr( cl_abap_typedescr=>describe_by_data( ls_row-app ) )->output_length.
@@ -397,14 +397,14 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
 
   METHOD remove.
 
-    DATA lv_kind TYPE z2ui5_t_ag_set-kind.
-    DATA lv_app TYPE z2ui5_t_ag_set-app.
-    DATA lv_item TYPE z2ui5_t_ag_set-item.
+    DATA lv_kind TYPE z2ui5_t_17-kind.
+    DATA lv_app TYPE z2ui5_t_17-app.
+    DATA lv_item TYPE z2ui5_t_17-item.
 
     lv_kind = to_upper( kind ).
     lv_app = to_upper( app ).
     lv_item = to_upper( item ).
-    DELETE FROM z2ui5_t_ag_set WHERE kind = @lv_kind AND app = @lv_app AND item = @lv_item.
+    DELETE FROM z2ui5_t_17 WHERE kind = @lv_kind AND app = @lv_app AND item = @lv_item.
     refresh( ).
 
   ENDMETHOD.

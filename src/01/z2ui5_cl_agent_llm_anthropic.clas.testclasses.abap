@@ -30,7 +30,7 @@ CLASS ltcl_anthropic DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANG
   PRIVATE SECTION.
 
     DATA mo_http TYPE REF TO ltd_http.
-    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_ag_set WITH EMPTY KEY.
+    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_17 WITH EMPTY KEY.
 
     METHODS setup.
     METHODS teardown.
@@ -60,8 +60,8 @@ CLASS ltcl_anthropic IMPLEMENTATION.
 
   METHOD setup.
 
-    SELECT * FROM z2ui5_t_ag_set WHERE kind = 'LLM' INTO TABLE @mt_saved.
-    DELETE FROM z2ui5_t_ag_set WHERE kind = 'LLM'.
+    SELECT * FROM z2ui5_t_17 WHERE kind = 'LLM' INTO TABLE @mt_saved.
+    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
     z2ui5_cl_agent_settings=>refresh( ).
     " a placeholder, never a real key - the transport is a double
     z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-key
@@ -78,8 +78,8 @@ CLASS ltcl_anthropic IMPLEMENTATION.
   METHOD teardown.
 
     z2ui5_cl_agent_llm=>set_http( ).
-    DELETE FROM z2ui5_t_ag_set WHERE kind = 'LLM'.
-    INSERT z2ui5_t_ag_set FROM TABLE @mt_saved.
+    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
+    INSERT z2ui5_t_17 FROM TABLE @mt_saved.
     z2ui5_cl_agent_settings=>refresh( ).
 
   ENDMETHOD.

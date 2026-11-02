@@ -25,7 +25,7 @@ in step with every change.
 
 | Path | |
 |---|---|
-| `src/01/` | The engine - activates on ABAP Standard, ABAP Cloud and (downported) 7.02: `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml` (XML / binding / expression / wire parsers), `z2ui5_cl_agent_snapshot` (snapshot builder + act index), `z2ui5_cl_agent_session` (the four operations; mode copilot: `app_attach`, `app_check`, `get_snapshot`), `z2ui5_cl_agent_settings` (opt-in, policy, admins, kind `LLM`), `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp` (the protocol), tables `Z2UI5_T_AG_*`. AI at runtime: `z2ui5_if_agent_llm` (one chat call), `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http` (the outbound POST), `z2ui5_cl_agent_llm` (factory + wrapper: settings, stop reasons, JSON, audit; test seams `set_double` / `set_http`), `z2ui5_cl_agent_llm_anthropic` (Messages API), `z2ui5_cl_agent_llm_double` (canned answers), `z2ui5_cl_agent_genui` (UI tree -> validated view), `z2ui5_cl_agent_gen_vocab` (GENERATED vocabulary), `z2ui5_cl_agent_assist` (copilot engine) |
+| `src/01/` | The engine - activates on ABAP Standard, ABAP Cloud and (downported) 7.02: `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml` (XML / binding / expression / wire parsers), `z2ui5_cl_agent_snapshot` (snapshot builder + act index), `z2ui5_cl_agent_session` (the four operations; mode copilot: `app_attach`, `app_check`, `get_snapshot`), `z2ui5_cl_agent_settings` (opt-in, policy, admins, kind `LLM`), `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp` (the protocol), tables `Z2UI5_T_14` - `Z2UI5_T_17`. AI at runtime: `z2ui5_if_agent_llm` (one chat call), `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http` (the outbound POST), `z2ui5_cl_agent_llm` (factory + wrapper: settings, stop reasons, JSON, audit; test seams `set_double` / `set_http`), `z2ui5_cl_agent_llm_anthropic` (Messages API), `z2ui5_cl_agent_llm_double` (canned answers), `z2ui5_cl_agent_genui` (UI tree -> validated view), `z2ui5_cl_agent_gen_vocab` (GENERATED vocabulary), `z2ui5_cl_agent_assist` (copilot engine) |
 | `src/02/` | abap2UI5 apps: `z2ui5_cl_agent_app_admin` (incl. the *Language model* section), `z2ui5_cl_agent_app_audit`, `z2ui5_cl_agent_demo` (opted-in example with the copilot, driven by the unit tests), `z2ui5_cl_agent_genui_demo`, `z2ui5_cl_agent_copilot` (the copilot popup + its opt-in `attach( )`) |
 | `src/03/` | ABAP Standard entry: `z2ui5_cl_agent_http` (`if_http_extension`) + ICF node `/sap/bc/z2ui5_agent` (SICF); `z2ui5_cl_agent_llm_std` (the model's POST, `cl_http_client`) |
 | `src/04/` | ABAP Cloud entry: `z2ui5_cl_agent_http_cloud` (`if_http_service_extension`); `z2ui5_cl_agent_llm_cloud` (the model's POST, `cl_web_http_client_manager`) |
@@ -125,7 +125,8 @@ in step with every change.
   `definitions_top`, no default keys, `omit_parameter_name`, types `ty_*`.
 - Object names: classes `z2ui5_cl_agent*`, exception classes
   `z2ui5_cx_agent*`, interfaces `z2ui5_if_agent*`,
-  tables `z2ui5_t_ag_*` (≤ 16 characters); every object name ≤ 25 characters
+  tables `z2ui5_t_<nn>` - the next free number of the numbering all addons
+  share (`z2ui5_t_14` - `_17` here); every object name ≤ 25 characters
   (namespace rename budget).
 - abapGit file format (abap2UI5's `abap-check` skill): `.xml` with BOM, LF,
   one final newline, no trailing blanks, lines ≤ 255, no `'` in `<DESCRIPT>`;

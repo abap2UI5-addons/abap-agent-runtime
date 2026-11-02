@@ -260,26 +260,30 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
   METHOD get_system.
 
     DATA lt_line TYPE string_table.
+    DATA lv_text TYPE string.
 
-    INSERT `You are the copilot of one screen of an SAP business app (abap2UI5). The user looks at this screen ` &&
-           `and asks about it. The screen is given to you as an "agent snapshot": fields (id, path, label, ` &&
-           `kind, value, editable), actions (buttons and other events with their label), tables (columns and ` &&
-           `the first rows), messages and texts. Values shown as *** are protected - you do not know them.` INTO TABLE lt_line.
-    INSERT `Answer only from the snapshot and the app description. When the screen does not contain what the ` &&
-           `user asks, say so plainly and set found to false - never guess or invent values, records or ` &&
-           `functions. Keep answers short and refer to fields and buttons by their labels.` INTO TABLE lt_line.
+    lv_text = `You are the copilot of one screen of an SAP business app (abap2UI5). The user looks at this screen ` &&
+              `and asks about it. The screen is given to you as an "agent snapshot": fields (id, path, label, ` &&
+              `kind, value, editable), actions (buttons and other events with their label), tables (columns and ` &&
+              `the first rows), messages and texts. Values shown as *** are protected - you do not know them.`.
+    INSERT lv_text INTO TABLE lt_line.
+    lv_text = `Answer only from the snapshot and the app description. When the screen does not contain what the ` &&
+              `user asks, say so plainly and set found to false - never guess or invent values, records or ` &&
+              `functions. Keep answers short and refer to fields and buttons by their labels.`.
+    INSERT lv_text INTO TABLE lt_line.
     IF may_act = abap_true.
-      INSERT `When the user asks you to do something on this screen, you may propose ONE step: set ` &&
-             `proposal.wanted true, describe it in summary, list the fields to fill in values (field = the ` &&
-             `field id or path from the snapshot, only editable fields, never a protected one; value as text, ` &&
-             `a choice by its key, a multichoice by its keys separated by commas, a boolean as true or false) and optionally the action to press in event ` &&
-             `(its event name or action id). The user sees the proposal and confirms it with a click before ` &&
-             `anything runs. An action marked "policy":"confirm" is never pressed by you: propose the fields, ` &&
-             `the user presses it. Otherwise set proposal.wanted false and leave summary, event and values empty.` INTO TABLE lt_line.
+      lv_text = `When the user asks you to do something on this screen, you may propose ONE step: set ` &&
+                `proposal.wanted true, describe it in summary, list the fields to fill in values (field = the ` &&
+                `field id or path from the snapshot, only editable fields, never a protected one; value as text, ` &&
+                `a choice by its key, a multichoice by its keys separated by commas, a boolean as true or false) and optionally the action to press in event ` &&
+                `(its event name or action id). The user sees the proposal and confirms it with a click before ` &&
+                `anything runs. An action marked "policy":"confirm" is never pressed by you: propose the fields, ` &&
+                `the user presses it. Otherwise set proposal.wanted false and leave summary, event and values empty.`.
     ELSE.
-      INSERT `You cannot change the screen: always set proposal.wanted false and leave summary, event and ` &&
-             `values empty. Tell the user which fields to fill and which button to press instead.` INTO TABLE lt_line.
+      lv_text = `You cannot change the screen: always set proposal.wanted false and leave summary, event and ` &&
+                `values empty. Tell the user which fields to fill and which button to press instead.`.
     ENDIF.
+    INSERT lv_text INTO TABLE lt_line.
     result = concat_lines_of( table = lt_line
                               sep   = cl_abap_char_utilities=>newline ).
 
@@ -529,6 +533,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
     DATA lt_message TYPE z2ui5_if_agent_llm=>ty_t_message.
     DATA lv_context TYPE string.
+    DATA lv_content TYPE string.
     DATA lo_snap TYPE REF TO z2ui5_cl_agent_snapshot.
 
     DATA(lv_session) = CONV string( session ).
@@ -553,12 +558,15 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       INSERT VALUE #( role    = ls_turn-role
                       content = ls_turn-text ) INTO TABLE lt_message.
     ENDLOOP.
+    " built in two statements: the 7.02 downport puts a statement it rewrites
+    " on one line, and that line must stay within 255 characters
+    lv_content = |The app: { lo_snap->mv_app }{ COND #( WHEN lv_description IS NOT INITIAL THEN | - { lv_description }| ) }|.
+    lv_content = lv_content &&
+                 |{ cl_abap_char_utilities=>newline }The screen now (agent snapshot v1):| &&
+                 |{ cl_abap_char_utilities=>newline }{ lv_context }| &&
+                 |{ cl_abap_char_utilities=>newline }{ cl_abap_char_utilities=>newline }The question: { question }|.
     INSERT VALUE #( role    = z2ui5_if_agent_llm=>cs_role-user
-                    content = |The app: { lo_snap->mv_app }{ COND #( WHEN lv_description IS NOT INITIAL THEN | - { lv_description }| ) }| &&
-                              |{ cl_abap_char_utilities=>newline }The screen now (agent snapshot v1):| &&
-                              |{ cl_abap_char_utilities=>newline }{ lv_context }| &&
-                              |{ cl_abap_char_utilities=>newline }{ cl_abap_char_utilities=>newline }The question: { question }| )
-           INTO TABLE lt_message.
+                    content = lv_content ) INTO TABLE lt_message.
 
     TRY.
         DATA(ls_answer) = z2ui5_cl_agent_llm=>create( )->chat( VALUE #( purpose   = `copilot`

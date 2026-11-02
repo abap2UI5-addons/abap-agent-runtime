@@ -112,14 +112,17 @@ CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
   METHOD takes_effort.
 
     " a model id may carry a platform prefix (anthropic.claude-...) or a date
+    " two checks: the 7.02 downport puts one xsdbool( ) on one line
     result = xsdbool( NOT ( model CP `*claude-haiku*`
                          OR model CP `*claude-3*`
                          OR model CP `*claude-sonnet-4-5*`
-                         OR model CP `*claude-sonnet-4-2*`
-                         OR model CP `*claude-sonnet-4-0*`
-                         OR model CP `*claude-opus-4-1*`
-                         OR model CP `*claude-opus-4-2*`
-                         OR model CP `*claude-opus-4-0*` ) ).
+                         OR model CP `*claude-sonnet-4-2*` ) ).
+    IF result = abap_true.
+      result = xsdbool( NOT ( model CP `*claude-sonnet-4-0*`
+                           OR model CP `*claude-opus-4-1*`
+                           OR model CP `*claude-opus-4-2*`
+                           OR model CP `*claude-opus-4-0*` ) ).
+    ENDIF.
 
   ENDMETHOD.
 

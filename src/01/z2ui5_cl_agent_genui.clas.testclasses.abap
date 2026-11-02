@@ -146,11 +146,12 @@ CLASS ltcl_genui IMPLEMENTATION.
 
   METHOD valid_tree.
 
+    DATA(lv_table_props) = |{ prop( name = `headerText` value = `Flights` ) },{ prop( name = `mode` value = `None` ) }|.
     DATA(lt_node) = VALUE string_table(
       ( node( id = `root` parent = `` control = `sap.m.VBox` props = prop( name = `class` value = `sapUiSmallMargin` ) ) )
       ( node( id = `title` parent = `root` control = `sap.m.Title` props = prop( name = `text` value = title_text ) ) )
       ( node( id = `table` parent = `root` control = `sap.m.Table`
-              props = |{ prop( name = `headerText` value = `Flights` ) },{ prop( name = `mode` value = `None` ) }|
+              props = lv_table_props
               list  = `{"dataset":"flights","aggregation":"","sort_by":"","descending":false,"group_by":"CARRID"}` ) )
       ( node( id = `c1` parent = `table` agg = `columns` control = `sap.m.Column` ) )
       ( node( id = `c1t` parent = `c1` control = `sap.m.Text` props = prop( name = `text` value = `Connection` ) ) )

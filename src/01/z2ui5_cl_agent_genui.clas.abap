@@ -501,7 +501,8 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
       DATA(lv_type) = SWITCH string( ls_comp-type->type_kind
                                      WHEN cl_abap_typedescr=>typekind_int OR cl_abap_typedescr=>typekind_int1
                                        OR cl_abap_typedescr=>typekind_int2 OR `8`
-                                       OR cl_abap_typedescr=>typekind_packed OR cl_abap_typedescr=>typekind_float
+                                       THEN `number`
+                                     WHEN cl_abap_typedescr=>typekind_packed OR cl_abap_typedescr=>typekind_float
                                        OR cl_abap_typedescr=>typekind_decfloat16 OR cl_abap_typedescr=>typekind_decfloat34
                                        THEN `number`
                                      WHEN cl_abap_typedescr=>typekind_date THEN `date`
@@ -603,38 +604,49 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
     DATA lt_agg TYPE string_table.
     DATA lt_evt TYPE string_table.
     DATA lv_default TYPE string.
+    DATA lv_text TYPE string.
 
-    INSERT `You design SAPUI5 screens for abap2UI5 apps. You answer one UI tree as JSON in the given schema - ` &&
-           `nothing else, no ABAP, no SQL, no XML, no JavaScript. The app owns the data: use only the datasets ` &&
-           `and fields listed below and never invent data, fields or values from them.` INTO TABLE lt_line.
+    lv_text = `You design SAPUI5 screens for abap2UI5 apps. You answer one UI tree as JSON in the given schema - ` &&
+              `nothing else, no ABAP, no SQL, no XML, no JavaScript. The app owns the data: use only the datasets ` &&
+              `and fields listed below and never invent data, fields or values from them.`.
+    INSERT lv_text INTO TABLE lt_line.
     INSERT `` INTO TABLE lt_line.
     INSERT `How the tree works:` INTO TABLE lt_line.
-    INSERT `- nodes is a flat list. Exactly one node has parent "" (the root, usually a sap.m.VBox, sap.m.Page or ` &&
-           `sap.m.Panel). Every other node names its parent's id and the aggregation it sits in ("" = the ` &&
-           `parent's default aggregation).` INTO TABLE lt_line.
-    INSERT `- properties: a literal in value (field and dataset ""), or a binding: field = a field name. Inside ` &&
-           `the template of a list (see list) a field of that list's table; elsewhere set dataset to a structure ` &&
-           `dataset. format "integer" or "decimal" formats a numeric binding; anything else is not possible. ` &&
-           `A binding fits its property: B a boolean field, I and F a number field, C and E a string field.` INTO TABLE lt_line.
-    INSERT `- list binds an aggregation (default: the control's default aggregation) to a table dataset: that ` &&
-           `aggregation then has exactly ONE child node, the row template (e.g. sap.m.ColumnListItem in a ` &&
-           `sap.m.Table, sap.m.StandardListItem in a sap.m.List, sap.ui.core.Item in a sap.m.Select). sort_by ` &&
-           `and group_by are fields of that table (group_by also sorts). No list inside a template. ` &&
-           `Leave list.dataset "" on nodes without a list.` INTO TABLE lt_line.
-    INSERT `- A sap.m.Table needs columns (sap.m.Column with a sap.m.Text or sap.m.Label as header) and one ` &&
-           `cell per column in the ColumnListItem template (its cells aggregation).` INTO TABLE lt_line.
-    INSERT `- events: name = an event of the control, event = one of the app events below, args = fields the ` &&
-           `app allows for that event (row fields inside a template).` INTO TABLE lt_line.
-    INSERT `- Literal values must fit the property type (enum values as listed, true/false, numbers, CSS sizes ` &&
-           `such as 10rem, icons only as an icon URI of the SAP icon font, e.g. sap-icon://add). Texts are shown as they are.` INTO TABLE lt_line.
-    INSERT `- Universal properties: tooltip (text), class (sapUiSmallMargin and the other ` &&
-           `sapUi margin/padding classes only).` INTO TABLE lt_line.
-    INSERT `- Filtering the data is not possible in the view - a filter control can fire an app event that ` &&
-           `takes its value only if the app offers one.` INTO TABLE lt_line.
+    lv_text = `- nodes is a flat list. Exactly one node has parent "" (the root, usually a sap.m.VBox, sap.m.Page or ` &&
+              `sap.m.Panel). Every other node names its parent's id and the aggregation it sits in ("" = the ` &&
+              `parent's default aggregation).`.
+    INSERT lv_text INTO TABLE lt_line.
+    lv_text = `- properties: a literal in value (field and dataset ""), or a binding: field = a field name. Inside ` &&
+              `the template of a list (see list) a field of that list's table; elsewhere set dataset to a structure ` &&
+              `dataset. format "integer" or "decimal" formats a numeric binding; anything else is not possible. ` &&
+              `A binding fits its property: B a boolean field, I and F a number field, C and E a string field.`.
+    INSERT lv_text INTO TABLE lt_line.
+    lv_text = `- list binds an aggregation (default: the control's default aggregation) to a table dataset: that ` &&
+              `aggregation then has exactly ONE child node, the row template (e.g. sap.m.ColumnListItem in a ` &&
+              `sap.m.Table, sap.m.StandardListItem in a sap.m.List, sap.ui.core.Item in a sap.m.Select). sort_by ` &&
+              `and group_by are fields of that table (group_by also sorts). No list inside a template. ` &&
+              `Leave list.dataset "" on nodes without a list.`.
+    INSERT lv_text INTO TABLE lt_line.
+    lv_text = `- A sap.m.Table needs columns (sap.m.Column with a sap.m.Text or sap.m.Label as header) and one ` &&
+              `cell per column in the ColumnListItem template (its cells aggregation).`.
+    INSERT lv_text INTO TABLE lt_line.
+    lv_text = `- events: name = an event of the control, event = one of the app events below, args = fields the ` &&
+              `app allows for that event (row fields inside a template).`.
+    INSERT lv_text INTO TABLE lt_line.
+    lv_text = `- Literal values must fit the property type (enum values as listed, true/false, numbers, CSS sizes ` &&
+              `such as 10rem, icons only as an icon URI of the SAP icon font, e.g. sap-icon://add). Texts are shown as they are.`.
+    INSERT lv_text INTO TABLE lt_line.
+    lv_text = `- Universal properties: tooltip (text), class (sapUiSmallMargin and the other ` &&
+              `sapUi margin/padding classes only).`.
+    INSERT lv_text INTO TABLE lt_line.
+    lv_text = `- Filtering the data is not possible in the view - a filter control can fire an app event that ` &&
+              `takes its value only if the app offers one.`.
+    INSERT lv_text INTO TABLE lt_line.
     INSERT `` INTO TABLE lt_line.
-    INSERT |The controls (portable profile { z2ui5_cl_agent_gen_vocab=>c_profile }, UI5 { z2ui5_cl_agent_gen_vocab=>c_floor }) - | &&
-           `properties with their type (S text, B boolean, I integer, F number, C CSS size, U icon, E: the ` &&
-           `values), aggregations [* many | 1 one: the type a child must be], default aggregation, events:` INTO TABLE lt_line.
+    lv_text = |The controls (portable profile { z2ui5_cl_agent_gen_vocab=>c_profile }, UI5 { z2ui5_cl_agent_gen_vocab=>c_floor }) - | &&
+              `properties with their type (S text, B boolean, I integer, F number, C CSS size, U icon, E: the ` &&
+              `values), aggregations [* many | 1 one: the type a child must be], default aggregation, events:`.
+    INSERT lv_text INTO TABLE lt_line.
 
     LOOP AT mt_vocab INTO DATA(ls_entry).
       IF ls_entry-control <> lv_control.
@@ -671,9 +683,10 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
              |{ COND #( WHEN lt_evt IS NOT INITIAL THEN | \| events { concat_lines_of( table = lt_evt
                                                                                        sep   = ` ` ) }| ) }| INTO TABLE lt_line.
     ENDIF.
-    INSERT `A child can stand in for a type when it is that control, inherits from it or implements it ` &&
-           `(any control is a sap.ui.core.Control; sap.m.Toolbar and sap.m.Bar are sap.m.IBar; ` &&
-           `sap.m.ColumnListItem, sap.m.StandardListItem and sap.m.CustomListItem are sap.m.ListItemBase).` INTO TABLE lt_line.
+    lv_text = `A child can stand in for a type when it is that control, inherits from it or implements it ` &&
+              `(any control is a sap.ui.core.Control; sap.m.Toolbar and sap.m.Bar are sap.m.IBar; ` &&
+              `sap.m.ColumnListItem, sap.m.StandardListItem and sap.m.CustomListItem are sap.m.ListItemBase).`.
+    INSERT lv_text INTO TABLE lt_line.
     result = concat_lines_of( table = lt_line
                               sep   = cl_abap_char_utilities=>newline ).
 
@@ -775,6 +788,8 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
   METHOD render.
 
+    DATA lv_note TYPE string.
+
     CLEAR: mt_node, mt_issue, mv_title.
     result-json = json.
     parse( CONV string( json ) ).
@@ -791,10 +806,11 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
                          xml_popup   = result-xml_popup
                          title       = result-title ).
         result-ok = abap_true.
-        INSERT |checked against { z2ui5_cl_agent_gen_vocab=>c_profile } (UI5 { z2ui5_cl_agent_gen_vocab=>c_floor }, | &&
-               |profile sha256 { substring( val = z2ui5_cl_agent_gen_vocab=>c_source
-                                            len = 12 ) }): | &&
-               |controls, aggregations, properties and their literals, bindings to the given fields, events| INTO TABLE result-t_note.
+        lv_note = |checked against { z2ui5_cl_agent_gen_vocab=>c_profile } (UI5 { z2ui5_cl_agent_gen_vocab=>c_floor }, | &&
+                  |profile sha256 { substring( val = z2ui5_cl_agent_gen_vocab=>c_source
+                                               len = 12 ) }): | &&
+                  |controls, aggregations, properties and their literals, bindings to the given fields, events|.
+        INSERT lv_note INTO TABLE result-t_note.
       CATCH cx_root INTO DATA(lx).
         INSERT |the view cannot be built: { lx->get_text( ) }| INTO TABLE result-t_issue.
     ENDTRY.

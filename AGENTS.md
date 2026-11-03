@@ -143,14 +143,15 @@ in step with every change.
 
 ```
 npm ci
-npm run check       # lint, lint:cloud, check:abap2ui5, genui:check, check:version
+npm run check       # lint, lint:cloud, check:abap2ui5, genui:check, check:version, rename
 npm run unit        # ABAP Unit, transpiled - minutes on the first run
 ```
 
-`ABAP_702` (CI): headless-frontend cloned into `src/zz_headless_frontend`,
-`npm run downport`, `npx abaplint .github/abaplint/abap_702.jsonc` - on a copy,
-never commit. Unit tests (`ABAP_UNIT`, `npm run unit`): transpiled runtime of
-abap2UI5 (README, "Development"), every risk level; `ltcl_session` /
+`ABAP_702` (CI): `npm run downport`, then `npx abaplint
+.github/abaplint/abap_702.jsonc` - on a copy, never commit. headless-frontend
+is an abaplint dependency there, resolved from its own `702` branch. Unit
+tests (`ABAP_UNIT`, `npm run unit`): transpiled runtime of abap2UI5 (README,
+"Development"), every risk level; `ltcl_session` /
 `ltcl_mcp` are `RISK LEVEL DANGEROUS` (they write the addon's tables and
 restore them in `teardown`), the parser and snapshot tests are `HARMLESS`.
 The AI tests (`ltcl_llm`, `ltcl_anthropic`, `ltcl_genui`, `ltcl_copilot`)

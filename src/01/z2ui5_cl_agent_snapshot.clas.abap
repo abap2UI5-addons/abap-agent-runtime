@@ -1300,17 +1300,18 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       DATA(lv_index) = lv_base + 1.
       WHILE lv_index <= lv_count.
         DATA(lv_type) = lo_json->get_node_type( |/{ lv_index }| ).
-        IF lv_type = z2ui5_if_ajson_types=>node_type-object OR lv_type = z2ui5_if_ajson_types=>node_type-array.
-          TRY.
-              INSERT lo_json->slice( |/{ lv_index }| )->stringify( ) INTO TABLE lt_part.
-            CATCH z2ui5_cx_ajson_error.
-              INSERT COND #( WHEN lv_type = z2ui5_if_ajson_types=>node_type-array THEN `[]` ELSE `{}` ) INTO TABLE lt_part.
-          ENDTRY.
-        ELSEIF lv_type = z2ui5_if_ajson_types=>node_type-null.
-          INSERT `null` INTO TABLE lt_part.
-        ELSE.
-          INSERT lo_json->get( |/{ lv_index }| ) INTO TABLE lt_part.
-        ENDIF.
+        CASE lv_type.
+          WHEN z2ui5_if_ajson_types=>node_type-object OR z2ui5_if_ajson_types=>node_type-array.
+            TRY.
+                INSERT lo_json->slice( |/{ lv_index }| )->stringify( ) INTO TABLE lt_part.
+              CATCH z2ui5_cx_ajson_error.
+                INSERT COND #( WHEN lv_type = z2ui5_if_ajson_types=>node_type-array THEN `[]` ELSE `{}` ) INTO TABLE lt_part.
+            ENDTRY.
+          WHEN z2ui5_if_ajson_types=>node_type-null.
+            INSERT `null` INTO TABLE lt_part.
+          WHEN OTHERS.
+            INSERT lo_json->get( |/{ lv_index }| ) INTO TABLE lt_part.
+        ENDCASE.
         lv_index = lv_index + 1.
       ENDWHILE.
       note( |frontend action { z2ui5_cl_agent_viewxml=>clip( val = concat_lines_of( table = lt_part
@@ -2573,21 +2574,19 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                   t_child = node( doc = ctx-doc
                                                   id  = lv_col_agg )-t_child ).
       ENDIF.
+    ELSEIF lv_col_agg > 0.
+      lt_columns = controls_of( doc     = ctx-doc
+                                t_child = node( doc = ctx-doc
+                                                id  = lv_col_agg )-t_child ).
     ELSE.
-      IF lv_col_agg > 0.
-        lt_columns = controls_of( doc     = ctx-doc
-                                  t_child = node( doc = ctx-doc
-                                                  id  = lv_col_agg )-t_child ).
-      ELSE.
-        LOOP AT controls_of( doc     = ctx-doc
-                             t_child = node-t_child ) INTO DATA(lv_col_candidate).
-          IF ends_with( val    = node( doc = ctx-doc
-                                       id  = lv_col_candidate )-local
-                        suffix = `Column` ) = abap_true.
-            INSERT lv_col_candidate INTO TABLE lt_columns.
-          ENDIF.
-        ENDLOOP.
-      ENDIF.
+      LOOP AT controls_of( doc     = ctx-doc
+                           t_child = node-t_child ) INTO DATA(lv_col_candidate).
+        IF ends_with( val    = node( doc = ctx-doc
+                                     id  = lv_col_candidate )-local
+                      suffix = `Column` ) = abap_true.
+          INSERT lv_col_candidate INTO TABLE lt_columns.
+        ENDIF.
+      ENDLOOP.
     ENDIF.
 
     " the cells: which control, which property, which header

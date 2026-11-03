@@ -377,6 +377,27 @@
     "redundant_cast": true,
     "smim_consistency": true,
     "sort_empty_key": true,
-    "subrc_after_assign": true
+    "subrc_after_assign": true,
+    // added 2026-11 with their findings fixed.
+    // method_overwrites_builtin excludes z2ui5_cl_agent_audit: log( ) is a
+    // public method of a public class - renaming it would break callers in
+    // other systems.
+    // no_aliases excludes z2ui5_cl_agent_llm: its public alias chat is the
+    // documented call (llm->chat( ... ) in the class comment) -
+    // removing it would break callers in other systems.
+    "change_if_to_case": true,
+    "if_in_if": true,
+    "method_overwrites_builtin": {
+      "exclude": [
+        "src/01/z2ui5_cl_agent_audit\\.clas\\.abap$"
+      ],
+      "severity": "Error"
+    },
+    "no_aliases": {
+      "exclude": [
+        "src/01/z2ui5_cl_agent_llm\\.clas\\.abap$"
+      ]
+    },
+    "redundant_conversion": true
   }
 }

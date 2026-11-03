@@ -474,7 +474,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     SPLIT field AT `/` INTO TABLE lt_part.
     DATA(lv_count) = lines( lt_part ).
     DATA(lv_column) = VALUE string( lt_part[ lv_count ] OPTIONAL ).
-    DATA(lv_path) = CONV string( field ).
+    DATA(lv_path) = field.
     IF lv_count >= 3.
       DATA(lv_row) = VALUE string( lt_part[ lv_count - 1 ] OPTIONAL ).
       DATA(lv_table) = substring( val = field
@@ -839,15 +839,16 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
             RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: the keys { lv_text } do not fit - { lx->get_text( ) }|.
         ENDTRY.
       WHEN OTHERS.
-        IF lo_target->type_kind = cl_abap_typedescr=>typekind_date.
-          <current> = date_of( value = lv_text
-                               path  = path ).
-        ELSEIF lo_target->type_kind = cl_abap_typedescr=>typekind_time.
-          <current> = time_of( value = lv_text
-                               path  = path ).
-        ELSE.
-          <current> = lv_text.
-        ENDIF.
+        CASE lo_target->type_kind.
+          WHEN cl_abap_typedescr=>typekind_date.
+            <current> = date_of( value = lv_text
+                                 path  = path ).
+          WHEN cl_abap_typedescr=>typekind_time.
+            <current> = time_of( value = lv_text
+                                 path  = path ).
+          WHEN OTHERS.
+            <current> = lv_text.
+        ENDCASE.
     ENDCASE.
 
   ENDMETHOD.
@@ -861,19 +862,17 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     IF lv_date IS INITIAL.
       RETURN.
     ENDIF.
-    IF strlen( lv_date ) = 10.
-      IF substring( val = lv_date
-                    off = 4
-                    len = 1 ) = `-` AND substring( val = lv_date
-                                                   off = 7
-                                                   len = 1 ) = `-`.
-        lv_date = substring( val = lv_date
-                             len = 4 ) && substring( val = lv_date
-                                                     off = 5
-                                                     len = 2 ) && substring( val = lv_date
-                                                                             off = 8
-                                                                             len = 2 ).
-      ENDIF.
+    IF strlen( lv_date ) = 10 AND substring( val = lv_date
+                                             off = 4
+                                             len = 1 ) = `-` AND substring( val = lv_date
+                                                                            off = 7
+                                                                            len = 1 ) = `-`.
+      lv_date = substring( val = lv_date
+                           len = 4 ) && substring( val = lv_date
+                                                   off = 5
+                                                   len = 2 ) && substring( val = lv_date
+                                                                           off = 8
+                                                                           len = 2 ).
     ENDIF.
     IF strlen( lv_date ) <> 8 OR lv_date CN `0123456789`.
       RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no date (YYYY-MM-DD)|.
@@ -887,11 +886,12 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
                                       off = 6
                                       len = 2 ) ).
     DATA(lv_last) = 31.
-    IF lv_month = 4 OR lv_month = 6 OR lv_month = 9 OR lv_month = 11.
-      lv_last = 30.
-    ELSEIF lv_month = 2.
-      lv_last = COND #( WHEN ( lv_year MOD 4 = 0 AND lv_year MOD 100 <> 0 ) OR lv_year MOD 400 = 0 THEN 29 ELSE 28 ).
-    ENDIF.
+    CASE lv_month.
+      WHEN 4 OR 6 OR 9 OR 11.
+        lv_last = 30.
+      WHEN 2.
+        lv_last = COND #( WHEN ( lv_year MOD 4 = 0 AND lv_year MOD 100 <> 0 ) OR lv_year MOD 400 = 0 THEN 29 ELSE 28 ).
+    ENDCASE.
     IF lv_year < 1 OR lv_month < 1 OR lv_month > 12 OR lv_day < 1 OR lv_day > lv_last.
       RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no date of the calendar|.
     ENDIF.

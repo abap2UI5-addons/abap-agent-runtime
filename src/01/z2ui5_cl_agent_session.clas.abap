@@ -2449,19 +2449,20 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       DATA(lv_closed) = abap_false.
       WHILE lv_pos < lv_len AND lv_closed = abap_false.
         DATA(lv_c) = val+lv_pos(1).
-        IF lv_c = `\`.
-          IF lv_pos + 1 >= lv_len.
-            RETURN.
-          ENDIF.
-          lv_text = lv_text && val+lv_pos(2).
-          lv_pos = lv_pos + 2.
-        ELSEIF lv_c = lv_char.
-          lv_closed = abap_true.
-          lv_pos = lv_pos + 1.
-        ELSE.
-          lv_text = lv_text && lv_c.
-          lv_pos = lv_pos + 1.
-        ENDIF.
+        CASE lv_c.
+          WHEN `\`.
+            IF lv_pos + 1 >= lv_len.
+              RETURN.
+            ENDIF.
+            lv_text = lv_text && val+lv_pos(2).
+            lv_pos = lv_pos + 2.
+          WHEN lv_char.
+            lv_closed = abap_true.
+            lv_pos = lv_pos + 1.
+          WHEN OTHERS.
+            lv_text = lv_text && lv_c.
+            lv_pos = lv_pos + 1.
+        ENDCASE.
       ENDWHILE.
       IF lv_closed = abap_false.
         RETURN.

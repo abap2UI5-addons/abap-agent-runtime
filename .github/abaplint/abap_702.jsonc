@@ -1,10 +1,10 @@
 {
   // NetWeaver 7.02: `npm run downport` rewrites src/ in place with this
-  // config, then it lints the result - CI only, never commit downported
-  // source. The headless-frontend dependency is modern ABAP as well, so the
-  // ABAP_702 workflow clones it into src/zz_headless_frontend first and the
-  // downport rewrites both. Package 04 (ABAP Cloud entry) is not a 7.02
-  // target.
+  // config, then it lints the result - never commit downported source to
+  // main. publish-702 (`npm run auto_downport`) writes the result to the 702
+  // branch. headless-frontend resolves from its own 702 branch, which its
+  // publish-702 workflow generates the same way. Package 04 (ABAP Cloud
+  // entry) is not a 7.02 target.
   "global": {
     "files": "/../../src/**/*.*",
     "exclude": ["/src/04/"]
@@ -19,6 +19,12 @@
       "url": "https://github.com/abap2UI5/abap2UI5",
       "branch": "702",
       "folder": "/../../.abaplint-deps/abap2UI5-702",
+      "files": "/src/**/*.*"
+    },
+    {
+      "url": "https://github.com/abap2UI5/headless-frontend",
+      "branch": "702",
+      "folder": "/../../.abaplint-deps/headless-frontend-702",
       "files": "/src/**/*.*"
     }
   ],

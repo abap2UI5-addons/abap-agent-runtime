@@ -7,7 +7,7 @@
 "! Nobody calls an implementation directly: z2ui5_cl_agent_llm=&gt;create( )
 "! returns the configured one wrapped in the addon's own checks - a refusal
 "! or a cut-off answer raises, a structured answer arrives parsed, every
-"! call is audited. The addon ships z2ui5_cl_agent_llm_anthropic (the Claude
+"! call is audited. The addon ships z2ui5_cl_agent_llm_claude (the Claude
 "! Messages API) and z2ui5_cl_agent_llm_double (canned answers, for unit
 "! tests). To route through SAP AI Core / the Generative AI Hub, Amazon
 "! Bedrock or a gateway of your own, implement this interface in a class

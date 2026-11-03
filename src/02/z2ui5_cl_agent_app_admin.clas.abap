@@ -100,6 +100,12 @@ CLASS z2ui5_cl_agent_app_admin DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PRIVATE SECTION.
 
+    "! This class's name, read at run time - a namespace rename rewrites the
+    "! class, never a literal naming it.
+    METHODS app_name
+      RETURNING
+        VALUE(result) TYPE string.
+
 ENDCLASS.
 
 
@@ -321,13 +327,13 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
             )->tag( `Input`
                 )->a( n = `value`       v = client->_bind( llm_url )
                 )->a( n = `editable`    b = is_admin
-                )->a( n = `placeholder` v = z2ui5_cl_agent_llm_anthropic=>c_default_url
+                )->a( n = `placeholder` v = z2ui5_cl_agent_llm_claude=>c_default_url
             )->tag( `Label`
                 )->a( n = `text` v = `Model / effort`
             )->tag( `Input`
                 )->a( n = `value`       v = client->_bind( llm_model )
                 )->a( n = `editable`    b = is_admin
-                )->a( n = `placeholder` v = z2ui5_cl_agent_llm_anthropic=>c_default_model
+                )->a( n = `placeholder` v = z2ui5_cl_agent_llm_claude=>c_default_model
             )->tag( `Input`
                 )->a( n = `value`       v = client->_bind( llm_effort )
                 )->a( n = `editable`    b = is_admin
@@ -350,13 +356,13 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
             )->tag( `Input`
                 )->a( n = `value`       v = client->_bind( llm_beta )
                 )->a( n = `editable`    b = is_admin
-                )->a( n = `placeholder` v = z2ui5_cl_agent_llm_anthropic=>c_default_beta
+                )->a( n = `placeholder` v = z2ui5_cl_agent_llm_claude=>c_default_beta
             )->tag( `Label`
                 )->a( n = `text` v = `Provider class`
             )->tag( `Input`
                 )->a( n = `value`       v = client->_bind( llm_provider )
                 )->a( n = `editable`    b = is_admin
-                )->a( n = `placeholder` v = z2ui5_cl_agent_llm=>c_default_provider
+                )->a( n = `placeholder` v = z2ui5_cl_agent_llm=>get_default_provider( )
             )->tag( `Label`
                 )->a( n = `text` v = `Audit keeps prompts and answers`
             )->tag( `CheckBox`
@@ -424,7 +430,7 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
   METHOD audit.
 
     z2ui5_cl_agent_audit=>log( VALUE #( operation = `settings`
-                                        app       = `Z2UI5_CL_AGENT_APP_ADMIN`
+                                        app       = app_name( )
                                         outcome   = z2ui5_cl_agent_audit=>cs_outcome-ok
                                         args      = text ) ).
 
@@ -687,7 +693,7 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     TRY.
         DATA(ls_answer) = z2ui5_cl_agent_llm=>create( )->chat(
             VALUE #( purpose   = `test`
-                     app       = `Z2UI5_CL_AGENT_APP_ADMIN`
+                     app       = app_name( )
                      t_message = VALUE #( ( role    = z2ui5_if_agent_llm=>cs_role-user
                                             content = `Answer with the single word: ok` ) ) ) ).
         client->message_box_display( text  = |{ ls_answer-model } answered "{ ls_answer-text }" | &&
@@ -780,6 +786,13 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     new_kind = z2ui5_cl_agent_settings=>cs_kind-event.
     cleanup_days = 90.
     load( ).
+
+  ENDMETHOD.
+
+  METHOD app_name.
+
+    result = cl_abap_classdescr=>get_class_name( me ).
+    SHIFT result LEFT DELETING LEADING '\CLASS='.
 
   ENDMETHOD.
 

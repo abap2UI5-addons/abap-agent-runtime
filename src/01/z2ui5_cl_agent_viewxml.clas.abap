@@ -1114,14 +1114,15 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
             lv_j = lv_j + 1.
             CONTINUE.
           ENDIF.
-          IF lv_d = `{`.
-            lv_depth = lv_depth + 1.
-          ELSEIF lv_d = `}`.
-            lv_depth = lv_depth - 1.
-            IF lv_depth = 0.
-              EXIT.
-            ENDIF.
-          ENDIF.
+          CASE lv_d.
+            WHEN `{`.
+              lv_depth = lv_depth + 1.
+            WHEN `}`.
+              lv_depth = lv_depth - 1.
+              IF lv_depth = 0.
+                EXIT.
+              ENDIF.
+          ENDCASE.
           lv_j = lv_j + 1.
         ENDWHILE.
         IF lv_j >= lv_len.

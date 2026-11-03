@@ -270,11 +270,11 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDIF.
 
     IF lv_method = `DELETE`.
-      DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( is_request-session_id ).
+      DATA(lv_session) = CONV z2ui5_t_15-id( is_request-session_id ).
       " an id longer than the column is none - cut to it, an id with
       " anything appended would end the session of its prefix
       IF is_request-session_id IS NOT INITIAL AND lv_session = is_request-session_id.
-        DELETE FROM z2ui5_t_ag_mcp WHERE id = @lv_session AND uname = @sy-uname.
+        DELETE FROM z2ui5_t_15 WHERE id = @lv_session AND uname = @sy-uname.
       ENDIF.
       result = VALUE #( status = 200
                         reason = `OK` ).
@@ -399,12 +399,12 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       result = abap_true.
       RETURN.
     ENDIF.
-    DATA(lv_session) = CONV z2ui5_t_ag_mcp-id( ms_request-session_id ).
+    DATA(lv_session) = CONV z2ui5_t_15-id( ms_request-session_id ).
     " a longer id is unknown, never the session of its first 32 characters
     IF lv_session <> ms_request-session_id.
       RETURN.
     ENDIF.
-    SELECT SINGLE mcp_client, changed_at FROM z2ui5_t_ag_mcp WHERE id = @lv_session AND uname = @sy-uname
+    SELECT SINGLE mcp_client, changed_at FROM z2ui5_t_15 WHERE id = @lv_session AND uname = @sy-uname
       INTO (@DATA(lv_client), @DATA(lv_changed)).
     IF sy-subrc = 0.
       result = abap_true.
@@ -415,7 +415,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       DATA(lv_now) = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
       IF lv_changed < z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = lv_now
                                                                         seconds = 3600 ).
-        UPDATE z2ui5_t_ag_mcp SET changed_at = @lv_now WHERE id = @lv_session AND uname = @sy-uname.
+        UPDATE z2ui5_t_15 SET changed_at = @lv_now WHERE id = @lv_session AND uname = @sy-uname.
         " at once: an app start's roundtrip rolls back before main( )
         COMMIT WORK.
       ENDIF.
@@ -517,7 +517,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
   METHOD initialize.
 
-    DATA ls_row TYPE z2ui5_t_ag_mcp.
+    DATA ls_row TYPE z2ui5_t_15.
 
     SPLIT c_protocol_versions AT `,` INTO TABLE DATA(lt_version).
     DATA(lv_requested) = io_json->get_string( |{ path }/params/protocolVersion| ).
@@ -535,13 +535,13 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
                           protocol   = lv_version
                           created_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
                           changed_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ) ).
-        INSERT z2ui5_t_ag_mcp FROM @ls_row.
+        INSERT z2ui5_t_15 FROM @ls_row.
         INSERT VALUE #( name  = `Mcp-Session-Id`
                         value = ls_row-id ) INTO TABLE mt_header.
         " MCP sessions older than a day are gone
         DATA(lv_limit) = z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = ls_row-created_at
                                                                            seconds = 86400 ).
-        DELETE FROM z2ui5_t_ag_mcp WHERE changed_at < @lv_limit.
+        DELETE FROM z2ui5_t_15 WHERE changed_at < @lv_limit.
       CATCH cx_root ##NO_HANDLER.
         " the session id is optional - without it the client name stays
         " out of the audit log of later requests

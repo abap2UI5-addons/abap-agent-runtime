@@ -50,6 +50,12 @@ CLASS z2ui5_cl_agent_genui_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PRIVATE SECTION.
 
+    "! This class's name, read at run time - a namespace rename rewrites the
+    "! class, never a literal naming it.
+    METHODS app_name
+      RETURNING
+        VALUE(result) TYPE string.
+
 ENDCLASS.
 
 
@@ -191,7 +197,7 @@ CLASS z2ui5_cl_agent_genui_demo IMPLEMENTATION.
   METHOD generate.
 
     DATA(genui) = z2ui5_cl_agent_genui=>create( client = client
-                                                app    = `Z2UI5_CL_AGENT_GENUI_DEMO`
+                                                app    = app_name( )
         )->add_table( name        = `flights`
                       val         = t_flight
                       description = `flights of the coming week, one row per flight`
@@ -253,6 +259,13 @@ CLASS z2ui5_cl_agent_genui_demo IMPLEMENTATION.
         client->message_toast_display( `The data is up to date` ).
 
     ENDCASE.
+
+  ENDMETHOD.
+
+  METHOD app_name.
+
+    result = cl_abap_classdescr=>get_class_name( me ).
+    SHIFT result LEFT DELETING LEADING '\CLASS='.
 
   ENDMETHOD.
 

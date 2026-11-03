@@ -1,4 +1,4 @@
-"! The agent endpoint's settings and policy - table Z2UI5_T_AG_SET.
+"! The agent endpoint's settings and policy - table Z2UI5_T_17.
 "!
 "! One row per setting, keyed by KIND / APP / ITEM:
 "!   ENABLED    APP *            VALUE X       the endpoint answers tool calls
@@ -40,7 +40,7 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     CONSTANTS:
       "! The items of kind LLM. provider: the class implementing
-      "! z2ui5_if_agent_llm (default z2ui5_cl_agent_llm_anthropic); model,
+      "! z2ui5_if_agent_llm (default z2ui5_cl_agent_llm_claude); model,
       "! effort, max_tokens, timeout (seconds): of every call; url,
       "! destination, key: where the provider sends it (z2ui5_if_agent_llm_http);
       "! fallback (on/off, default on): the server-side refusal fallback of
@@ -83,7 +83,7 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
     "! forbidden for agents on every screen: the copilot is for people.
     CONSTANTS c_copilot_event TYPE string VALUE `Z2UI5_AGENT_COPILOT`.
 
-    TYPES ty_t_setting TYPE STANDARD TABLE OF z2ui5_t_ag_set WITH EMPTY KEY.
+    TYPES ty_t_setting TYPE STANDARD TABLE OF z2ui5_t_17 WITH EMPTY KEY.
 
     TYPES:
       "! An app an agent may start. source: interface (it implements
@@ -257,6 +257,15 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PRIVATE SECTION.
 
+    "! The interface names, read from typed references - a namespace rename
+    "! rewrites a reference, never a literal.
+    CLASS-METHODS if_app_name
+      RETURNING
+        VALUE(result) TYPE string.
+    CLASS-METHODS if_agent_app_name
+      RETURNING
+        VALUE(result) TYPE string.
+
     TYPES:
       BEGIN OF ty_s_info_buffer,
         app  TYPE string,
@@ -293,7 +302,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     IF gv_loaded = abap_true.
       RETURN.
     ENDIF.
-    SELECT * FROM z2ui5_t_ag_set INTO TABLE @gt_setting ORDER BY PRIMARY KEY.
+    SELECT * FROM z2ui5_t_17 INTO TABLE @gt_setting ORDER BY PRIMARY KEY.
     gv_loaded = abap_true.
 
   ENDMETHOD.
@@ -364,7 +373,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
 
   METHOD save.
 
-    DATA ls_row TYPE z2ui5_t_ag_set.
+    DATA ls_row TYPE z2ui5_t_17.
 
     ls_row-kind = to_upper( kind ).
     ls_row-app = to_upper( app ).
@@ -372,14 +381,14 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ls_row-value = value.
     ls_row-changed_by = sy-uname.
     ls_row-changed_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
-    MODIFY z2ui5_t_ag_set FROM @ls_row.
+    MODIFY z2ui5_t_17 FROM @ls_row.
     refresh( ).
 
   ENDMETHOD.
 
   METHOD check_fits.
 
-    DATA ls_row TYPE z2ui5_t_ag_set.
+    DATA ls_row TYPE z2ui5_t_17.
 
     " the characters the columns hold
     DATA(lv_app) = CAST cl_abap_elemdescr( cl_abap_typedescr=>describe_by_data( ls_row-app ) )->output_length.
@@ -397,14 +406,14 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
 
   METHOD remove.
 
-    DATA lv_kind TYPE z2ui5_t_ag_set-kind.
-    DATA lv_app TYPE z2ui5_t_ag_set-app.
-    DATA lv_item TYPE z2ui5_t_ag_set-item.
+    DATA lv_kind TYPE z2ui5_t_17-kind.
+    DATA lv_app TYPE z2ui5_t_17-app.
+    DATA lv_item TYPE z2ui5_t_17-item.
 
     lv_kind = to_upper( kind ).
     lv_app = to_upper( app ).
     lv_item = to_upper( item ).
-    DELETE FROM z2ui5_t_ag_set WHERE kind = @lv_kind AND app = @lv_app AND item = @lv_item.
+    DELETE FROM z2ui5_t_17 WHERE kind = @lv_kind AND app = @lv_app AND item = @lv_item.
     refresh( ).
 
   ENDMETHOD.
@@ -432,7 +441,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
       RETURN.
     ENDIF.
     IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf( class = lv_app
-                                                              intf  = `Z2UI5_IF_APP` ) = abap_false.
+                                                              intf  = if_app_name( ) ) = abap_false.
       reason = |{ lv_app } is no abap2UI5 app (no class of that name implements z2ui5_if_app)|.
       RETURN.
     ENDIF.
@@ -446,7 +455,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ENDLOOP.
 
     IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf( class = lv_app
-                                                              intf  = `Z2UI5_IF_AGENT_APP` ) = abap_true.
+                                                              intf  = if_agent_app_name( ) ) = abap_true.
       result = abap_true.
       RETURN.
     ENDIF.
@@ -472,7 +481,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     " the class directory: SEOMETAREL on ABAP Standard, XCO on ABAP Cloud -
     " where it cannot be read, the list holds what the settings name
     TRY.
-        DATA(lt_impl) = z2ui5_cl_ui5_util_context=>rtti_get_classes_impl_intf( `Z2UI5_IF_AGENT_APP` ).
+        DATA(lt_impl) = z2ui5_cl_ui5_util_context=>rtti_get_classes_impl_intf( if_agent_app_name( ) ).
       CATCH cx_root.
         CLEAR lt_impl.
     ENDTRY.
@@ -493,7 +502,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ENDLOOP.
     IF lv_patterns = abap_true.
       TRY.
-          lt_impl = z2ui5_cl_ui5_util_context=>rtti_get_classes_impl_intf( `Z2UI5_IF_APP` ).
+          lt_impl = z2ui5_cl_ui5_util_context=>rtti_get_classes_impl_intf( if_app_name( ) ).
         CATCH cx_root.
           CLEAR lt_impl.
       ENDTRY.
@@ -541,7 +550,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ENDIF.
 
     IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf( class = lv_app
-                                                              intf  = `Z2UI5_IF_AGENT_APP` ) = abap_true.
+                                                              intf  = if_agent_app_name( ) ) = abap_true.
       TRY.
           CREATE OBJECT lo_app TYPE (lv_app).
           result = CAST z2ui5_if_agent_app( lo_app )->describe( ).
@@ -744,6 +753,20 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     IF result <= 0.
       result = 4.
     ENDIF.
+
+  ENDMETHOD.
+
+  METHOD if_app_name.
+
+    DATA li_app TYPE REF TO z2ui5_if_app.
+    result = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( li_app ).
+
+  ENDMETHOD.
+
+  METHOD if_agent_app_name.
+
+    DATA li_app TYPE REF TO z2ui5_if_agent_app.
+    result = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( li_app ).
 
   ENDMETHOD.
 

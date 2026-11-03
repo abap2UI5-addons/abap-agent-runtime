@@ -22,12 +22,8 @@ jobs:
         node-version: '22'
         cache: 'npm'
     - run: npm ci
-    # the simulator this addon runs on is modern ABAP too: downported with it.
-    - name: Add headless-frontend to the downport
-      run: |
-        git clone --depth 1 https://github.com/abap2UI5/headless-frontend /tmp/headless-frontend
-        mkdir -p src/zz_headless_frontend
-        cp /tmp/headless-frontend/src/* src/zz_headless_frontend/
     # rewrites src/ in place - CI only, the downported source is never committed
+    # here (publish-702 commits it to the 702 branch). headless-frontend
+    # resolves from its own 702 branch - .github/abaplint/abap_702.jsonc.
     - run: npm run downport
     - run: npx abaplint .github/abaplint/abap_702.jsonc

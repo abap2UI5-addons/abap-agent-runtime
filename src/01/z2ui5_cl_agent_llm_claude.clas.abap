@@ -30,7 +30,7 @@
 "! model that does not take them (takes_effort, takes_fallback). The system
 "! prompt is sent as a cached block: the generative UI's carries the whole
 "! vocabulary, the same on every call and twice per generation.
-CLASS z2ui5_cl_agent_llm_anthropic DEFINITION PUBLIC FINAL CREATE PUBLIC.
+CLASS z2ui5_cl_agent_llm_claude DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PUBLIC SECTION.
 
@@ -98,7 +98,7 @@ CLASS z2ui5_cl_agent_llm_anthropic DEFINITION PUBLIC FINAL CREATE PUBLIC.
 ENDCLASS.
 
 
-CLASS z2ui5_cl_agent_llm_anthropic IMPLEMENTATION.
+CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
 
   METHOD setting.
 

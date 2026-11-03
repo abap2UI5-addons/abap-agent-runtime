@@ -16,6 +16,19 @@ and by its lint targets, not yet on a system in production use, and its API -
 `z2ui5_if_agent_app`, the MCP tool arguments, the snapshot extension
 `policy`, the settings - may still change before 1.0 (README, "Status").
 
+### Namespace rename
+
+- `npm run rename` and the manual workflow `build-rename`, abap2UI5's own
+  mechanism: every object - and every reference to abap2UI5 and to
+  headless-frontend - renamed to a customer name or a namespace, pushed as
+  `rename_<name>`. This addon allows names of up to 9 characters: the ICF
+  node `z2ui5_agent` has to stay within 15.
+- The Messages API client `z2ui5_cl_agent_llm_anthropic` is
+  `z2ui5_cl_agent_llm_claude` (25 characters at most for the rename); the
+  settings' default provider follows. A provider class name stored in the
+  settings must be changed by hand.
+- Uses headless-frontend's shortened names (`z2ui5_cl_frontend_sim`).
+
 ### The MCP endpoint
 
 - An ABAP-native MCP server (JSON-RPC 2.0 over MCP Streamable HTTP, protocol
@@ -55,14 +68,14 @@ and by its lint targets, not yet on a system in production use, and its API -
   `confirm`, `forbidden`) and its sensitive paths in `describe( )`;
   administrators allow or deny apps, classify events and mark fields in the
   settings app `z2ui5_cl_agent_app_admin` (`z2ui5_cl_agent_settings`, table
-  `Z2UI5_T_AG_SET`). The endpoint is disabled after installation until an
+  `Z2UI5_T_17`). The endpoint is disabled after installation until an
   administrator enables it.
 - Agents never fire `confirm` or `forbidden` events: a `confirm` event is
   refused with the handover URL of the prepared draft, so the user presses
   the button in the browser.
-- Every call is logged (`z2ui5_cl_agent_audit`, `Z2UI5_T_AG_LOG`, the audit
+- Every call is logged (`z2ui5_cl_agent_audit`, `Z2UI5_T_14`, the audit
   app `z2ui5_cl_agent_app_audit`), sensitive values masked; sessions in
-  `Z2UI5_T_AG_SES`, MCP sessions in `Z2UI5_T_AG_MCP`, always filtered by the
+  `Z2UI5_T_16`, MCP sessions in `Z2UI5_T_15`, always filtered by the
   request's user.
 - `z2ui5_cl_agent_demo`: an opted-in example app with the copilot, driven by
   the unit tests.
@@ -71,7 +84,7 @@ and by its lint targets, not yet on a system in production use, and its API -
 
 - A language model client: `z2ui5_if_agent_llm` (one chat call),
   `z2ui5_cl_agent_llm` (factory, settings, stop reasons, JSON, audit; test
-  seams `set_double` / `set_http`), `z2ui5_cl_agent_llm_anthropic` (the
+  seams `set_double` / `set_http`), `z2ui5_cl_agent_llm_claude` (the
   Messages API, structured output), `z2ui5_cl_agent_llm_double` (canned
   answers for tests), the outbound POST per platform (`z2ui5_cl_agent_llm_std`
   with `cl_http_client`, `z2ui5_cl_agent_llm_cloud` with

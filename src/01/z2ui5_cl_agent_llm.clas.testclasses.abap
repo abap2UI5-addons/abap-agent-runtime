@@ -29,7 +29,7 @@ CLASS ltcl_llm DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROUS.
   PRIVATE SECTION.
 
     DATA mo_double TYPE REF TO z2ui5_cl_agent_llm_double.
-    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_ag_set WITH EMPTY KEY.
+    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_17 WITH EMPTY KEY.
     "! an app name of this test only - its audit entries are its own
     DATA mv_app TYPE string.
 
@@ -51,7 +51,7 @@ CLASS ltcl_llm DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROUS.
 
     METHODS last_log
       RETURNING
-        VALUE(result) TYPE z2ui5_t_ag_log.
+        VALUE(result) TYPE z2ui5_t_14.
 
     METHODS request
       RETURNING
@@ -64,8 +64,8 @@ CLASS ltcl_llm IMPLEMENTATION.
 
   METHOD setup.
 
-    SELECT * FROM z2ui5_t_ag_set WHERE kind = 'LLM' INTO TABLE @mt_saved.
-    DELETE FROM z2ui5_t_ag_set WHERE kind = 'LLM'.
+    SELECT * FROM z2ui5_t_17 WHERE kind = 'LLM' INTO TABLE @mt_saved.
+    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
     z2ui5_cl_agent_settings=>refresh( ).
     mo_double = NEW #( ).
     z2ui5_cl_agent_llm=>set_double( mo_double ).
@@ -78,9 +78,9 @@ CLASS ltcl_llm IMPLEMENTATION.
 
     z2ui5_cl_agent_llm=>set_double( ).
     z2ui5_cl_agent_llm=>set_http( ).
-    DELETE FROM z2ui5_t_ag_log WHERE app = @mv_app.
-    DELETE FROM z2ui5_t_ag_set WHERE kind = 'LLM'.
-    INSERT z2ui5_t_ag_set FROM TABLE @mt_saved.
+    DELETE FROM z2ui5_t_14 WHERE app = @mv_app.
+    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
+    INSERT z2ui5_t_17 FROM TABLE @mt_saved.
     z2ui5_cl_agent_settings=>refresh( ).
 
   ENDMETHOD.
@@ -97,10 +97,10 @@ CLASS ltcl_llm IMPLEMENTATION.
 
   METHOD last_log.
 
-    DATA lv_app TYPE z2ui5_t_ag_log-app.
+    DATA lv_app TYPE z2ui5_t_14-app.
 
     lv_app = mv_app.
-    SELECT * FROM z2ui5_t_ag_log WHERE operation = 'llm' AND app = @lv_app
+    SELECT * FROM z2ui5_t_14 WHERE operation = 'llm' AND app = @lv_app
       INTO TABLE @DATA(lt_log).
     cl_abap_unit_assert=>assert_equals( act = lines( lt_log )
                                         exp = 1

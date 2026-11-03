@@ -149,8 +149,8 @@ CLASS ltcl_session IMPLEMENTATION.
     z2ui5_cl_ui5_srv_draft=>set_instance( mo_store ).
     mv_start = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
 
-    SELECT * FROM z2ui5_t_ag_set INTO TABLE @mt_setting.
-    DELETE FROM z2ui5_t_ag_set.
+    SELECT * FROM z2ui5_t_17 INTO TABLE @mt_setting.
+    DELETE FROM z2ui5_t_17.
     z2ui5_cl_agent_settings=>set_enabled( abap_true ).
     COMMIT WORK.
     mo_session = NEW #( c_client ).
@@ -161,10 +161,10 @@ CLASS ltcl_session IMPLEMENTATION.
 
     DATA li_default TYPE REF TO z2ui5_if_ui5_draft_store.
 
-    DELETE FROM z2ui5_t_ag_ses WHERE uname = @sy-uname AND created_at >= @mv_start.
-    DELETE FROM z2ui5_t_ag_log WHERE uname = @sy-uname AND mcp_client = @c_client AND timestampl >= @mv_start.
-    DELETE FROM z2ui5_t_ag_set.
-    INSERT z2ui5_t_ag_set FROM TABLE @mt_setting.
+    DELETE FROM z2ui5_t_16 WHERE uname = @sy-uname AND created_at >= @mv_start.
+    DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND mcp_client = @c_client AND timestampl >= @mv_start.
+    DELETE FROM z2ui5_t_17.
+    INSERT z2ui5_t_17 FROM TABLE @mt_setting.
     COMMIT WORK.
     z2ui5_cl_agent_settings=>refresh( ).
     z2ui5_cl_ui5_srv_draft=>set_instance( li_default ).
@@ -679,7 +679,7 @@ CLASS ltcl_session IMPLEMENTATION.
                                              values = `{"IBAN":"DE02100100109307118603","NAME":"Gus"}` ).
     COMMIT WORK.
     ok( ls_result ).
-    SELECT SINGLE args FROM z2ui5_t_ag_log
+    SELECT SINGLE args FROM z2ui5_t_14
       WHERE uname = @sy-uname AND session_id = @ls_result-session AND operation = 'app_start'
       INTO @DATA(lv_args). "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_subrc( ).
@@ -701,7 +701,7 @@ CLASS ltcl_session IMPLEMENTATION.
                                         event   = `POPUP_OPEN` ).
     COMMIT WORK.
     ok( ls_act ).
-    SELECT SINGLE args FROM z2ui5_t_ag_log
+    SELECT SINGLE args FROM z2ui5_t_14
       WHERE uname = @sy-uname AND session_id = @ls_act-session AND operation = 'app_act'
       INTO @DATA(lv_args). "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_subrc( ).
@@ -719,11 +719,11 @@ CLASS ltcl_session IMPLEMENTATION.
     " an act on it is refused before anything runs, and the row is left
     " as it was
     DATA(ls_start) = start( ).
-    DATA(lv_id) = CONV z2ui5_t_ag_ses-id( ls_start-session ).
+    DATA(lv_id) = CONV z2ui5_t_16-id( ls_start-session ).
     DATA(lv_ahead) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
                          time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
                          seconds = -300 ).
-    UPDATE z2ui5_t_ag_ses SET changed_at = @lv_ahead WHERE id = @lv_id.
+    UPDATE z2ui5_t_16 SET changed_at = @lv_ahead WHERE id = @lv_id.
     COMMIT WORK.
     refused( is_result = mo_session->app_act( session = ls_start-session
                                               event   = `POPUP_OPEN` )
@@ -731,7 +731,7 @@ CLASS ltcl_session IMPLEMENTATION.
     refused( is_result = mo_session->app_act( session = ls_start-session
                                               values  = `{"NAME":"x"}` )
              pattern   = `*being continued by another call*` ).
-    SELECT SINGLE id FROM z2ui5_t_ag_ses WHERE id = @lv_id INTO @DATA(lv_still).
+    SELECT SINGLE id FROM z2ui5_t_16 WHERE id = @lv_id INTO @DATA(lv_still).
     cl_abap_unit_assert=>assert_subrc( ).
     cl_abap_unit_assert=>assert_equals( exp = lv_id
                                         act = lv_still ).
@@ -775,7 +775,7 @@ CLASS ltcl_session IMPLEMENTATION.
                                         outcome   = z2ui5_cl_agent_audit=>cs_outcome-ok
                                         client    = c_client ) ).
     COMMIT WORK.
-    SELECT SINGLE args FROM z2ui5_t_ag_log
+    SELECT SINGLE args FROM z2ui5_t_14
       WHERE uname = @sy-uname AND session_id = 'CUT_SURROGATE_PAIR' AND timestampl >= @mv_start
       INTO @lv_args. "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_subrc( ).
@@ -790,7 +790,7 @@ CLASS ltcl_session IMPLEMENTATION.
     " a key typed into the settings app and sent with another event than
     " Save (here by a user who may not change anything) is not kept in the
     " app's draft, nor sent back to the browser
-    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `LLM_KEY`
                        value = `sk-unit-typed-key` ).
     lo_sim->click( `LLM_TEST` ).
@@ -814,16 +814,16 @@ CLASS ltcl_session IMPLEMENTATION.
     " administrator saves in the settings app - and its audit entry - is
     " committed by the app itself
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
-    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `URL`
                        value = `/sap/bc/unit_handover` ).
     lo_sim->click( `URL_SAVE` ).
-    SELECT SINGLE value FROM z2ui5_t_ag_set WHERE kind = 'URL' INTO @DATA(lv_url). "#EC CI_NOORDER
+    SELECT SINGLE value FROM z2ui5_t_17 WHERE kind = 'URL' INTO @DATA(lv_url). "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_equals( exp = `/sap/bc/unit_handover`
                                         act = lv_url ).
-    SELECT COUNT(*) FROM z2ui5_t_ag_log
+    SELECT COUNT(*) FROM z2ui5_t_14
       WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start INTO @lv_count.
-    DELETE FROM z2ui5_t_ag_log WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
+    DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
     COMMIT WORK.
     cl_abap_unit_assert=>assert_equals( exp = 1
                                         act = lv_count ).
@@ -837,7 +837,7 @@ CLASS ltcl_session IMPLEMENTATION.
     " a rule longer than the settings table holds is refused, not cut: a
     " SENSITIVE pattern cut to 60 characters masks nothing
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
-    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `NEW_KIND`
                        value = `SENSITIVE` ).
     lo_sim->set_value( name  = `NEW_APP`
@@ -845,8 +845,8 @@ CLASS ltcl_session IMPLEMENTATION.
     lo_sim->set_value( name  = `NEW_ITEM`
                        value = `/MS_ORDER/S_PAYMENT/T_ACCOUNT/*/INTERNATIONAL_BANK_ACCOUNT_NUMBER` ).
     lo_sim->click( `RULE_ADD` ).
-    SELECT COUNT(*) FROM z2ui5_t_ag_set WHERE kind = 'SENSITIVE' INTO @lv_count.
-    DELETE FROM z2ui5_t_ag_log WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
+    SELECT COUNT(*) FROM z2ui5_t_17 WHERE kind = 'SENSITIVE' INTO @lv_count.
+    DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
     COMMIT WORK.
     cl_abap_unit_assert=>assert_equals( exp = 0
                                         act = lv_count ).
@@ -860,7 +860,7 @@ CLASS ltcl_session IMPLEMENTATION.
     " the audit log app shows everybody's calls only while the user is an
     " agent administrator - not as long as its draft remembers that he was
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
-    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_AUDIT` ).
+    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_AUDIT` ).
     z2ui5_cl_agent_settings=>remove( kind = z2ui5_cl_agent_settings=>cs_kind-admin
                                      app  = sy-uname ).
     COMMIT WORK.

@@ -10,7 +10,7 @@ CLASS ltcl_genui DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROU
     CONSTANTS c_no_list TYPE string VALUE `{"dataset":"","aggregation":"","sort_by":"","descending":false,"group_by":""}`.
 
     DATA mo_double TYPE REF TO z2ui5_cl_agent_llm_double.
-    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_ag_set WITH EMPTY KEY.
+    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_17 WITH EMPTY KEY.
 
     METHODS setup.
     METHODS teardown.
@@ -39,7 +39,7 @@ CLASS ltcl_genui DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROU
 
     METHODS run
       RETURNING
-        VALUE(result) TYPE REF TO z2ui5_cl_frontend_simulator.
+        VALUE(result) TYPE REF TO z2ui5_cl_frontend_sim.
 
     CLASS-METHODS node
       IMPORTING
@@ -89,8 +89,8 @@ CLASS ltcl_genui IMPLEMENTATION.
 
   METHOD setup.
 
-    SELECT * FROM z2ui5_t_ag_set WHERE kind = 'LLM' INTO TABLE @mt_saved.
-    DELETE FROM z2ui5_t_ag_set WHERE kind = 'LLM'.
+    SELECT * FROM z2ui5_t_17 WHERE kind = 'LLM' INTO TABLE @mt_saved.
+    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
     z2ui5_cl_agent_settings=>refresh( ).
     mo_double = NEW #( ).
     z2ui5_cl_agent_llm=>set_double( mo_double ).
@@ -101,8 +101,8 @@ CLASS ltcl_genui IMPLEMENTATION.
   METHOD teardown.
 
     z2ui5_cl_agent_llm=>set_double( ).
-    DELETE FROM z2ui5_t_ag_set WHERE kind = 'LLM'.
-    INSERT z2ui5_t_ag_set FROM TABLE @mt_saved.
+    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
+    INSERT z2ui5_t_17 FROM TABLE @mt_saved.
     z2ui5_cl_agent_settings=>refresh( ).
 
   ENDMETHOD.
@@ -116,7 +116,7 @@ CLASS ltcl_genui IMPLEMENTATION.
 
   METHOD run.
 
-    result = z2ui5_cl_frontend_simulator=>start( c_demo ).
+    result = z2ui5_cl_frontend_sim=>start( c_demo ).
     result->set_value( name  = `REQUEST`
                        value = `the flights as a table grouped by carrier` ).
     result->click( `GENERATE` ).
@@ -511,7 +511,7 @@ CLASS ltcl_genui IMPLEMENTATION.
     DATA lv_before TYPE i.
     DATA lv_after TYPE i.
 
-    SELECT COUNT(*) FROM z2ui5_t_ag_log WHERE operation = 'llm' AND app = @c_demo AND outcome = 'error'
+    SELECT COUNT(*) FROM z2ui5_t_14 WHERE operation = 'llm' AND app = @c_demo AND outcome = 'error'
       INTO @lv_before.
     mo_double->add_error( ).
     DATA(sim) = run( ).
@@ -520,7 +520,7 @@ CLASS ltcl_genui IMPLEMENTATION.
     cl_abap_unit_assert=>assert_char_cp( act = sim->get_value( `REPORT` )
                                          exp = `*the language model call failed (http)*` ).
     " audited as an error - and committed, abap2UI5 rolls back after main( )
-    SELECT COUNT(*) FROM z2ui5_t_ag_log WHERE operation = 'llm' AND app = @c_demo AND outcome = 'error'
+    SELECT COUNT(*) FROM z2ui5_t_14 WHERE operation = 'llm' AND app = @c_demo AND outcome = 'error'
       INTO @lv_after.
     cl_abap_unit_assert=>assert_equals( act = lv_after
                                         exp = lv_before + 1 ).

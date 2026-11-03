@@ -15,8 +15,8 @@
 > **Status: experimental - not yet in a release; details can still
 > change.** Everything described here is on `main` and in the generated
 > `standard` / `cloud` branches, and is what the first release (0.1.0,
-> [CHANGELOG.md](CHANGELOG.md)) will carry. What works: the MCP endpoint with the four app tools, the agent
-> snapshot v1 (byte-identical with the reference on its recorded sessions),
+> [CHANGELOG.md](CHANGELOG.md)) will carry. What works: the MCP endpoint
+> with the four app tools, the agent snapshot v1 (byte-identical with the reference on its recorded sessions),
 > opt-in, policy and audit, the language model client, generative UI and the
 > in-app copilot. How it is verified: the ABAP Unit tests of every class run
 > on abap2UI5's transpiled Node runtime (`ABAP_UNIT`), the sources lint as
@@ -36,7 +36,7 @@ abap2UI5 app as structured data, fill its fields and fire its events. As the
 real SAP user, through the app's own `main( )`, with the app's own validation
 and authority checks. No Node, no browser, no screen scraping.
 
-> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org).
+> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org). Documentation: [abap2ui5-addons.github.io/abap-agent-runtime](https://abap2ui5-addons.github.io/abap-agent-runtime/).
 
 ```
 agent: app_start { "app": "z2ui5_cl_agent_demo" }
@@ -94,7 +94,8 @@ audit log ([AI at runtime](#ai-at-runtime)):
 
 - ABAP Cloud (BTP ABAP environment, S/4HANA Cloud Public Edition) or ABAP
   Standard 7.50 or higher (on-premise, S/4HANA, NetWeaver); the 7.02
-  downport is linted in CI (`ABAP_702`)
+  downport is linted in CI (`ABAP_702`) and published as the branch `702`
+  (see [Development](#development))
 - [abap2UI5](https://github.com/abap2UI5/abap2UI5) and
   [abap2UI5/headless-frontend](https://github.com/abap2UI5/headless-frontend),
   the simulator this addon runs on - installed first, see the steps
@@ -176,8 +177,9 @@ to `app_list`; `z2ui5_cl_agent_demo` is a complete opted-in example app.
 To run a second copy next to the original in the same system, rename it the
 way abap2UI5 itself is renamed: run the workflow **build-rename** (Actions →
 build-rename → Run workflow) with the name your abap2UI5 installation was
-renamed to - e.g. `ZMYUI5` or `/CA2UI5/` (at most 9 characters here - the ICF node `z2ui5_agent` has to stay within 15). It pushes the branch `rename_<name>`, in
-which every object and every reference to abap2UI5 and to the addons this one
+renamed to - e.g. `ZMYUI5` or `/CA2UI5/` (at most 9 characters here - the
+ICF node `z2ui5_agent` has to stay within 15). It pushes the branch
+`rename_<name>`, in which every object and every reference to abap2UI5 and to the addons this one
 needs carries that name; pull it with abapGit. Rename abap2UI5 and every addon
 of the installation with the same name.
 
@@ -516,8 +518,8 @@ and enter `ZCL_LLM_AI_CORE` as the provider class. Unit tests use
 ### Privacy and audit
 
 - **Every call is audited** in `Z2UI5_T_14` (written in the caller's
-  LUW - the endpoint, `generate( )` and the copilot commit it; operation `llm`, visible in
-  `z2ui5_cl_agent_app_audit`): user, app, purpose (`genui`, `copilot`,
+  LUW - the endpoint, `generate( )` and the copilot commit it; operation
+  `llm`, visible in `z2ui5_cl_agent_app_audit`): user, app, purpose (`genui`, `copilot`,
   `test`), provider, model, effort, stop reason, input and output tokens,
   duration in ms, outcome, the error text. **No prompt and no answer** -
   unless an administrator switches *Audit keeps prompts and answers* on
@@ -695,6 +697,7 @@ npm run lint:cloud      # ABAP Cloud
 npm run check:abap2ui5  # the abap2UI5 linter on the apps (package 02)
 npm run genui:check     # z2ui5_cl_agent_gen_vocab is what the pinned profile generates
 npm run check:version   # package.json, z2ui5_if_agent_app=>version and CHANGELOG.md agree
+npm run rename          # the namespace rename still lints
 npm run unit            # the ABAP Unit tests on abap2UI5's transpiled runtime
 ```
 
@@ -724,8 +727,9 @@ ran. The first run takes a few minutes.
 
 ## Contributing
 
-Issues and pull requests are welcome. See [AGENTS.md](AGENTS.md) for the
-conventions of this repository.
+Issues and pull requests are welcome - see [CONTRIBUTING.md](CONTRIBUTING.md)
+and, for the rules of the code, [AGENTS.md](AGENTS.md). Security issues:
+[SECURITY.md](SECURITY.md).
 
 ## License
 

@@ -30,7 +30,7 @@ in step with every change.
 | `src/03/` | ABAP Standard entry: `z2ui5_cl_agent_http` (`if_http_extension`) + ICF node `/sap/bc/z2ui5_agent` (SICF); `z2ui5_cl_agent_llm_std` (the model's POST, `cl_http_client`) |
 | `src/04/` | ABAP Cloud entry: `z2ui5_cl_agent_http_cloud` (`if_http_service_extension`); `z2ui5_cl_agent_llm_cloud` (the model's POST, `cl_web_http_client_manager`) |
 | `.github/abaplint/` | `abap_cloud.jsonc` (excludes 03), `abap_702.jsonc` (excludes 04, downport) |
-| `.github/workflows/` | `ABAP_STANDARD`, `ABAP_CLOUD`, `ABAP_702`, `ABAP_UNIT`, `check-abap2UI5`, `genui-vocab`, `publish-branches`, `release` (on a tag only - RELEASING.md) |
+| `.github/workflows/` | `ABAP_STANDARD`, `ABAP_CLOUD`, `ABAP_702`, `ABAP_UNIT`, `check-abap2UI5`, `check-rename`, `build-rename`, `genui-vocab`, `publish-branches`, `publish-702` (and `abap-702`, which lints the generated `702` branch), `release` (on a tag only - RELEASING.md), `bump-deps`, `deploy-pages` |
 | `.github/scripts/release-gate.mjs` | `npm run check:version` (every push, part of `npm run check`) / `check:release` (before a tag; `release.yaml` runs it with `--tag`) - `package.json`, `z2ui5_if_agent_app=>version` and `CHANGELOG.md` agree |
 | `CHANGELOG.md`, `RELEASING.md` | what changed (every user-visible change under `## Unreleased`), and how a release is cut: one tag `X.Y.Z`, the generated branches tagged `X.Y.Z-standard` / `X.Y.Z-cloud` |
 | `.github/scripts/unit.mjs` | `npm run unit` - the ABAP Unit tests on abap2UI5's transpiled runtime, in `.unit/` (git-ignored); `ABAP_UNIT` runs it |
@@ -143,14 +143,15 @@ in step with every change.
 
 ```
 npm ci
-npm run check       # lint, lint:cloud, check:abap2ui5, genui:check, check:version
+npm run check       # lint, lint:cloud, check:abap2ui5, genui:check, check:version, rename
 npm run unit        # ABAP Unit, transpiled - minutes on the first run
 ```
 
-`ABAP_702` (CI): headless-frontend cloned into `src/zz_headless_frontend`,
-`npm run downport`, `npx abaplint .github/abaplint/abap_702.jsonc` - on a copy,
-never commit. Unit tests (`ABAP_UNIT`, `npm run unit`): transpiled runtime of
-abap2UI5 (README, "Development"), every risk level; `ltcl_session` /
+`ABAP_702` (CI): `npm run downport`, then `npx abaplint
+.github/abaplint/abap_702.jsonc` - on a copy, never commit. headless-frontend
+is an abaplint dependency there, resolved from its own `702` branch. Unit
+tests (`ABAP_UNIT`, `npm run unit`): transpiled runtime of abap2UI5 (README,
+"Development"), every risk level; `ltcl_session` /
 `ltcl_mcp` are `RISK LEVEL DANGEROUS` (they write the addon's tables and
 restore them in `teardown`), the parser and snapshot tests are `HARMLESS`.
 The AI tests (`ltcl_llm`, `ltcl_anthropic`, `ltcl_genui`, `ltcl_copilot`)

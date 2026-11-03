@@ -36,7 +36,7 @@ abap2UI5 app as structured data, fill its fields and fire its events. As the
 real SAP user, through the app's own `main( )`, with the app's own validation
 and authority checks. No Node, no browser, no screen scraping.
 
-> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org).
+> Part of [abap2UI5-addons](https://github.com/abap2UI5-addons) - addons and apps for [abap2UI5](https://github.com/abap2UI5/abap2UI5), installed with [abapGit](https://abapgit.org). Documentation: [abap2ui5-addons.github.io/abap-agent-runtime](https://abap2ui5-addons.github.io/abap-agent-runtime/).
 
 ```
 agent: app_start { "app": "z2ui5_cl_agent_demo" }

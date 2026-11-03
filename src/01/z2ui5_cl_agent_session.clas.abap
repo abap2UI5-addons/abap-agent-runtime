@@ -2676,12 +2676,14 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       DATA(lv_app) = COND string( WHEN mo_sim IS BOUND THEN mo_sim->get_app( ) ELSE app ).
       IF mo_snap IS NOT BOUND.
         " no screen to resolve the key against: judged by the key alone
-        lv_masked = xsdbool( z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                       path = ls_value-key
-                                                                       name = ls_value-key ) = abap_true
-                          OR z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                       path = |/{ ls_value-key }|
-                                                                       name = ls_value-key ) = abap_true ).
+        lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                              path = ls_value-key
+                                                              name = ls_value-key ).
+        IF lv_masked = abap_false.
+          lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                path = |/{ ls_value-key }|
+                                                                name = ls_value-key ).
+        ENDIF.
       ELSE.
         DATA(ls_target) = resolve_target( EXPORTING key   = ls_value-key
                                           IMPORTING found = lv_found ).
@@ -2699,12 +2701,14 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         ELSE.
           " a key the screen does not know: a name like IBAN is checked as
           " the path /IBAN as well, the shape the sensitive rules are written in
-          lv_masked = xsdbool( z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                         path = ls_value-key
-                                                                         name = ls_value-key ) = abap_true
-                            OR z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                         path = |/{ ls_value-key }|
-                                                                         name = ls_value-key ) = abap_true ).
+          lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                path = ls_value-key
+                                                                name = ls_value-key ).
+          IF lv_masked = abap_false.
+            lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
+                                                                  path = |/{ ls_value-key }|
+                                                                  name = ls_value-key ).
+          ENDIF.
         ENDIF.
       ENDIF.
       INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-key ) }:| &&

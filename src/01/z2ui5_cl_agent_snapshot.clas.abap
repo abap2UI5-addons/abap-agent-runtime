@@ -1893,6 +1893,7 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
+    " two checks: the 7.02 downport puts one xsdbool( ) on one line
     DATA(lv_editable) = xsdbool( bool( node          = node
                                        name          = `editable`
                                        ctx           = ctx
@@ -1900,11 +1901,13 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                              AND bool( node          = node
                                        name          = `enabled`
                                        ctx           = ctx
-                                       default_value = abap_true ) = abap_true
-                             AND bool( node          = node
-                                       name          = `displayOnly`
-                                       ctx           = ctx
-                                       default_value = abap_false ) = abap_false ).
+                                       default_value = abap_true ) = abap_true ).
+    IF lv_editable = abap_true.
+      lv_editable = xsdbool( bool( node          = node
+                                   name          = `displayOnly`
+                                   ctx           = ctx
+                                   default_value = abap_false ) = abap_false ).
+    ENDIF.
     label_for( EXPORTING ctx      = ctx
                          id       = z2ui5_cl_agent_viewxml=>attr( node = node
                                                                   name = `id` )
@@ -2977,6 +2980,7 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD cell_ok.
 
+    " two checks: the 7.02 downport puts one xsdbool( ) on one line
     result = xsdbool( bool( node          = node
                             name          = `editable`
                             ctx           = ctx
@@ -2986,12 +2990,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                             name          = `enabled`
                             ctx           = ctx
                             row           = row
-                            default_value = abap_true ) = abap_true
-                  AND bool( node          = node
-                            name          = `displayOnly`
-                            ctx           = ctx
-                            row           = row
-                            default_value = abap_false ) = abap_false ).
+                            default_value = abap_true ) = abap_true ).
+    IF result = abap_true.
+      result = xsdbool( bool( node          = node
+                              name          = `displayOnly`
+                              ctx           = ctx
+                              row           = row
+                              default_value = abap_false ) = abap_false ).
+    ENDIF.
 
   ENDMETHOD.
 

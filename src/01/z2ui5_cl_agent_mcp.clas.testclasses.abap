@@ -468,19 +468,21 @@ CLASS ltcl_mcp IMPLEMENTATION.
   METHOD batch_audit.
 
     DATA lv_count TYPE i.
+    DATA lv_body TYPE string.
 
     " every call of a batch is audited: the roundtrip of a later call (here
     " app_start) rolls back what the earlier ones left uncommitted
     DATA(lo_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26",` &&
                           `"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
     DATA(lv_mcp_session) = lo_init-t_header[ name = `Mcp-Session-Id` ]-value. "#EC CI_SORTSEQ
+    lv_body = `[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"app_list","arguments":{}}},` &&
+              `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":` &&
+              `{"name":"app_start","arguments":{"app":"z2ui5_cl_agent_demo","max_rows":1}}}]`.
     DATA(ls_response) = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #(
         method       = `POST`
         content_type = `application/json`
         session_id   = lv_mcp_session
-        body         = `[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"app_list","arguments":{}}},` &&
-                       `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":` &&
-                       `{"name":"app_start","arguments":{"app":"z2ui5_cl_agent_demo","max_rows":1}}}]` ) ).
+        body         = lv_body ) ).
     COMMIT WORK.
     cl_abap_unit_assert=>assert_char_cp( exp = `*"id":3*`
                                          act = ls_response-body ).

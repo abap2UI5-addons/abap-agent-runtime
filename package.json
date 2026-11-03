@@ -18,10 +18,11 @@
     "check:release": "node .github/scripts/release-gate.mjs --release",
     "syfixes": "find src -type f -name '*.abap' -exec sed -i -e 's/ RAISE EXCEPTION TYPE cx_sy_itab_line_not_found/ ASSERT 1 = 0/g' {} +",
     "downport": "abaplint --fix .github/abaplint/abap_702.jsonc && npm run syfixes",
-    "check": "npm run lint && npm run lint:cloud && npm run check:abap2ui5 && npm run genui:check && npm run check:version",
+    "check": "npm run lint && npm run lint:cloud && npm run check:abap2ui5 && npm run genui:check && npm run check:version && npm run rename",
     "strip_trailing_ws": "find src -type f -name '*.abap' -exec sed -i 's/[[:space:]]\\+$//' {} +",
     "abaplintpathfix": "sed -i 's|\"/\\.\\./\\.\\./src/|\"/src/|g' abaplint.jsonc",
-    "auto_downport": "rm -rf src/04 && (abaplint --fix .github/abaplint/abap_702.jsonc || true) && npm run syfixes && npm run strip_trailing_ws && abaplint .github/abaplint/abap_702.jsonc && cp -f .github/abaplint/abap_702.jsonc abaplint.jsonc && npm run abaplintpathfix"
+    "auto_downport": "rm -rf src/04 && (abaplint --fix .github/abaplint/abap_702.jsonc || true) && npm run syfixes && npm run strip_trailing_ws && abaplint .github/abaplint/abap_702.jsonc && cp -f .github/abaplint/abap_702.jsonc abaplint.jsonc && npm run abaplintpathfix",
+    "rename": "node .github/scripts/rename.mjs"
   },
   "repository": {
     "type": "git",
@@ -45,5 +46,8 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "config": {
+    "renameMaxLength": 9
   }
 }

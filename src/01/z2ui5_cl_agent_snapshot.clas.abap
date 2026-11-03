@@ -1,5 +1,5 @@
 "! What is on an abap2UI5 screen, as data an agent can act on: the layers
-"! of the headless frontend simulator (z2ui5_cl_frontend_simulator,
+"! of the headless frontend simulator (z2ui5_cl_frontend_sim,
 "! get_layers( )) and the client work of the last response (get_actions( ))
 "! -&gt; "agent snapshot v1", the JSON shape docs/agent-snapshot.md of
 "! abap2UI5/mcp-server specifies and lib/snapshot.mjs there implements.
@@ -57,7 +57,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       BEGIN OF ty_s_input,
         session   TYPE string,
         app       TYPE string,
-        t_layer   TYPE z2ui5_cl_frontend_simulator=>ty_t_layer,
+        t_layer   TYPE z2ui5_cl_frontend_sim=>ty_t_layer,
         t_custom  TYPE string_table,
         t_pending TYPE ty_t_pending,
         max_rows  TYPE i,

@@ -8,7 +8,7 @@
 "!                                       t_message = VALUE #( ( role = `user` content = `...` ) ) ) ).
 "!
 "! create( ) reads the agent settings (z2ui5_cl_agent_settings, kind LLM):
-"! the provider class (default z2ui5_cl_agent_llm_anthropic, or a class of
+"! the provider class (default z2ui5_cl_agent_llm_claude, or a class of
 "! your own implementing z2ui5_if_agent_llm - SAP AI Core, Bedrock, a
 "! gateway), and wraps it. The wrapper fills in the effort and max_tokens
 "! of the settings, refuses an answer that stopped for refusal, max_tokens
@@ -28,7 +28,6 @@ CLASS z2ui5_cl_agent_llm DEFINITION PUBLIC FINAL CREATE PRIVATE.
     INTERFACES z2ui5_if_agent_llm.
     ALIASES chat FOR z2ui5_if_agent_llm~chat.
 
-    CONSTANTS c_default_provider TYPE string VALUE `Z2UI5_CL_AGENT_LLM_ANTHROPIC`.
     CONSTANTS c_default_max_tokens TYPE i VALUE 16000.
     "! What of one prompt or answer the audit keeps when it keeps them.
     CONSTANTS c_audit_text TYPE i VALUE 400.
@@ -75,6 +74,13 @@ CLASS z2ui5_cl_agent_llm DEFINITION PUBLIC FINAL CREATE PRIVATE.
       RETURNING
         VALUE(result) TYPE string.
 
+    "! The provider class when the settings name none: z2ui5_cl_agent_llm_claude,
+    "! read from a typed reference - a namespace rename rewrites it, a literal
+    "! it would not.
+    CLASS-METHODS get_default_provider
+      RETURNING
+        VALUE(result) TYPE string.
+
   PROTECTED SECTION.
 
   PRIVATE SECTION.
@@ -117,7 +123,7 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
     ENDIF.
     result = to_upper( condense( z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-provider ) ) ).
     IF result IS INITIAL.
-      result = c_default_provider.
+      result = get_default_provider( ).
     ENDIF.
 
   ENDMETHOD.
@@ -136,6 +142,8 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
   METHOD create.
 
     DATA li_inner TYPE REF TO z2ui5_if_agent_llm.
+    " stays unbound - only its type is read (rtti_get_ref_type_name)
+    DATA li_llm TYPE REF TO z2ui5_if_agent_llm.
 
     result = NEW #( ).
     result->mv_provider = get_provider( ).
@@ -144,7 +152,7 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    IF result->mv_provider = c_default_provider
+    IF result->mv_provider = get_default_provider( )
         AND z2ui5_cl_agent_settings=>check_llm_key( ) = abap_false
         AND z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-destination ) IS INITIAL.
       RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
@@ -153,8 +161,9 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
           text = `no language model is configured - an agent administrator sets an API key or a destination ` &&
                  `in the agent settings (z2ui5_cl_agent_app_admin, "Language model")`.
     ENDIF.
-    IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf( class = result->mv_provider
-                                                              intf  = `Z2UI5_IF_AGENT_LLM` ) = abap_false.
+    IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf(
+           class = result->mv_provider
+           intf  = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( li_llm ) ) = abap_false.
       RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
         EXPORTING
           kind = z2ui5_cx_agent_llm=>cs_kind-config
@@ -177,15 +186,22 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
 
     DATA li_http TYPE REF TO z2ui5_if_agent_llm_http.
     DATA lt_class TYPE string_table.
+    DATA lo_self TYPE REF TO z2ui5_cl_agent_llm.
 
     IF gi_http IS BOUND.
       result = gi_http.
       RETURN.
     ENDIF.
-    lt_class = VALUE #( ( `Z2UI5_CL_AGENT_LLM_STD` ) ( `Z2UI5_CL_AGENT_LLM_CLOUD` ) ).
+    " the two entries ship on different branches (standard / cloud), so they
+    " are named, not referenced - behind the prefix of this class's own name,
+    " which a namespace rename carries along
+    DATA(lv_prefix) = substring_before( val = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( lo_self )
+                                        sub = `CL_AGENT_LLM` ).
+    lt_class = VALUE #( ( lv_prefix && `CL_AGENT_LLM_STD` ) ( lv_prefix && `CL_AGENT_LLM_CLOUD` ) ).
+    DATA(lv_intf) = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( li_http ).
     LOOP AT lt_class INTO DATA(lv_class).
       IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf( class = lv_class
-                                                                intf  = `Z2UI5_IF_AGENT_LLM_HTTP` ) = abap_false.
+                                                                intf  = lv_intf ) = abap_false.
         CONTINUE.
       ENDIF.
       TRY.
@@ -345,6 +361,13 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
                                                             ELSE z2ui5_cl_agent_audit=>cs_outcome-error )
                                         text      = error
                                         client    = mv_provider ) ).
+
+  ENDMETHOD.
+
+  METHOD get_default_provider.
+
+    DATA lo_default TYPE REF TO z2ui5_cl_agent_llm_claude.
+    result = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( lo_default ).
 
   ENDMETHOD.
 

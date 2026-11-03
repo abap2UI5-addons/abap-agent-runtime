@@ -12,7 +12,7 @@ which an AI agent reads an app's screen as an *agent snapshot v1*, fills fields
 and fires events - as the SAP user of the HTTP request, through the app's own
 `main( )`. Installed with abapGit after abap2UI5 and
 [abap2UI5/headless-frontend](https://github.com/abap2UI5/headless-frontend),
-whose `z2ui5_cl_frontend_simulator` is the engine. On top of it, **AI at
+whose `z2ui5_cl_frontend_sim` is the engine. On top of it, **AI at
 runtime**: a language model client (`z2ui5_if_agent_llm`, the Claude
 Messages API shipped), generative UI over data an app hands over, validated
 against a closed vocabulary, and an in-app copilot grounded in the agent
@@ -25,7 +25,7 @@ in step with every change.
 
 | Path | |
 |---|---|
-| `src/01/` | The engine - activates on ABAP Standard, ABAP Cloud and (downported) 7.02: `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml` (XML / binding / expression / wire parsers), `z2ui5_cl_agent_snapshot` (snapshot builder + act index), `z2ui5_cl_agent_session` (the four operations; mode copilot: `app_attach`, `app_check`, `get_snapshot`), `z2ui5_cl_agent_settings` (opt-in, policy, admins, kind `LLM`), `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp` (the protocol), tables `Z2UI5_T_14` - `Z2UI5_T_17`. AI at runtime: `z2ui5_if_agent_llm` (one chat call), `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http` (the outbound POST), `z2ui5_cl_agent_llm` (factory + wrapper: settings, stop reasons, JSON, audit; test seams `set_double` / `set_http`), `z2ui5_cl_agent_llm_anthropic` (Messages API), `z2ui5_cl_agent_llm_double` (canned answers), `z2ui5_cl_agent_genui` (UI tree -> validated view), `z2ui5_cl_agent_gen_vocab` (GENERATED vocabulary), `z2ui5_cl_agent_assist` (copilot engine) |
+| `src/01/` | The engine - activates on ABAP Standard, ABAP Cloud and (downported) 7.02: `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml` (XML / binding / expression / wire parsers), `z2ui5_cl_agent_snapshot` (snapshot builder + act index), `z2ui5_cl_agent_session` (the four operations; mode copilot: `app_attach`, `app_check`, `get_snapshot`), `z2ui5_cl_agent_settings` (opt-in, policy, admins, kind `LLM`), `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp` (the protocol), tables `Z2UI5_T_14` - `Z2UI5_T_17`. AI at runtime: `z2ui5_if_agent_llm` (one chat call), `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http` (the outbound POST), `z2ui5_cl_agent_llm` (factory + wrapper: settings, stop reasons, JSON, audit; test seams `set_double` / `set_http`), `z2ui5_cl_agent_llm_claude` (Messages API), `z2ui5_cl_agent_llm_double` (canned answers), `z2ui5_cl_agent_genui` (UI tree -> validated view), `z2ui5_cl_agent_gen_vocab` (GENERATED vocabulary), `z2ui5_cl_agent_assist` (copilot engine) |
 | `src/02/` | abap2UI5 apps: `z2ui5_cl_agent_app_admin` (incl. the *Language model* section), `z2ui5_cl_agent_app_audit`, `z2ui5_cl_agent_demo` (opted-in example with the copilot, driven by the unit tests), `z2ui5_cl_agent_genui_demo`, `z2ui5_cl_agent_copilot` (the copilot popup + its opt-in `attach( )`) |
 | `src/03/` | ABAP Standard entry: `z2ui5_cl_agent_http` (`if_http_extension`) + ICF node `/sap/bc/z2ui5_agent` (SICF); `z2ui5_cl_agent_llm_std` (the model's POST, `cl_http_client`) |
 | `src/04/` | ABAP Cloud entry: `z2ui5_cl_agent_http_cloud` (`if_http_service_extension`); `z2ui5_cl_agent_llm_cloud` (the model's POST, `cl_web_http_client_manager`) |
@@ -109,7 +109,7 @@ in step with every change.
   never put `tab[ ... ]` inside an `IF`/`COND` guarded by another condition -
   read it ahead with `VALUE #( tab[ ... ] OPTIONAL )`.
 - **The simulator builds the delta.** `send( )` hands every pending value of
-  the action's model to `z2ui5_cl_frontend_simulator=>set_json( )` (the JSON
+  the action's model to `z2ui5_cl_frontend_sim=>set_json( )` (the JSON
   of the value at its model path, `layer` = the action's model) and fires with
   `click( layer )` - the simulator applies the frontend's
   `buildDeltaFromPaths`. Never rebuild the delta here, and never send values
@@ -162,3 +162,27 @@ iteration of `npm run downport`.
 
 Local runs can pre-fill `.abaplint-deps/` (git-ignored) - abaplint uses a
 dependency folder that exists instead of cloning.
+
+## Namespace rename
+
+`npm run rename` (CI: `check-rename`) and the manual `build-rename` workflow
+are abap2UI5's namespace rename for this addon - `.github/scripts/rename.mjs`,
+the same file in every addon that has one. Every `z2ui5_` object becomes
+`<name>_...`, for a customer name such as `ZMYUI5` or a registered namespace
+such as `/CA2UI5/` (at most 9 characters), and so does every reference to
+abap2UI5 and to headless-frontend: the branch `rename_<name>` runs on an abap2UI5 renamed with
+the same name by its own `build-rename`. What follows from it:
+
+- Every object name has at most 25 characters (a transparent table 11, an
+  ICF node 10) - 30 minus what the longest new name adds.
+- No literal names a `z2ui5_` object: the rename rewrites references, never a
+  literal. Derive the name - from a typed reference, or behind the prefix of
+  the class's own name.
+- A change that spans several repositories: `RENAME_DEPS_FROM=<dir> npm run
+  rename` takes the dependencies from the clones in `<dir>`.
+- The ICF node `z2ui5_agent` has 11 characters, and an ICF node at most 15 -
+  so this addon allows names of at most 9 characters
+  (`config.renameMaxLength` in `package.json`): `ZMYUI5` and `/CA2UI5/` fit.
+  Renaming the node would move the URL every MCP client is configured with.
+- `src/04` (the ABAP Cloud entry) is renamed with the rest, but not linted by
+  the rename check - the standard lint excludes it too.

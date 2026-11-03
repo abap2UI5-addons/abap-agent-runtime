@@ -16,6 +16,19 @@ and by its lint targets, not yet on a system in production use, and its API -
 `z2ui5_if_agent_app`, the MCP tool arguments, the snapshot extension
 `policy`, the settings - may still change before 1.0 (README, "Status").
 
+### Namespace rename
+
+- `npm run rename` and the manual workflow `build-rename`, abap2UI5's own
+  mechanism: every object - and every reference to abap2UI5 and to
+  headless-frontend - renamed to a customer name or a namespace, pushed as
+  `rename_<name>`. This addon allows names of up to 9 characters: the ICF
+  node `z2ui5_agent` has to stay within 15.
+- The Messages API client `z2ui5_cl_agent_llm_anthropic` is
+  `z2ui5_cl_agent_llm_claude` (25 characters at most for the rename); the
+  settings' default provider follows. A provider class name stored in the
+  settings must be changed by hand.
+- Uses headless-frontend's shortened names (`z2ui5_cl_frontend_sim`).
+
 ### The MCP endpoint
 
 - An ABAP-native MCP server (JSON-RPC 2.0 over MCP Streamable HTTP, protocol
@@ -71,7 +84,7 @@ and by its lint targets, not yet on a system in production use, and its API -
 
 - A language model client: `z2ui5_if_agent_llm` (one chat call),
   `z2ui5_cl_agent_llm` (factory, settings, stop reasons, JSON, audit; test
-  seams `set_double` / `set_http`), `z2ui5_cl_agent_llm_anthropic` (the
+  seams `set_double` / `set_http`), `z2ui5_cl_agent_llm_claude` (the
   Messages API, structured output), `z2ui5_cl_agent_llm_double` (canned
   answers for tests), the outbound POST per platform (`z2ui5_cl_agent_llm_std`
   with `cl_http_client`, `z2ui5_cl_agent_llm_cloud` with

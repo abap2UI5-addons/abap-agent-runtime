@@ -40,11 +40,11 @@ CLASS ltcl_copilot DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGER
     "! The demo with the copilot open - NAME and IBAN typed before the press.
     METHODS open
       RETURNING
-        VALUE(result) TYPE REF TO z2ui5_cl_frontend_simulator.
+        VALUE(result) TYPE REF TO z2ui5_cl_frontend_sim.
 
     METHODS ask
       IMPORTING
-        sim      TYPE REF TO z2ui5_cl_frontend_simulator
+        sim      TYPE REF TO z2ui5_cl_frontend_sim
         question TYPE string.
 
     CLASS-METHODS answer
@@ -94,7 +94,7 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD open.
 
-    result = z2ui5_cl_frontend_simulator=>start( c_demo ).
+    result = z2ui5_cl_frontend_sim=>start( c_demo ).
     result->set_value( name  = `NAME`
                        value = `Carol` ).
     result->set_value( name  = `IBAN`

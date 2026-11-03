@@ -40,7 +40,7 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     CONSTANTS:
       "! The items of kind LLM. provider: the class implementing
-      "! z2ui5_if_agent_llm (default z2ui5_cl_agent_llm_anthropic); model,
+      "! z2ui5_if_agent_llm (default z2ui5_cl_agent_llm_claude); model,
       "! effort, max_tokens, timeout (seconds): of every call; url,
       "! destination, key: where the provider sends it (z2ui5_if_agent_llm_http);
       "! fallback (on/off, default on): the server-side refusal fallback of
@@ -257,6 +257,15 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PRIVATE SECTION.
 
+    "! The interface names, read from typed references - a namespace rename
+    "! rewrites a reference, never a literal.
+    CLASS-METHODS if_app_name
+      RETURNING
+        VALUE(result) TYPE string.
+    CLASS-METHODS if_agent_app_name
+      RETURNING
+        VALUE(result) TYPE string.
+
     TYPES:
       BEGIN OF ty_s_info_buffer,
         app  TYPE string,
@@ -432,7 +441,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
       RETURN.
     ENDIF.
     IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf( class = lv_app
-                                                              intf  = `Z2UI5_IF_APP` ) = abap_false.
+                                                              intf  = if_app_name( ) ) = abap_false.
       reason = |{ lv_app } is no abap2UI5 app (no class of that name implements z2ui5_if_app)|.
       RETURN.
     ENDIF.
@@ -446,7 +455,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ENDLOOP.
 
     IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf( class = lv_app
-                                                              intf  = `Z2UI5_IF_AGENT_APP` ) = abap_true.
+                                                              intf  = if_agent_app_name( ) ) = abap_true.
       result = abap_true.
       RETURN.
     ENDIF.
@@ -472,7 +481,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     " the class directory: SEOMETAREL on ABAP Standard, XCO on ABAP Cloud -
     " where it cannot be read, the list holds what the settings name
     TRY.
-        DATA(lt_impl) = z2ui5_cl_ui5_util_context=>rtti_get_classes_impl_intf( `Z2UI5_IF_AGENT_APP` ).
+        DATA(lt_impl) = z2ui5_cl_ui5_util_context=>rtti_get_classes_impl_intf( if_agent_app_name( ) ).
       CATCH cx_root.
         CLEAR lt_impl.
     ENDTRY.
@@ -493,7 +502,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ENDLOOP.
     IF lv_patterns = abap_true.
       TRY.
-          lt_impl = z2ui5_cl_ui5_util_context=>rtti_get_classes_impl_intf( `Z2UI5_IF_APP` ).
+          lt_impl = z2ui5_cl_ui5_util_context=>rtti_get_classes_impl_intf( if_app_name( ) ).
         CATCH cx_root.
           CLEAR lt_impl.
       ENDTRY.
@@ -541,7 +550,7 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ENDIF.
 
     IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf( class = lv_app
-                                                              intf  = `Z2UI5_IF_AGENT_APP` ) = abap_true.
+                                                              intf  = if_agent_app_name( ) ) = abap_true.
       TRY.
           CREATE OBJECT lo_app TYPE (lv_app).
           result = CAST z2ui5_if_agent_app( lo_app )->describe( ).
@@ -744,6 +753,20 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     IF result <= 0.
       result = 4.
     ENDIF.
+
+  ENDMETHOD.
+
+  METHOD if_app_name.
+
+    DATA li_app TYPE REF TO z2ui5_if_app.
+    result = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( li_app ).
+
+  ENDMETHOD.
+
+  METHOD if_agent_app_name.
+
+    DATA li_app TYPE REF TO z2ui5_if_agent_app.
+    result = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( li_app ).
 
   ENDMETHOD.
 

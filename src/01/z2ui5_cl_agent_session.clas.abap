@@ -3,7 +3,7 @@
 "! (abap2UI5/mcp-server), ported from its lib/appclient.mjs.
 "!
 "! The engine is the headless frontend simulator (abap2UI5/headless-
-"! frontend, z2ui5_cl_frontend_simulator): it plays the browser side of the
+"! frontend, z2ui5_cl_frontend_sim): it plays the browser side of the
 "! protocol inside ABAP, so every act runs the app's own main( ) as the
 "! SAP user of the request, with the app's own validation and authority
 "! checks. Every operation is one HTTP request; between requests a session
@@ -200,7 +200,7 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA mv_client TYPE string.
     DATA mv_mode TYPE string.
     DATA mv_dry_run TYPE abap_bool.
-    DATA mo_sim TYPE REF TO z2ui5_cl_frontend_simulator.
+    DATA mo_sim TYPE REF TO z2ui5_cl_frontend_sim.
     DATA ms_row TYPE z2ui5_t_16.
     "! changed_at before and after claim( ), for release( ).
     DATA mv_claimed_from TYPE z2ui5_t_16-changed_at.
@@ -657,7 +657,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         DATA(lt_value) = parse_input( values ).
 
         TRY.
-            mo_sim = z2ui5_cl_frontend_simulator=>start( lv_app ).
+            mo_sim = z2ui5_cl_frontend_sim=>start( lv_app ).
           CATCH cx_root INTO DATA(lx_start).
             app_rollback( ).
             fail( |the app { lv_app } failed to start - { lx_start->get_text( ) }| ).
@@ -717,7 +717,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           result = VALUE #( text    = ms_row-snapshot
                             session = ms_row-id ).
         ELSE.
-          mo_sim = z2ui5_cl_frontend_simulator=>resume( id    = ms_row-id
+          mo_sim = z2ui5_cl_frontend_sim=>resume( id    = ms_row-id
                                                         state = ms_row-state ).
           analyze( ).
           result = VALUE #( text    = mo_snap->get_json( )
@@ -754,7 +754,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                               array = abap_true ).
 
         TRY.
-            mo_sim = z2ui5_cl_frontend_simulator=>resume( id    = ms_row-id
+            mo_sim = z2ui5_cl_frontend_sim=>resume( id    = ms_row-id
                                                           state = ms_row-state ).
           CATCH cx_root INTO DATA(lx_resume).
             DELETE FROM z2ui5_t_16 WHERE id = @ms_row-id.
@@ -941,7 +941,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
             fail( |the draft { draft } cannot be read - { lx_copy->get_text( ) }| ).
         ENDTRY.
         TRY.
-            mo_sim = z2ui5_cl_frontend_simulator=>resume( id      = lv_copy
+            mo_sim = z2ui5_cl_frontend_sim=>resume( id      = lv_copy
                                                           refresh = abap_true ).
           CATCH cx_root INTO DATA(lx_resume).
             app_rollback( ).
@@ -1007,7 +1007,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     load( session ).
     mv_max_rows = ms_row-max_rows.
     TRY.
-        mo_sim = z2ui5_cl_frontend_simulator=>resume( id    = ms_row-id
+        mo_sim = z2ui5_cl_frontend_sim=>resume( id    = ms_row-id
                                                       state = ms_row-state ).
       CATCH cx_root INTO DATA(lx).
         fail( |session '{ ms_row-id }' cannot be continued - { lx->get_text( ) }| ).

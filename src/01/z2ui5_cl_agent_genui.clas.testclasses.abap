@@ -39,7 +39,7 @@ CLASS ltcl_genui DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROU
 
     METHODS run
       RETURNING
-        VALUE(result) TYPE REF TO z2ui5_cl_frontend_simulator.
+        VALUE(result) TYPE REF TO z2ui5_cl_frontend_sim.
 
     CLASS-METHODS node
       IMPORTING
@@ -116,7 +116,7 @@ CLASS ltcl_genui IMPLEMENTATION.
 
   METHOD run.
 
-    result = z2ui5_cl_frontend_simulator=>start( c_demo ).
+    result = z2ui5_cl_frontend_sim=>start( c_demo ).
     result->set_value( name  = `REQUEST`
                        value = `the flights as a table grouped by carrier` ).
     result->click( `GENERATE` ).

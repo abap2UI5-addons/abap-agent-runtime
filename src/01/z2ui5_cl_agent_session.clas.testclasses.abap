@@ -790,7 +790,7 @@ CLASS ltcl_session IMPLEMENTATION.
     " a key typed into the settings app and sent with another event than
     " Save (here by a user who may not change anything) is not kept in the
     " app's draft, nor sent back to the browser
-    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `LLM_KEY`
                        value = `sk-unit-typed-key` ).
     lo_sim->click( `LLM_TEST` ).
@@ -814,7 +814,7 @@ CLASS ltcl_session IMPLEMENTATION.
     " administrator saves in the settings app - and its audit entry - is
     " committed by the app itself
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
-    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `URL`
                        value = `/sap/bc/unit_handover` ).
     lo_sim->click( `URL_SAVE` ).
@@ -837,7 +837,7 @@ CLASS ltcl_session IMPLEMENTATION.
     " a rule longer than the settings table holds is refused, not cut: a
     " SENSITIVE pattern cut to 60 characters masks nothing
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
-    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `NEW_KIND`
                        value = `SENSITIVE` ).
     lo_sim->set_value( name  = `NEW_APP`
@@ -860,7 +860,7 @@ CLASS ltcl_session IMPLEMENTATION.
     " the audit log app shows everybody's calls only while the user is an
     " agent administrator - not as long as its draft remembers that he was
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
-    DATA(lo_sim) = z2ui5_cl_frontend_simulator=>start( `Z2UI5_CL_AGENT_APP_AUDIT` ).
+    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_AUDIT` ).
     z2ui5_cl_agent_settings=>remove( kind = z2ui5_cl_agent_settings=>cs_kind-admin
                                      app  = sy-uname ).
     COMMIT WORK.

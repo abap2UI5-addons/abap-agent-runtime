@@ -171,6 +171,16 @@ is refused until an administrator enables it.
 Then connect a client ([Connecting a client](#connecting-a-client)) and ask it
 to `app_list`; `z2ui5_cl_agent_demo` is a complete opted-in example app.
 
+### Parallel installation (namespace rename)
+
+To run a second copy next to the original in the same system, rename it the
+way abap2UI5 itself is renamed: run the workflow **build-rename** (Actions →
+build-rename → Run workflow) with the name your abap2UI5 installation was
+renamed to - e.g. `ZMYUI5` or `/CA2UI5/` (at most 9 characters here - the ICF node `z2ui5_agent` has to stay within 15). It pushes the branch `rename_<name>`, in
+which every object and every reference to abap2UI5 and to the addons this one
+needs carries that name; pull it with abapGit. Rename abap2UI5 and every addon
+of the installation with the same name.
+
 ## Usage
 
 ### Opting an app in
@@ -289,7 +299,7 @@ nothing.
      |  z2ui5_cl_agent_snapshot  layers + model -> agent snapshot v1 (+ the index an act needs)
      |  z2ui5_cl_agent_viewxml   view XML, bindings, expressions, event wires
      v
- z2ui5_cl_frontend_simulator  (abap2UI5/headless-frontend)  start / resume / set_json / click / close_layer
+ z2ui5_cl_frontend_sim  (abap2UI5/headless-frontend)  start / resume / set_json / click / close_layer
      v
  abap2UI5 core: z2ui5_cl_ui5_handler -> your app's main( ) -> draft (Z2UI5_T_01)
 ```
@@ -305,7 +315,7 @@ resumes the simulator from it.
 
 | Package | Objects |
 | --- | --- |
-| `src/01` engine | `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml`, `z2ui5_cl_agent_snapshot`, `z2ui5_cl_agent_session`, `z2ui5_cl_agent_settings`, `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp`; AI at runtime: `z2ui5_if_agent_llm`, `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http`, `z2ui5_cl_agent_llm` (factory, checks, audit), `z2ui5_cl_agent_llm_anthropic`, `z2ui5_cl_agent_llm_double`, `z2ui5_cl_agent_genui`, `z2ui5_cl_agent_gen_vocab` (generated), `z2ui5_cl_agent_assist` (copilot engine); tables `Z2UI5_T_17` (settings), `Z2UI5_T_16` (sessions), `Z2UI5_T_14` (audit), `Z2UI5_T_15` (MCP client sessions) |
+| `src/01` engine | `z2ui5_if_agent_app` (opt-in), `z2ui5_cl_agent_viewxml`, `z2ui5_cl_agent_snapshot`, `z2ui5_cl_agent_session`, `z2ui5_cl_agent_settings`, `z2ui5_cl_agent_audit`, `z2ui5_cl_agent_mcp`; AI at runtime: `z2ui5_if_agent_llm`, `z2ui5_cx_agent_llm`, `z2ui5_if_agent_llm_http`, `z2ui5_cl_agent_llm` (factory, checks, audit), `z2ui5_cl_agent_llm_claude`, `z2ui5_cl_agent_llm_double`, `z2ui5_cl_agent_genui`, `z2ui5_cl_agent_gen_vocab` (generated), `z2ui5_cl_agent_assist` (copilot engine); tables `Z2UI5_T_17` (settings), `Z2UI5_T_16` (sessions), `Z2UI5_T_14` (audit), `Z2UI5_T_15` (MCP client sessions) |
 | `src/02` apps | `z2ui5_cl_agent_app_admin` (settings), `z2ui5_cl_agent_app_audit` (audit log), `z2ui5_cl_agent_demo` (an opted-in example app, with the copilot), `z2ui5_cl_agent_genui_demo` (generative UI), `z2ui5_cl_agent_copilot` (the copilot popup) |
 | `src/03` ABAP Standard entry | `z2ui5_cl_agent_http` and the ICF node `/sap/bc/z2ui5_agent`; `z2ui5_cl_agent_llm_std` (the language model's HTTP call, `cl_http_client`) |
 | `src/04` ABAP Cloud entry | `z2ui5_cl_agent_http_cloud`; `z2ui5_cl_agent_llm_cloud` (the language model's HTTP call, `cl_web_http_client_manager`) |
@@ -444,7 +454,7 @@ user's click.
                       v v
  z2ui5_cl_agent_llm   factory + wrapper: settings, stop reasons, JSON, audit (Z2UI5_T_14)
      |
- z2ui5_if_agent_llm   z2ui5_cl_agent_llm_anthropic | your class (AI Core, Bedrock, ...) | the double
+ z2ui5_if_agent_llm   z2ui5_cl_agent_llm_claude | your class (AI Core, Bedrock, ...) | the double
      |
  z2ui5_if_agent_llm_http   z2ui5_cl_agent_llm_std (03, cl_http_client) | z2ui5_cl_agent_llm_cloud (04)
 ```
@@ -462,7 +472,7 @@ administrators only - every change is audited):
 | Model / effort | default `claude-opus-5-5` / `low` (thinking is always on for this model and is never configured; `output_config.effort` is the only control - `low` keeps generated views and answers interactive) |
 | Max tokens / timeout | default 16000 / 300 s (never below 120 s) |
 | Refusal fallback / beta header | default on / `server-side-fallback-2026-07-01`: the request carries `"fallbacks":"default"` and the beta header, so a refusal is retried server-side on a fallback model |
-| Provider class | default `z2ui5_cl_agent_llm_anthropic`; a class of your own implementing `z2ui5_if_agent_llm` (public constructor without mandatory parameters) routes every call through SAP AI Core / Generative AI Hub, Bedrock or a gateway - the checks, the JSON parsing and the audit stay the addon's |
+| Provider class | default `z2ui5_cl_agent_llm_claude`; a class of your own implementing `z2ui5_if_agent_llm` (public constructor without mandatory parameters) routes every call through SAP AI Core / Generative AI Hub, Bedrock or a gateway - the checks, the JSON parsing and the audit stay the addon's |
 | Audit keeps prompts and answers | default off (below) |
 | Generative UI: sample rows / repair round | default off / on |
 | In-app copilot / may propose actions | default off / off |

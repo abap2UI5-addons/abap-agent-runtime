@@ -106,7 +106,7 @@ CLASS ltcl_anthropic IMPLEMENTATION.
 
   METHOD request_shape.
 
-    NEW z2ui5_cl_agent_llm_anthropic( )->z2ui5_if_agent_llm~chat( request( ) ).
+    NEW z2ui5_cl_agent_llm_claude( )->z2ui5_if_agent_llm~chat( request( ) ).
 
     DATA(ls_sent) = mo_http->ms_sent.
     cl_abap_unit_assert=>assert_equals( act = ls_sent-url
@@ -141,7 +141,7 @@ CLASS ltcl_anthropic IMPLEMENTATION.
     " is sent, whatever the settings say
     z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-model
                                       value = `claude-haiku-4-5` ).
-    NEW z2ui5_cl_agent_llm_anthropic( )->z2ui5_if_agent_llm~chat( request( ) ).
+    NEW z2ui5_cl_agent_llm_claude( )->z2ui5_if_agent_llm~chat( request( ) ).
 
     DATA(ls_sent) = mo_http->ms_sent.
     cl_abap_unit_assert=>assert_equals( act = find( val = ls_sent-body
@@ -154,10 +154,10 @@ CLASS ltcl_anthropic IMPLEMENTATION.
     " the schema still goes
     cl_abap_unit_assert=>assert_char_cp( act = ls_sent-body
                                          exp = `*"output_config":{"format":*` ).
-    cl_abap_unit_assert=>assert_true( z2ui5_cl_agent_llm_anthropic=>takes_effort( `claude-opus-5-5` ) ).
-    cl_abap_unit_assert=>assert_false( z2ui5_cl_agent_llm_anthropic=>takes_effort( `anthropic.claude-sonnet-4-5-20250929-v1:0` ) ).
-    cl_abap_unit_assert=>assert_true( z2ui5_cl_agent_llm_anthropic=>takes_fallback( `claude-sonnet-5-5` ) ).
-    cl_abap_unit_assert=>assert_false( z2ui5_cl_agent_llm_anthropic=>takes_fallback( `claude-sonnet-4-6` ) ).
+    cl_abap_unit_assert=>assert_true( z2ui5_cl_agent_llm_claude=>takes_effort( `claude-opus-5-5` ) ).
+    cl_abap_unit_assert=>assert_false( z2ui5_cl_agent_llm_claude=>takes_effort( `anthropic.claude-sonnet-4-5-20250929-v1:0` ) ).
+    cl_abap_unit_assert=>assert_true( z2ui5_cl_agent_llm_claude=>takes_fallback( `claude-sonnet-5-5` ) ).
+    cl_abap_unit_assert=>assert_false( z2ui5_cl_agent_llm_claude=>takes_fallback( `claude-sonnet-4-6` ) ).
 
   ENDMETHOD.
 
@@ -171,7 +171,7 @@ CLASS ltcl_anthropic IMPLEMENTATION.
                                       value = `ANTHROPIC` ).
     z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-timeout
                                       value = `30` ).
-    NEW z2ui5_cl_agent_llm_anthropic( )->z2ui5_if_agent_llm~chat( request( ) ).
+    NEW z2ui5_cl_agent_llm_claude( )->z2ui5_if_agent_llm~chat( request( ) ).
 
     DATA(ls_sent) = mo_http->ms_sent.
     cl_abap_unit_assert=>assert_char_cp( act = ls_sent-body
@@ -191,7 +191,7 @@ CLASS ltcl_anthropic IMPLEMENTATION.
 
   METHOD answer_read.
 
-    DATA(ls_answer) = NEW z2ui5_cl_agent_llm_anthropic( )->z2ui5_if_agent_llm~chat( request( ) ).
+    DATA(ls_answer) = NEW z2ui5_cl_agent_llm_claude( )->z2ui5_if_agent_llm~chat( request( ) ).
 
     " the first text block - the thinking block before it is skipped
     cl_abap_unit_assert=>assert_equals( act = ls_answer-text
@@ -227,7 +227,7 @@ CLASS ltcl_anthropic IMPLEMENTATION.
                                   reason = `Too Many Requests`
                                   body   = `{"type":"error","error":{"type":"rate_limit_error","message":"slow down"}}` ).
     TRY.
-        NEW z2ui5_cl_agent_llm_anthropic( )->z2ui5_if_agent_llm~chat( request( ) ).
+        NEW z2ui5_cl_agent_llm_claude( )->z2ui5_if_agent_llm~chat( request( ) ).
         cl_abap_unit_assert=>fail( `429 must raise` ).
       CATCH z2ui5_cx_agent_llm INTO DATA(lx).
         cl_abap_unit_assert=>assert_equals( act = lx->http_status
@@ -240,7 +240,7 @@ CLASS ltcl_anthropic IMPLEMENTATION.
     mo_http->ms_answer = VALUE #( status = 529
                                   body   = `{"type":"error","error":{"type":"overloaded_error","message":"overloaded"}}` ).
     TRY.
-        NEW z2ui5_cl_agent_llm_anthropic( )->z2ui5_if_agent_llm~chat( request( ) ).
+        NEW z2ui5_cl_agent_llm_claude( )->z2ui5_if_agent_llm~chat( request( ) ).
         cl_abap_unit_assert=>fail( `529 must raise` ).
       CATCH z2ui5_cx_agent_llm INTO lx.
         cl_abap_unit_assert=>assert_true( lx->retryable ).
@@ -253,7 +253,7 @@ CLASS ltcl_anthropic IMPLEMENTATION.
     mo_http->ms_answer = VALUE #( status = 400
                                   body   = `{"type":"error","error":{"type":"invalid_request_error","message":"bad schema"}}` ).
     TRY.
-        NEW z2ui5_cl_agent_llm_anthropic( )->z2ui5_if_agent_llm~chat( request( ) ).
+        NEW z2ui5_cl_agent_llm_claude( )->z2ui5_if_agent_llm~chat( request( ) ).
         cl_abap_unit_assert=>fail( `400 must raise` ).
       CATCH z2ui5_cx_agent_llm INTO DATA(lx).
         cl_abap_unit_assert=>assert_false( lx->retryable ).

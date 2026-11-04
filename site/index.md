@@ -5,8 +5,8 @@ hero:
   name: "ABAP Agent Runtime"
   text: "An MCP endpoint in ABAP: AI agents operate your apps as the real user."
   image:
-    src: /favicon.png
-    alt: abap2UI5
+    src: /logo.svg
+    alt: abap2UI5 addons
   actions:
     - theme: brand
       text: Get started

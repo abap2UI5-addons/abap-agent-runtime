@@ -26,13 +26,26 @@ CLASS ltcl_policy IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD app_policy_any_case.
+    DATA temp1 TYPE z2ui5_cl_agent_settings=>ty_s_info_buffer.
+    DATA temp2 TYPE z2ui5_if_agent_app=>ty_t_event.
+    DATA temp3 LIKE LINE OF temp2.
 
     " an app that writes its policies in upper case (a CHAR constant, a
     " domain value) means them all the same
     z2ui5_cl_agent_settings=>refresh( ).
-    INSERT VALUE #( app  = c_app
-                    info = VALUE #( t_event        = VALUE #( ( event = `DELETE*` policy = `FORBIDDEN` ) )
-                                    default_policy = ` Confirm ` ) ) INTO TABLE z2ui5_cl_agent_settings=>gt_info.
+
+    CLEAR temp1.
+    temp1-app = c_app.
+    CLEAR temp1-info.
+
+    CLEAR temp2.
+
+    temp3-event = `DELETE*`.
+    temp3-policy = `FORBIDDEN`.
+    INSERT temp3 INTO TABLE temp2.
+    temp1-info-t_event = temp2.
+    temp1-info-default_policy = ` Confirm `.
+    INSERT temp1 INTO TABLE z2ui5_cl_agent_settings=>gt_info.
 
     cl_abap_unit_assert=>assert_equals( exp = z2ui5_if_agent_app=>cs_policy-forbidden
                                         act = z2ui5_cl_agent_settings=>get_policy( app_start = c_app
@@ -46,12 +59,17 @@ CLASS ltcl_policy IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD own_app_navigated.
+    DATA temp2 TYPE z2ui5_cl_agent_settings=>ty_s_info_buffer.
 
     " an operable app that navigates to the settings app: its events stay
     " out of an agent's reach, whatever the settings and the started app say
     z2ui5_cl_agent_settings=>refresh( ).
-    INSERT VALUE #( app  = c_app
-                    info = VALUE #( default_policy = `allowed` ) ) INTO TABLE z2ui5_cl_agent_settings=>gt_info.
+
+    CLEAR temp2.
+    temp2-app = c_app.
+    CLEAR temp2-info.
+    temp2-info-default_policy = `allowed`.
+    INSERT temp2 INTO TABLE z2ui5_cl_agent_settings=>gt_info.
 
     cl_abap_unit_assert=>assert_equals( exp = z2ui5_if_agent_app=>cs_policy-forbidden
                                         act = z2ui5_cl_agent_settings=>get_policy( app_start = c_app

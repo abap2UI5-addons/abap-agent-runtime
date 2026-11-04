@@ -27,7 +27,7 @@ CLASS z2ui5_cl_agent_app_admin DEFINITION PUBLIC FINAL CREATE PUBLIC.
         value TYPE string,
         info  TYPE string,
       END OF ty_s_rule.
-    TYPES ty_t_rule TYPE STANDARD TABLE OF ty_s_rule WITH EMPTY KEY.
+    TYPES ty_t_rule TYPE STANDARD TABLE OF ty_s_rule WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_app,
@@ -35,7 +35,7 @@ CLASS z2ui5_cl_agent_app_admin DEFINITION PUBLIC FINAL CREATE PUBLIC.
         description TYPE string,
         source      TYPE string,
       END OF ty_s_app.
-    TYPES ty_t_app TYPE STANDARD TABLE OF ty_s_app WITH EMPTY KEY.
+    TYPES ty_t_app TYPE STANDARD TABLE OF ty_s_app WITH DEFAULT KEY.
 
     DATA enabled      TYPE abap_bool.
     DATA url          TYPE string.
@@ -73,7 +73,7 @@ CLASS z2ui5_cl_agent_app_admin DEFINITION PUBLIC FINAL CREATE PUBLIC.
         item  TYPE string,
         value TYPE string,
       END OF ty_s_llm_item.
-    TYPES ty_t_llm_item TYPE STANDARD TABLE OF ty_s_llm_item WITH EMPTY KEY.
+    TYPES ty_t_llm_item TYPE STANDARD TABLE OF ty_s_llm_item WITH DEFAULT KEY.
 
     DATA client TYPE REF TO z2ui5_if_client.
     "! The language model settings as the form showed them when it was
@@ -114,12 +114,12 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
   METHOD z2ui5_if_app~main.
 
     me->client = client.
-    IF client->check_on_init( ).
+    IF client->check_on_init( ) IS NOT INITIAL.
       model_init( ).
       view_display( ).
-    ELSEIF client->check_on_navigated( ).
+    ELSEIF client->check_on_navigated( ) IS NOT INITIAL.
       view_display( ).
-    ELSEIF client->check_on_event( ).
+    ELSEIF client->check_on_event( ) IS NOT INITIAL.
       on_event( ).
       " the key is write-only: whatever the event, a typed key is neither
       " kept in the draft of this app nor sent back to the browser
@@ -133,7 +133,13 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
 
   METHOD view_display.
 
-    DATA(view) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA view TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA page TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA temp2 TYPE xsdboolean.
+    DATA rules TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA temp1 TYPE string_table.
+    DATA apps TYPE REF TO z2ui5_cl_ui5_view_builder.
+    view = z2ui5_cl_ui5_view_builder=>factory(
         )->ele( n = `View` ns = `mvc`
             )->a( n = `xmlns`        v = `sap.m`
             )->a( n = `xmlns:mvc`    v = `sap.ui.core.mvc`
@@ -142,15 +148,18 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
             )->a( n = `displayBlock` v = `true`
             )->a( n = `height`       v = `100%` ).
 
-    DATA(page) = view->ele( `Shell`
+
+    page = view->ele( `Shell`
         )->ele( `Page`
             )->a( n = `title` v = `abap2UI5 agent - settings` ).
 
+
+    temp2 = boolc( is_admin = abap_false ).
     page->tag( `MessageStrip`
         )->a( n = `text`     v = client->_bind( admin_hint )
         )->a( n = `type`     v = `Warning`
         )->a( n = `showIcon` v = `true`
-        )->a( n = `visible`  b = xsdbool( is_admin = abap_false ) ).
+        )->a( n = `visible`  b = temp2 ).
 
     page->ele( n = `SimpleForm` ns = `form`
         )->a( n = `title`    v = `Endpoint`
@@ -174,7 +183,8 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
                 )->a( n = `enabled` b = is_admin
                 )->a( n = `press`   v = client->_event( `URL_SAVE` ) ).
 
-    DATA(rules) = page->ele( `Table`
+
+    rules = page->ele( `Table`
         )->a( n = `headerText` v = `Rules`
         )->a( n = `items`      v = client->_bind( t_rule ) ).
 
@@ -203,6 +213,11 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
             )->tag( `Text`
                 )->a( n = `text` v = `` ).
 
+
+    CLEAR temp1.
+    INSERT `${KIND}` INTO TABLE temp1.
+    INSERT `${APP}` INTO TABLE temp1.
+    INSERT `${ITEM}` INTO TABLE temp1.
     rules->ele( `items`
         )->ele( `ColumnListItem`
             )->ele( `cells`
@@ -222,7 +237,7 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
                     )->a( n = `tooltip` v = `Remove the rule`
                     )->a( n = `visible` b = is_admin
                     )->a( n = `press`   v = client->_event( val   = `RULE_DELETE`
-                                                            t_arg = VALUE #( ( `${KIND}` ) ( `${APP}` ) ( `${ITEM}` ) ) ) ).
+                                                            t_arg = temp1 ) ).
 
     page->ele( n = `SimpleForm` ns = `form`
         )->a( n = `title`    v = `Add a rule`
@@ -272,7 +287,8 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
                 )->a( n = `type`  v = `Emphasized`
                 )->a( n = `press` v = client->_event( `RULE_ADD` ) ).
 
-    DATA(apps) = page->ele( `Table`
+
+    apps = page->ele( `Table`
         )->a( n = `headerText` v = `Apps an agent may start`
         )->a( n = `items`      v = client->_bind( t_app ) ).
 
@@ -429,14 +445,27 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
 
   METHOD audit.
 
-    z2ui5_cl_agent_audit=>log( VALUE #( operation = `settings`
-                                        app       = app_name( )
-                                        outcome   = z2ui5_cl_agent_audit=>cs_outcome-ok
-                                        args      = text ) ).
+    DATA temp3 TYPE z2ui5_cl_agent_audit=>ty_s_entry.
+    CLEAR temp3.
+    temp3-operation = `settings`.
+    temp3-app = app_name( ).
+    temp3-outcome = z2ui5_cl_agent_audit=>cs_outcome-ok.
+    temp3-args = text.
+    z2ui5_cl_agent_audit=>log( temp3 ).
 
   ENDMETHOD.
 
   METHOD on_event.
+        DATA temp4 TYPE string.
+        DATA temp5 TYPE string.
+        DATA lv_long TYPE string.
+        DATA lv_kind TYPE string.
+        DATA lv_app TYPE string.
+        DATA lv_item TYPE string.
+        DATA ls_rule TYPE z2ui5_cl_agent_app_admin=>ty_s_rule.
+          DATA lv_admins TYPE i.
+          DATA lt_stored TYPE z2ui5_cl_agent_settings=>ty_t_setting.
+        DATA lv_count TYPE i.
 
     CASE client->get_event( ).
 
@@ -446,16 +475,27 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
           RETURN.
         ENDIF.
         z2ui5_cl_agent_settings=>set_enabled( enabled ).
-        audit( |endpoint { COND #( WHEN enabled = abap_true THEN `enabled` ELSE `disabled` ) }| ).
-        client->message_toast_display( COND #( WHEN enabled = abap_true
-                                               THEN `Agents may operate the enabled apps now`
-                                               ELSE `The agent endpoint is disabled` ) ).
+
+        IF enabled = abap_true.
+          temp4 = `enabled`.
+        ELSE.
+          temp4 = `disabled`.
+        ENDIF.
+        audit( |endpoint { temp4 }| ).
+
+        IF enabled = abap_true.
+          temp5 = `Agents may operate the enabled apps now`.
+        ELSE.
+          temp5 = `The agent endpoint is disabled`.
+        ENDIF.
+        client->message_toast_display( temp5 ).
 
       WHEN `URL_SAVE`.
         IF check_change( ) = abap_false.
           RETURN.
         ENDIF.
-        DATA(lv_long) = z2ui5_cl_agent_settings=>check_fits( value = url ).
+
+        lv_long = z2ui5_cl_agent_settings=>check_fits( value = url ).
         IF lv_long IS NOT INITIAL.
           client->message_box_display( text = |The handover page is too long: { lv_long }|
                                        type = `error` ).
@@ -477,10 +517,14 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         IF check_change( ) = abap_false.
           RETURN.
         ENDIF.
-        DATA(lv_kind) = client->get_event_arg( ).
-        DATA(lv_app) = client->get_event_arg( 2 ).
-        DATA(lv_item) = client->get_event_arg( 3 ).
-        READ TABLE t_rule INTO DATA(ls_rule) WITH KEY kind = lv_kind app = lv_app item = lv_item. "#EC CI_SORTSEQ
+
+        lv_kind = client->get_event_arg( ).
+
+        lv_app = client->get_event_arg( 2 ).
+
+        lv_item = client->get_event_arg( 3 ).
+
+        READ TABLE t_rule INTO ls_rule WITH KEY kind = lv_kind app = lv_app item = lv_item. "#EC CI_SORTSEQ
         IF sy-subrc <> 0.
           RETURN.
         ENDIF.
@@ -490,8 +534,10 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
           " counted as stored, not as this form last showed them: two
           " administrators each removing themselves from a stale list left none
           z2ui5_cl_agent_settings=>refresh( ).
-          DATA(lv_admins) = 0.
-          DATA(lt_stored) = z2ui5_cl_agent_settings=>get_all( ).
+
+          lv_admins = 0.
+
+          lt_stored = z2ui5_cl_agent_settings=>get_all( ).
           LOOP AT lt_stored TRANSPORTING NO FIELDS
                WHERE kind = z2ui5_cl_agent_settings=>cs_kind-admin. "#EC CI_SORTSEQ
             lv_admins = lv_admins + 1.
@@ -533,7 +579,8 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         IF check_change( ) = abap_false.
           RETURN.
         ENDIF.
-        DATA(lv_count) = z2ui5_cl_agent_audit=>cleanup( cleanup_days ).
+
+        lv_count = z2ui5_cl_agent_audit=>cleanup( cleanup_days ).
         audit( |audit log cleanup: { lv_count } entries older than { cleanup_days } days| ).
         client->message_toast_display( |{ lv_count } entries deleted| ).
 
@@ -543,10 +590,18 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
 
   METHOD rule_add.
 
-    DATA(lv_kind) = to_upper( condense( new_kind ) ).
-    DATA(lv_app) = to_upper( condense( new_app ) ).
-    DATA(lv_item) = to_upper( condense( new_item ) ).
-    DATA(lv_value) = to_lower( condense( new_value ) ).
+    DATA lv_kind TYPE string.
+    DATA lv_app TYPE string.
+    DATA lv_item TYPE string.
+    DATA lv_value TYPE string.
+    DATA lv_long TYPE string.
+    lv_kind = to_upper( condense( new_kind ) ).
+
+    lv_app = to_upper( condense( new_app ) ).
+
+    lv_item = to_upper( condense( new_item ) ).
+
+    lv_value = to_lower( condense( new_value ) ).
 
     IF lv_app IS INITIAL.
       client->message_box_display( text = `Enter an app class, a pattern (ZCL_SALES_*) or * - for ADMIN a user name`
@@ -585,7 +640,8 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     ENDCASE.
 
     " cut to the table's length, a pattern would match another field or event
-    DATA(lv_long) = z2ui5_cl_agent_settings=>check_fits( app   = lv_app
+
+    lv_long = z2ui5_cl_agent_settings=>check_fits( app   = lv_app
                                                          item  = lv_item
                                                          value = lv_value ).
     IF lv_long IS NOT INITIAL.
@@ -607,11 +663,45 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
 
   METHOD llm_save.
 
-    DATA(lt_item) = VALUE string_table( ).
+    DATA temp6 TYPE string_table.
+    DATA lt_item LIKE temp6.
+    DATA temp1 TYPE string_table.
+    DATA temp7 LIKE temp1.
+    DATA lv_value LIKE LINE OF temp7.
+      DATA lv_long TYPE string.
+    DATA temp8 TYPE string_table.
+    DATA lt_changed LIKE temp8.
+    DATA temp9 TYPE z2ui5_cl_agent_app_admin=>ty_t_llm_item.
+    DATA ls_new LIKE LINE OF temp9.
+      DATA ls_shown TYPE z2ui5_cl_agent_app_admin=>ty_s_llm_item.
+    DATA temp10 LIKE sy-subrc.
+    DATA temp3 LIKE sy-subrc.
+    DATA temp4 LIKE sy-subrc.
+    DATA temp2 LIKE sy-subrc.
+    DATA temp5 LIKE sy-subrc.
+    DATA temp11 TYPE string.
+    DATA temp12 LIKE sy-subrc.
+    CLEAR temp6.
+
+    lt_item = temp6.
     " nothing is saved when a value does not fit - a key cut short is none
-    LOOP AT VALUE string_table( ( llm_provider ) ( llm_model ) ( llm_effort ) ( llm_max_tokens ) ( llm_timeout )
-                                ( llm_url ) ( llm_destination ) ( llm_beta ) ( llm_key ) ) INTO DATA(lv_value).
-      DATA(lv_long) = z2ui5_cl_agent_settings=>check_fits( value = condense( lv_value ) ).
+
+    CLEAR temp1.
+    INSERT llm_provider INTO TABLE temp1.
+    INSERT llm_model INTO TABLE temp1.
+    INSERT llm_effort INTO TABLE temp1.
+    INSERT llm_max_tokens INTO TABLE temp1.
+    INSERT llm_timeout INTO TABLE temp1.
+    INSERT llm_url INTO TABLE temp1.
+    INSERT llm_destination INTO TABLE temp1.
+    INSERT llm_beta INTO TABLE temp1.
+    INSERT llm_key INTO TABLE temp1.
+
+    temp7 = temp1.
+
+    LOOP AT temp7 INTO lv_value.
+
+      lv_long = z2ui5_cl_agent_settings=>check_fits( value = condense( lv_value ) ).
       IF lv_long IS NOT INITIAL.
         client->message_box_display( text = |Not saved - a setting is too long: { lv_long }|
                                      type = `error` ).
@@ -621,9 +711,16 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     " only what this form changed: another administrator's change made
     " since it was loaded (a privacy switch turned off) stays - written from
     " the stale form, prompt logging was back on and nobody was told
-    DATA(lt_changed) = VALUE string_table( ).
-    LOOP AT llm_form( ) INTO DATA(ls_new).
-      READ TABLE mt_llm_shown INTO DATA(ls_shown) WITH KEY item = ls_new-item. "#EC CI_SORTSEQ
+
+    CLEAR temp8.
+
+    lt_changed = temp8.
+
+    temp9 = llm_form( ).
+
+    LOOP AT temp9 INTO ls_new.
+
+      READ TABLE mt_llm_shown INTO ls_shown WITH KEY item = ls_new-item. "#EC CI_SORTSEQ
       IF sy-subrc = 0 AND ls_shown-value = ls_new-value.
         CONTINUE.
       ENDIF.
@@ -636,10 +733,25 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     " who may never have seen the key. Kept only with a key typed anew.
     " (not on a form opened before this was remembered - mt_llm_shown empty,
     " every item counts as changed there and the key would go unasked)
+
+    READ TABLE lt_changed WITH KEY table_line = z2ui5_cl_agent_settings=>cs_llm-url TRANSPORTING NO FIELDS.
+    temp10 = sy-subrc.
+
+
+    temp4 = sy-subrc.
+    READ TABLE lt_changed WITH KEY table_line = z2ui5_cl_agent_settings=>cs_llm-destination TRANSPORTING NO FIELDS.
+    temp3 = sy-subrc.
+    sy-subrc = temp4.
+
+
+    temp5 = sy-subrc.
+    READ TABLE lt_changed WITH KEY table_line = z2ui5_cl_agent_settings=>cs_llm-provider TRANSPORTING NO FIELDS.
+    temp2 = sy-subrc.
+    sy-subrc = temp5.
     IF llm_key IS INITIAL AND mt_llm_shown IS NOT INITIAL AND z2ui5_cl_agent_settings=>check_llm_key( ) = abap_true
-        AND ( line_exists( lt_changed[ table_line = z2ui5_cl_agent_settings=>cs_llm-url ] )
-           OR line_exists( lt_changed[ table_line = z2ui5_cl_agent_settings=>cs_llm-destination ] )
-           OR line_exists( lt_changed[ table_line = z2ui5_cl_agent_settings=>cs_llm-provider ] ) ).
+        AND ( temp10 = 0
+           OR temp3 = 0
+           OR temp2 = 0 ).
       z2ui5_cl_agent_settings=>set_llm( z2ui5_cl_agent_settings=>cs_llm-key ).
       INSERT `API key removed - the address changed; enter the key again` INTO TABLE lt_item.
     ENDIF.
@@ -650,13 +762,20 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
       INSERT `API key replaced` INTO TABLE lt_item.
     ENDIF.
     CLEAR llm_key.
+
+    IF lt_item IS NOT INITIAL.
+      temp11 = |, { concat_lines_of( table = lt_item sep = `, ` ) }|.
+    ELSE.
+      CLEAR temp11.
+    ENDIF.
     audit( |language model settings saved: provider { llm_provider }, model { llm_model }, effort { llm_effort }, | &&
            |destination { llm_destination }, url { llm_url }, copilot { llm_copilot }/{ llm_copilot_act }, | &&
-           |log prompts { llm_log_prompts }{ COND #( WHEN lt_item IS NOT INITIAL
-                                                     THEN |, { concat_lines_of( table = lt_item
-                                                                                sep   = `, ` ) }| ) }| ).
+           |log prompts { llm_log_prompts }{ temp11 }| ).
     load( ).
-    IF line_exists( lt_item[ table_line = `API key removed - the address changed; enter the key again` ] ).
+
+    READ TABLE lt_item WITH KEY table_line = `API key removed - the address changed; enter the key again` TRANSPORTING NO FIELDS.
+    temp12 = sy-subrc.
+    IF temp12 = 0.
       client->message_box_display( text = `Saved. The API key was removed because the address changed - enter it again.`
                                    type = `warning` ).
     ELSE.
@@ -667,40 +786,126 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
 
   METHOD llm_form.
 
-    result = VALUE #(
-        ( item = z2ui5_cl_agent_settings=>cs_llm-provider    value = to_upper( condense( llm_provider ) ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-model       value = condense( llm_model ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-effort      value = to_lower( condense( llm_effort ) ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-max_tokens  value = condense( llm_max_tokens ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-timeout     value = condense( llm_timeout ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-url         value = condense( llm_url ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-destination value = condense( llm_destination ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-beta        value = condense( llm_beta ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-fallback    value = COND #( WHEN llm_fallback = abap_true THEN `on` ELSE `off` ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-log_prompts value = COND #( WHEN llm_log_prompts = abap_true THEN `on` ELSE `off` ) )
-        ( item  = z2ui5_cl_agent_settings=>cs_llm-genui_samples
-          value = COND #( WHEN llm_genui_samples = abap_true THEN `on` ELSE `off` ) )
-        ( item  = z2ui5_cl_agent_settings=>cs_llm-genui_repair
-          value = COND #( WHEN llm_genui_repair = abap_true THEN `on` ELSE `off` ) )
-        ( item = z2ui5_cl_agent_settings=>cs_llm-copilot     value = COND #( WHEN llm_copilot = abap_true THEN `on` ELSE `off` ) )
-        ( item  = z2ui5_cl_agent_settings=>cs_llm-copilot_act
-          value = COND #( WHEN llm_copilot_act = abap_true THEN `on` ELSE `off` ) ) ).
+    DATA temp13 TYPE z2ui5_cl_agent_app_admin=>ty_t_llm_item.
+    DATA temp14 LIKE LINE OF temp13.
+    DATA temp5 TYPE z2ui5_cl_agent_app_admin=>ty_s_llm_item-value.
+    DATA temp6 TYPE z2ui5_cl_agent_app_admin=>ty_s_llm_item-value.
+    DATA temp7 TYPE z2ui5_cl_agent_app_admin=>ty_s_llm_item-value.
+    DATA temp8 TYPE z2ui5_cl_agent_app_admin=>ty_s_llm_item-value.
+    DATA temp9 TYPE z2ui5_cl_agent_app_admin=>ty_s_llm_item-value.
+    DATA temp10 TYPE z2ui5_cl_agent_app_admin=>ty_s_llm_item-value.
+    CLEAR temp13.
+
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-provider.
+    temp14-value = to_upper( condense( llm_provider ) ).
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-model.
+    temp14-value = condense( llm_model ).
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-effort.
+    temp14-value = to_lower( condense( llm_effort ) ).
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-max_tokens.
+    temp14-value = condense( llm_max_tokens ).
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-timeout.
+    temp14-value = condense( llm_timeout ).
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-url.
+    temp14-value = condense( llm_url ).
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-destination.
+    temp14-value = condense( llm_destination ).
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-beta.
+    temp14-value = condense( llm_beta ).
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-fallback.
+
+    IF llm_fallback = abap_true.
+      temp5 = `on`.
+    ELSE.
+      temp5 = `off`.
+    ENDIF.
+    temp14-value = temp5.
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-log_prompts.
+
+    IF llm_log_prompts = abap_true.
+      temp6 = `on`.
+    ELSE.
+      temp6 = `off`.
+    ENDIF.
+    temp14-value = temp6.
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-genui_samples.
+
+    IF llm_genui_samples = abap_true.
+      temp7 = `on`.
+    ELSE.
+      temp7 = `off`.
+    ENDIF.
+    temp14-value = temp7.
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-genui_repair.
+
+    IF llm_genui_repair = abap_true.
+      temp8 = `on`.
+    ELSE.
+      temp8 = `off`.
+    ENDIF.
+    temp14-value = temp8.
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-copilot.
+
+    IF llm_copilot = abap_true.
+      temp9 = `on`.
+    ELSE.
+      temp9 = `off`.
+    ENDIF.
+    temp14-value = temp9.
+    INSERT temp14 INTO TABLE temp13.
+    temp14-item = z2ui5_cl_agent_settings=>cs_llm-copilot_act.
+
+    IF llm_copilot_act = abap_true.
+      temp10 = `on`.
+    ELSE.
+      temp10 = `off`.
+    ENDIF.
+    temp14-value = temp10.
+    INSERT temp14 INTO TABLE temp13.
+    result = temp13.
 
   ENDMETHOD.
 
   METHOD llm_test.
+        DATA temp15 TYPE z2ui5_if_agent_llm=>ty_s_request.
+        DATA temp11 TYPE z2ui5_if_agent_llm=>ty_t_message.
+        DATA temp12 LIKE LINE OF temp11.
+        DATA ls_answer TYPE z2ui5_if_agent_llm=>ty_s_response.
+        DATA lx TYPE REF TO z2ui5_cx_agent_llm.
 
     TRY.
-        DATA(ls_answer) = z2ui5_cl_agent_llm=>create( )->chat(
-            VALUE #( purpose   = `test`
-                     app       = app_name( )
-                     t_message = VALUE #( ( role    = z2ui5_if_agent_llm=>cs_role-user
-                                            content = `Answer with the single word: ok` ) ) ) ).
+
+        CLEAR temp15.
+        temp15-purpose = `test`.
+        temp15-app = app_name( ).
+
+        CLEAR temp11.
+
+        temp12-role = z2ui5_if_agent_llm=>cs_role-user.
+        temp12-content = `Answer with the single word: ok`.
+        INSERT temp12 INTO TABLE temp11.
+        temp15-t_message = temp11.
+
+        ls_answer = z2ui5_cl_agent_llm=>create( )->chat(
+            temp15 ).
         client->message_box_display( text  = |{ ls_answer-model } answered "{ ls_answer-text }" | &&
                                              |({ ls_answer-usage-input_tokens } + { ls_answer-usage-output_tokens } tokens)|
                                      type  = `success`
                                      title = `Language model` ).
-      CATCH z2ui5_cx_agent_llm INTO DATA(lx).
+
+      CATCH z2ui5_cx_agent_llm INTO lx.
         client->message_box_display( text  = lx->get_text( )
                                      type  = `error`
                                      title = `Language model` ).
@@ -709,17 +914,34 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD load.
+    DATA temp16 TYPE string.
+    DATA temp17 TYPE z2ui5_cl_agent_settings=>ty_t_setting.
+    DATA ls_setting LIKE LINE OF temp17.
+      DATA temp18 TYPE z2ui5_cl_agent_app_admin=>ty_s_rule.
+      DATA temp13 TYPE z2ui5_cl_agent_app_admin=>ty_s_rule-info.
+          DATA temp6 TYPE z2ui5_cl_agent_app_admin=>ty_s_rule-info.
+    DATA temp19 TYPE string.
+        DATA temp20 TYPE z2ui5_cl_agent_settings=>ty_t_app.
+        DATA ls_app LIKE LINE OF temp20.
+          DATA temp21 TYPE z2ui5_cl_agent_app_admin=>ty_s_app.
+          DATA temp14 TYPE z2ui5_cl_agent_app_admin=>ty_s_app-source.
 
     z2ui5_cl_agent_settings=>refresh( ).
     enabled = z2ui5_cl_agent_settings=>check_enabled( ).
     is_admin = z2ui5_cl_agent_settings=>check_admin( ).
-    admin_hint = COND #( WHEN z2ui5_cl_agent_settings=>check_admin_defined( ) = abap_false
-                         THEN |No agent administrator is defined yet - nothing can be changed here. Run | &&
-                              |z2ui5_cl_agent_settings=>admin_add( '{ sy-uname }' ) once in this system (README, "Installation").|
-                         ELSE |{ sy-uname } is no agent administrator - the settings are shown read-only.| ).
+
+    IF z2ui5_cl_agent_settings=>check_admin_defined( ) = abap_false.
+      temp16 = |No agent administrator is defined yet - nothing can be changed here. Run | && |z2ui5_cl_agent_settings=>admin_add( '{ sy-uname }' ) once in this system (README, "Installation").|.
+    ELSE.
+      temp16 = |{ sy-uname } is no agent administrator - the settings are shown read-only.|.
+    ENDIF.
+    admin_hint = temp16.
 
     CLEAR: t_rule, url.
-    LOOP AT z2ui5_cl_agent_settings=>get_all( ) INTO DATA(ls_setting).
+
+    temp17 = z2ui5_cl_agent_settings=>get_all( ).
+
+    LOOP AT temp17 INTO ls_setting.
       CASE ls_setting-kind.
         WHEN z2ui5_cl_agent_settings=>cs_kind-url.
           url = ls_setting-value.
@@ -727,21 +949,31 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
         WHEN z2ui5_cl_agent_settings=>cs_kind-enabled OR z2ui5_cl_agent_settings=>cs_kind-llm.
           CONTINUE.
       ENDCASE.
-      INSERT VALUE #( kind  = ls_setting-kind
-                      app   = ls_setting-app
-                      item  = ls_setting-item
-                      value = ls_setting-value
-                      info  = SWITCH #( ls_setting-kind
-                                        WHEN z2ui5_cl_agent_settings=>cs_kind-app
-                                          THEN COND #( WHEN ls_setting-value = z2ui5_cl_agent_settings=>cs_app_rule-deny
-                                                       THEN `never startable by an agent`
-                                                       ELSE `startable without z2ui5_if_agent_app` )
-                                        WHEN z2ui5_cl_agent_settings=>cs_kind-event
-                                          THEN |{ ls_setting-value } - the stricter of this and the app's own rule wins|
-                                        WHEN z2ui5_cl_agent_settings=>cs_kind-sensitive
-                                          THEN `masked in the audit log`
-                                        WHEN z2ui5_cl_agent_settings=>cs_kind-admin
-                                          THEN `may change these settings` ) ) INTO TABLE t_rule.
+
+      CLEAR temp18.
+      temp18-kind = ls_setting-kind.
+      temp18-app = ls_setting-app.
+      temp18-item = ls_setting-item.
+      temp18-value = ls_setting-value.
+
+      CASE ls_setting-kind.
+        WHEN z2ui5_cl_agent_settings=>cs_kind-app.
+
+          IF ls_setting-value = z2ui5_cl_agent_settings=>cs_app_rule-deny.
+            temp6 = `never startable by an agent`.
+          ELSE.
+            temp6 = `startable without z2ui5_if_agent_app`.
+          ENDIF.
+          temp13 = temp6.
+        WHEN z2ui5_cl_agent_settings=>cs_kind-event.
+          temp13 = |{ ls_setting-value } - the stricter of this and the app's own rule wins|.
+        WHEN z2ui5_cl_agent_settings=>cs_kind-sensitive.
+          temp13 = `masked in the audit log`.
+        WHEN z2ui5_cl_agent_settings=>cs_kind-admin.
+          temp13 = `may change these settings`.
+      ENDCASE.
+      temp18-info = temp13.
+      INSERT temp18 INTO TABLE t_rule.
     ENDLOOP.
 
     llm_provider = z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-provider ).
@@ -762,18 +994,33 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
     llm_copilot_act = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot_act ).
     CLEAR llm_key.
     mt_llm_shown = llm_form( ).
-    llm_key_state = COND #( WHEN z2ui5_cl_agent_settings=>check_llm_key( ) = abap_true
-                            THEN `set - type a new key to replace it`
-                            ELSE `not set` ).
+
+    IF z2ui5_cl_agent_settings=>check_llm_key( ) = abap_true.
+      temp19 = `set - type a new key to replace it`.
+    ELSE.
+      temp19 = `not set`.
+    ENDIF.
+    llm_key_state = temp19.
 
     CLEAR t_app.
     TRY.
-        LOOP AT z2ui5_cl_agent_settings=>get_apps( ) INTO DATA(ls_app).
-          INSERT VALUE #( app         = ls_app-app
-                          description = ls_app-description
-                          source      = SWITCH #( ls_app-source
-                                                  WHEN `interface` THEN `the app (z2ui5_if_agent_app)`
-                                                  ELSE `a rule of these settings` ) ) INTO TABLE t_app.
+
+        temp20 = z2ui5_cl_agent_settings=>get_apps( ).
+
+        LOOP AT temp20 INTO ls_app.
+
+          CLEAR temp21.
+          temp21-app = ls_app-app.
+          temp21-description = ls_app-description.
+
+          CASE ls_app-source.
+            WHEN `interface`.
+              temp14 = `the app (z2ui5_if_agent_app)`.
+            WHEN OTHERS.
+              temp14 = `a rule of these settings`.
+          ENDCASE.
+          temp21-source = temp14.
+          INSERT temp21 INTO TABLE t_app.
         ENDLOOP.
       CATCH cx_root ##NO_HANDLER.
         " the class directory may not be readable - the list stays empty

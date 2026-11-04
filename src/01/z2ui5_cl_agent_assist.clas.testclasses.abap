@@ -14,7 +14,7 @@ CLASS ltcl_copilot DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGER
     CONSTANTS c_popup TYPE string VALUE `POPUP`.
 
     DATA mo_double TYPE REF TO z2ui5_cl_agent_llm_double.
-    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_17 WITH EMPTY KEY.
+    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_17 WITH DEFAULT KEY.
 
     METHODS setup.
     METHODS teardown.
@@ -64,14 +64,14 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD setup.
 
-    SELECT * FROM z2ui5_t_17 WHERE kind = 'LLM' INTO TABLE @mt_saved.
+    SELECT * FROM z2ui5_t_17 INTO TABLE mt_saved WHERE kind = 'LLM' .
     DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
     z2ui5_cl_agent_settings=>refresh( ).
     setting( item  = z2ui5_cl_agent_settings=>cs_llm-copilot
              value = `on` ).
     setting( item  = z2ui5_cl_agent_settings=>cs_llm-copilot_act
              value = `on` ).
-    mo_double = NEW #( ).
+    CREATE OBJECT mo_double.
     z2ui5_cl_agent_llm=>set_double( mo_double ).
 
   ENDMETHOD.
@@ -80,7 +80,7 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
     z2ui5_cl_agent_llm=>set_double( ).
     DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
-    INSERT z2ui5_t_17 FROM TABLE @mt_saved.
+    INSERT z2ui5_t_17 FROM TABLE mt_saved.
     z2ui5_cl_agent_settings=>refresh( ).
 
   ENDMETHOD.
@@ -115,8 +115,14 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD answer.
 
+    DATA temp1 TYPE string.
+    IF wanted = abap_true.
+      temp1 = `true`.
+    ELSE.
+      temp1 = `false`.
+    ENDIF.
     result = |\{"answer":{ z2ui5_cl_agent_viewxml=>json_string( text ) },"found":true,| &&
-             |"proposal":\{"wanted":{ COND #( WHEN wanted = abap_true THEN `true` ELSE `false` ) },| &&
+             |"proposal":\{"wanted":{ temp1 },| &&
              |"summary":{ z2ui5_cl_agent_viewxml=>json_string( summary ) },| &&
              |"event":{ z2ui5_cl_agent_viewxml=>json_string( event ) },"values":[{ values }]\}\}|.
 
@@ -124,7 +130,22 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD answer_grounded.
 
-    DATA(sim) = open( ).
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    DATA ls_request TYPE z2ui5_if_agent_llm=>ty_s_request.
+    FIELD-SYMBOLS <temp1> LIKE LINE OF mo_double->mt_request.
+    DATA temp2 LIKE sy-tabix.
+    DATA lv_user TYPE z2ui5_if_agent_llm=>ty_s_message-content.
+    FIELD-SYMBOLS <temp3> LIKE LINE OF ls_request-t_message.
+    DATA temp4 LIKE sy-tabix.
+    DATA lv_model TYPE string.
+    DATA lt_message TYPE z2ui5_if_agent_llm=>ty_t_message.
+    FIELD-SYMBOLS <temp5> LIKE LINE OF mo_double->mt_request.
+    DATA temp6 LIKE sy-tabix.
+    FIELD-SYMBOLS <temp2> LIKE LINE OF lt_message.
+    DATA temp3 LIKE sy-tabix.
+    FIELD-SYMBOLS <temp4> LIKE LINE OF lt_message.
+    DATA temp5 LIKE sy-tabix.
+    sim = open( ).
     cl_abap_unit_assert=>assert_equals( act = sim->get_app( )
                                         exp = `Z2UI5_CL_AGENT_COPILOT` ).
     cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
@@ -136,14 +157,32 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
     " grounded: the snapshot of the screen as the user left it - the typed
     " name included, the IBAN masked, no forbidden action
-    DATA(ls_request) = mo_double->mt_request[ 1 ].
+
+
+
+    temp2 = sy-tabix.
+    READ TABLE mo_double->mt_request INDEX 1 ASSIGNING <temp1>.
+    sy-tabix = temp2.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    ls_request = <temp1>.
     cl_abap_unit_assert=>assert_equals( act = ls_request-purpose
                                         exp = `copilot` ).
     cl_abap_unit_assert=>assert_equals( act = ls_request-app
                                         exp = c_demo ).
     cl_abap_unit_assert=>assert_char_cp( act = ls_request-system
                                          exp = `*does not contain what the user asks, say so plainly*` ).
-    DATA(lv_user) = ls_request-t_message[ lines( ls_request-t_message ) ]-content.
+
+
+
+    temp4 = sy-tabix.
+    READ TABLE ls_request-t_message INDEX lines( ls_request-t_message ) ASSIGNING <temp3>.
+    sy-tabix = temp4.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    lv_user = <temp3>-content.
     cl_abap_unit_assert=>assert_char_cp( act = lv_user
                                          exp = `*Travel requests - the example app*"snapshotVersion":1*` ).
     cl_abap_unit_assert=>assert_char_cp( act = lv_user
@@ -160,7 +199,8 @@ CLASS ltcl_copilot IMPLEMENTATION.
                                                     sub = z2ui5_cl_agent_copilot=>c_event )
                                         exp = -1 ).
 
-    DATA(lv_model) = sim->get_model( c_popup ).
+
+    lv_model = sim->get_model( c_popup ).
     cl_abap_unit_assert=>assert_char_cp( act = lv_model
                                          exp = `*Who has a request?*Alice and Bob have travel requests.*` ).
 
@@ -168,12 +208,37 @@ CLASS ltcl_copilot IMPLEMENTATION.
     mo_double->add_answer( answer( `The screen does not show that.` ) ).
     ask( sim      = sim
          question = `When do they fly?` ).
-    DATA(lt_message) = mo_double->mt_request[ 2 ]-t_message.
+
+
+
+    temp6 = sy-tabix.
+    READ TABLE mo_double->mt_request INDEX 2 ASSIGNING <temp5>.
+    sy-tabix = temp6.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    lt_message = <temp5>-t_message.
     cl_abap_unit_assert=>assert_equals( act = lines( lt_message )
                                         exp = 3 ).
-    cl_abap_unit_assert=>assert_equals( act = lt_message[ 1 ]-content
+
+
+    temp3 = sy-tabix.
+    READ TABLE lt_message INDEX 1 ASSIGNING <temp2>.
+    sy-tabix = temp3.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    cl_abap_unit_assert=>assert_equals( act = <temp2>-content
                                         exp = `Who has a request?` ).
-    cl_abap_unit_assert=>assert_equals( act = lt_message[ 2 ]-role
+
+
+    temp5 = sy-tabix.
+    READ TABLE lt_message INDEX 2 ASSIGNING <temp4>.
+    sy-tabix = temp5.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    cl_abap_unit_assert=>assert_equals( act = <temp4>-role
                                         exp = `assistant` ).
 
     " closing without a step leaves the app as it was
@@ -188,7 +253,8 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD allowed_runs_on_click.
 
-    DATA(sim) = open( ).
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    sim = open( ).
     mo_double->add_answer( answer( text    = `I can add a request for Dave.`
                                    wanted  = abap_true
                                    summary = `add a request for Dave`
@@ -226,7 +292,8 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD forbidden_never_offered.
 
-    DATA(sim) = open( ).
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    sim = open( ).
     mo_double->add_answer( answer( text    = `I delete them.`
                                    wanted  = abap_true
                                    summary = `delete all requests`
@@ -248,7 +315,8 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD unknown_field_rejected.
 
-    DATA(sim) = open( ).
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    sim = open( ).
     mo_double->add_answer( answer( text    = `Done.`
                                    wanted  = abap_true
                                    summary = `fill the budget`
@@ -266,7 +334,8 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD protected_field_rejected.
 
-    DATA(sim) = open( ).
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    sim = open( ).
     mo_double->add_answer( answer( text    = `Done.`
                                    wanted  = abap_true
                                    summary = `change the IBAN`
@@ -292,7 +361,8 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD confirm_needs_the_click.
 
-    DATA(sim) = open( ).
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    sim = open( ).
     mo_double->add_answer( answer( text    = `Enter Erin, then submit.`
                                    wanted  = abap_true
                                    summary = `enter Erin and submit`
@@ -326,7 +396,8 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
   METHOD act_off_after_proposal.
 
-    DATA(sim) = open( ).
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    sim = open( ).
     mo_double->add_answer( answer( text    = `I can add a request for Dave.`
                                    wanted  = abap_true
                                    summary = `add a request for Dave`
@@ -359,10 +430,14 @@ CLASS ltcl_copilot IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD act_off_answers_only.
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    FIELD-SYMBOLS <temp6> LIKE LINE OF mo_double->mt_request.
+    DATA temp7 LIKE sy-tabix.
 
     setting( item  = z2ui5_cl_agent_settings=>cs_llm-copilot_act
              value = `off` ).
-    DATA(sim) = open( ).
+
+    sim = open( ).
     mo_double->add_answer( answer( text    = `Press Add.`
                                    wanted  = abap_true
                                    summary = `add`
@@ -370,7 +445,15 @@ CLASS ltcl_copilot IMPLEMENTATION.
     ask( sim      = sim
          question = `Add it` ).
 
-    cl_abap_unit_assert=>assert_char_cp( act = mo_double->mt_request[ 1 ]-system
+
+
+    temp7 = sy-tabix.
+    READ TABLE mo_double->mt_request INDEX 1 ASSIGNING <temp6>.
+    sy-tabix = temp7.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    cl_abap_unit_assert=>assert_char_cp( act = <temp6>-system
                                          exp = `*You cannot change the screen*` ).
     cl_abap_unit_assert=>assert_differs( act = sim->get_value( name  = `HAS_PROPOSAL`
                                                                layer = c_popup )
@@ -381,10 +464,12 @@ CLASS ltcl_copilot IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD switched_off.
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
 
     setting( item  = z2ui5_cl_agent_settings=>cs_llm-copilot
              value = `off` ).
-    DATA(sim) = open( ).
+
+    sim = open( ).
     cl_abap_unit_assert=>assert_char_cp( act = sim->get_model( c_popup )
                                          exp = `*not available here: the in-app copilot is switched off*` ).
     cl_abap_unit_assert=>assert_differs( act = sim->get_value( name  = `READY`
@@ -409,7 +494,8 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
     " the values of a proposal are text: a multichoice names its keys
     " separated by commas - offered, filled, and on the screen after close
-    DATA(sim) = open( ).
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    sim = open( ).
     mo_double->add_answer( answer( text    = `I tag the trip.`
                                    wanted  = abap_true
                                    summary = `tag the trip as fair and meeting`
@@ -440,7 +526,8 @@ CLASS ltcl_copilot IMPLEMENTATION.
 
     " a date the app cannot take is told when the copilot fills it - on
     " close it is left out, the other values are on the screen
-    DATA(sim) = open( ).
+    DATA sim TYPE REF TO z2ui5_cl_frontend_sim.
+    sim = open( ).
     mo_double->add_answer( answer( text    = `I fill it in.`
                                    wanted  = abap_true
                                    summary = `Dora, leaving on 6 October`
@@ -491,7 +578,7 @@ CLASS ltd_app DEFINITION FINAL FOR TESTING.
         a TYPE string,
         n TYPE i,
       END OF ty_s_row.
-    TYPES ty_t_row TYPE STANDARD TABLE OF ty_s_row WITH EMPTY KEY.
+    TYPES ty_t_row TYPE STANDARD TABLE OF ty_s_row WITH DEFAULT KEY.
 
     DATA t_row TYPE ty_t_row.
     DATA o_sub TYPE REF TO ltd_sub.
@@ -530,8 +617,19 @@ CLASS ltcl_write IMPLEMENTATION.
 
   METHOD unknown_column.
 
-    DATA(lo_app) = NEW ltd_app( ).
-    lo_app->t_row = VALUE #( ( a = `a0` n = 7 ) ).
+    DATA lo_app TYPE REF TO ltd_app.
+    DATA temp8 TYPE ltd_app=>ty_t_row.
+    DATA temp9 LIKE LINE OF temp8.
+    DATA temp10 TYPE ltd_app=>ty_t_row.
+    DATA temp11 LIKE LINE OF temp10.
+    CREATE OBJECT lo_app TYPE ltd_app.
+
+    CLEAR temp8.
+
+    temp9-a = `a0`.
+    temp9-n = 7.
+    INSERT temp9 INTO TABLE temp8.
+    lo_app->t_row = temp8.
 
     z2ui5_cl_agent_assist=>write( app  = lo_app
                                   path = `/T_ROW/0/A`
@@ -545,7 +643,13 @@ CLASS ltcl_write IMPLEMENTATION.
         cl_abap_unit_assert=>fail( `a column the row does not have was written` ).
       CATCH z2ui5_cx_ui5_util_error ##NO_HANDLER.
     ENDTRY.
-    cl_abap_unit_assert=>assert_equals( exp = VALUE ltd_app=>ty_t_row( ( a = `a1` n = 7 ) )
+
+    CLEAR temp10.
+
+    temp11-a = `a1`.
+    temp11-n = 7.
+    INSERT temp11 INTO TABLE temp10.
+    cl_abap_unit_assert=>assert_equals( exp = temp10
                                         act = lo_app->t_row ).
 
   ENDMETHOD.
@@ -553,8 +657,9 @@ CLASS ltcl_write IMPLEMENTATION.
   METHOD object_attribute.
 
     " an attribute of an object the app holds: /O_SUB/VALUE is O_SUB->VALUE
-    DATA(lo_app) = NEW ltd_app( ).
-    lo_app->o_sub = NEW #( ).
+    DATA lo_app TYPE REF TO ltd_app.
+    CREATE OBJECT lo_app TYPE ltd_app.
+    CREATE OBJECT lo_app->o_sub.
 
     z2ui5_cl_agent_assist=>write( app  = lo_app
                                   path = `/O_SUB/VALUE`
@@ -567,21 +672,32 @@ CLASS ltcl_write IMPLEMENTATION.
   METHOD time_value.
 
     " as the model shows a time, without seconds, or as ABAP holds it
-    DATA(lo_app) = NEW ltd_app( ).
+    DATA lo_app TYPE REF TO ltd_app.
+    DATA temp12 TYPE t.
+    DATA temp13 TYPE t.
+    DATA temp14 TYPE t.
+    DATA temp15 TYPE t.
+    CREATE OBJECT lo_app TYPE ltd_app.
     z2ui5_cl_agent_assist=>write( app  = lo_app
                                   path = `/START_TIME`
                                   val  = z2ui5_cl_agent_viewxml=>val_string( `09:30:15` ) ).
-    cl_abap_unit_assert=>assert_equals( exp = CONV t( '093015' )
+
+    temp12 = '093015'.
+    cl_abap_unit_assert=>assert_equals( exp = temp12
                                         act = lo_app->start_time ).
     z2ui5_cl_agent_assist=>write( app  = lo_app
                                   path = `/START_TIME`
                                   val  = z2ui5_cl_agent_viewxml=>val_string( `9:30` ) ).
-    cl_abap_unit_assert=>assert_equals( exp = CONV t( '093000' )
+
+    temp13 = '093000'.
+    cl_abap_unit_assert=>assert_equals( exp = temp13
                                         act = lo_app->start_time ).
     z2ui5_cl_agent_assist=>write( app  = lo_app
                                   path = `/START_TIME`
                                   val  = z2ui5_cl_agent_viewxml=>val_string( `174500` ) ).
-    cl_abap_unit_assert=>assert_equals( exp = CONV t( '174500' )
+
+    temp14 = '174500'.
+    cl_abap_unit_assert=>assert_equals( exp = temp14
                                         act = lo_app->start_time ).
 
     " no time of the clock: refused, the attribute keeps its value
@@ -594,23 +710,33 @@ CLASS ltcl_write IMPLEMENTATION.
     refused( io_app = lo_app
              path   = `/START_TIME`
              value  = `9:5` ).
-    cl_abap_unit_assert=>assert_equals( exp = CONV t( '174500' )
+
+    temp15 = '174500'.
+    cl_abap_unit_assert=>assert_equals( exp = temp15
                                         act = lo_app->start_time ).
 
   ENDMETHOD.
 
   METHOD date_value.
 
-    DATA(lo_app) = NEW ltd_app( ).
+    DATA lo_app TYPE REF TO ltd_app.
+    DATA temp16 TYPE d.
+    DATA temp17 TYPE d.
+    DATA temp18 TYPE d.
+    CREATE OBJECT lo_app TYPE ltd_app.
     z2ui5_cl_agent_assist=>write( app  = lo_app
                                   path = `/START_DATE`
                                   val  = z2ui5_cl_agent_viewxml=>val_string( `2026-10-06` ) ).
-    cl_abap_unit_assert=>assert_equals( exp = CONV d( '20261006' )
+
+    temp16 = '20261006'.
+    cl_abap_unit_assert=>assert_equals( exp = temp16
                                         act = lo_app->start_date ).
     z2ui5_cl_agent_assist=>write( app  = lo_app
                                   path = `/START_DATE`
                                   val  = z2ui5_cl_agent_viewxml=>val_string( `20280229` ) ).
-    cl_abap_unit_assert=>assert_equals( exp = CONV d( '20280229' )
+
+    temp17 = '20280229'.
+    cl_abap_unit_assert=>assert_equals( exp = temp17
                                         act = lo_app->start_date ).
 
     " no day of the calendar, or another notation: refused
@@ -623,7 +749,9 @@ CLASS ltcl_write IMPLEMENTATION.
     refused( io_app = lo_app
              path   = `/START_DATE`
              value  = `2026-13-01` ).
-    cl_abap_unit_assert=>assert_equals( exp = CONV d( '20280229' )
+
+    temp18 = '20280229'.
+    cl_abap_unit_assert=>assert_equals( exp = temp18
                                         act = lo_app->start_date ).
 
   ENDMETHOD.
@@ -631,14 +759,28 @@ CLASS ltcl_write IMPLEMENTATION.
   METHOD multichoice_value.
 
     " the keys of a multichoice into the table its selectedKeys is bound to
-    DATA(lo_app) = NEW ltd_app( ).
-    lo_app->tags = VALUE #( ( `OLD` ) ).
+    DATA lo_app TYPE REF TO ltd_app.
+    DATA temp19 TYPE string_table.
+    DATA temp21 TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+    DATA temp22 TYPE string_table.
+    CREATE OBJECT lo_app TYPE ltd_app.
+
+    CLEAR temp19.
+    INSERT `OLD` INTO TABLE temp19.
+    lo_app->tags = temp19.
+
+    CLEAR temp21.
+    temp21-kind = z2ui5_cl_agent_viewxml=>cs_kind-array.
+    temp21-json = `["FAIR","MEET"]`.
+    temp21-num = 2.
     z2ui5_cl_agent_assist=>write( app  = lo_app
                                   path = `/TAGS`
-                                  val  = VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-array
-                                                  json = `["FAIR","MEET"]`
-                                                  num  = 2 ) ).
-    cl_abap_unit_assert=>assert_equals( exp = VALUE string_table( ( `FAIR` ) ( `MEET` ) )
+                                  val  = temp21 ).
+
+    CLEAR temp22.
+    INSERT `FAIR` INTO TABLE temp22.
+    INSERT `MEET` INTO TABLE temp22.
+    cl_abap_unit_assert=>assert_equals( exp = temp22
                                         act = lo_app->tags ).
 
   ENDMETHOD.

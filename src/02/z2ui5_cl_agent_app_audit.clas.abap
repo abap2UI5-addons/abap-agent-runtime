@@ -28,7 +28,7 @@ CLASS z2ui5_cl_agent_app_audit DEFINITION PUBLIC FINAL CREATE PUBLIC.
         text      TYPE string,
         args      TYPE string,
       END OF ty_s_entry.
-    TYPES ty_t_entry TYPE STANDARD TABLE OF ty_s_entry WITH EMPTY KEY.
+    TYPES ty_t_entry TYPE STANDARD TABLE OF ty_s_entry WITH DEFAULT KEY.
 
     DATA t_entry   TYPE ty_t_entry.
     DATA search    TYPE string.
@@ -63,12 +63,12 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
   METHOD z2ui5_if_app~main.
 
     me->client = client.
-    IF client->check_on_init( ).
+    IF client->check_on_init( ) IS NOT INITIAL.
       model_init( ).
       view_display( ).
-    ELSEIF client->check_on_navigated( ).
+    ELSEIF client->check_on_navigated( ) IS NOT INITIAL.
       view_display( ).
-    ELSEIF client->check_on_event( ).
+    ELSEIF client->check_on_event( ) IS NOT INITIAL.
       on_event( ).
     ENDIF.
 
@@ -76,23 +76,30 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
 
   METHOD view_display.
 
-    DATA(view) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA view TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA page TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA table TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA toolbar TYPE REF TO z2ui5_cl_ui5_view_builder.
+    view = z2ui5_cl_ui5_view_builder=>factory(
         )->ele( n = `View` ns = `mvc`
             )->a( n = `xmlns`        v = `sap.m`
             )->a( n = `xmlns:mvc`    v = `sap.ui.core.mvc`
             )->a( n = `displayBlock` v = `true`
             )->a( n = `height`       v = `100%` ).
 
-    DATA(page) = view->ele( `Shell`
+
+    page = view->ele( `Shell`
         )->ele( `Page`
             )->a( n = `title` v = client->_bind( title ) ).
 
-    DATA(table) = page->ele( `Table`
+
+    table = page->ele( `Table`
         )->a( n = `items`            v = client->_bind( t_entry )
         )->a( n = `growing`          v = `true`
         )->a( n = `growingThreshold` v = `50` ).
 
-    DATA(toolbar) = table->ele( `headerToolbar`
+
+    toolbar = table->ele( `headerToolbar`
         )->ele( `OverflowToolbar` ).
 
     toolbar->tag( `SearchField`
@@ -185,13 +192,16 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
 
   METHOD popup_detail.
 
-    DATA(popup) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA popup TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA dialog TYPE REF TO z2ui5_cl_ui5_view_builder.
+    popup = z2ui5_cl_ui5_view_builder=>factory(
         )->ele( n = `FragmentDefinition` ns = `core`
             )->a( n = `xmlns`      v = `sap.m`
             )->a( n = `xmlns:core` v = `sap.ui.core`
             )->a( n = `xmlns:form` v = `sap.ui.layout.form` ).
 
-    DATA(dialog) = popup->ele( `Dialog`
+
+    dialog = popup->ele( `Dialog`
         )->a( n = `title`        v = `Agent call`
         )->a( n = `contentWidth` v = `40rem` ).
 
@@ -256,6 +266,7 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD on_event.
+        DATA lv_id TYPE string.
 
     CASE client->get_event( ).
 
@@ -263,7 +274,8 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
         load( ).
 
       WHEN `DETAIL`.
-        DATA(lv_id) = client->get_event_arg( ).
+
+        lv_id = client->get_event_arg( ).
         READ TABLE t_entry INTO s_detail WITH KEY id = lv_id. "#EC CI_SORTSEQ
         IF sy-subrc = 0.
           popup_detail( ).
@@ -279,57 +291,112 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
   METHOD load.
 
     DATA lv_ts TYPE string.
+    DATA lv_search TYPE string.
+    DATA temp1 TYPE string.
+    DATA lv_outcome LIKE temp1.
+    DATA temp2 TYPE i.
+    DATA lv_window LIKE temp2.
+    DATA temp3 TYPE z2ui5_cl_agent_audit=>ty_t_log.
+    DATA lt_log LIKE temp3.
+    DATA ls_log LIKE LINE OF lt_log.
+        DATA lv_hay TYPE string.
+      DATA temp4 TYPE z2ui5_cl_agent_app_audit=>ty_s_entry.
+      DATA temp6 TYPE z2ui5_cl_agent_app_audit=>ty_s_entry-time.
+      DATA temp7 TYPE z2ui5_cl_agent_app_audit=>ty_s_entry-state.
+    DATA temp5 TYPE string.
+    DATA temp8 TYPE string.
 
     " asked on every search, not remembered in the draft: an administrator
     " removed meanwhile sees only the own calls again
     is_admin = z2ui5_cl_agent_settings=>check_admin( ).
-    DATA(lv_search) = to_upper( condense( search ) ).
-    DATA(lv_outcome) = COND string( WHEN outcome <> `all` THEN outcome ).
+
+    lv_search = to_upper( condense( search ) ).
+
+    IF outcome <> `all`.
+      temp1 = outcome.
+    ELSE.
+      CLEAR temp1.
+    ENDIF.
+
+    lv_outcome = temp1.
     " the outcome is filtered by the database; a search runs over the texts
     " too (STRG, no LIKE) - over a wider window of the newest entries, and
     " the title says when that window was full
-    DATA(lv_window) = COND i( WHEN lv_search IS NOT INITIAL THEN c_search_rows ELSE c_list_rows ).
-    DATA(lt_log) = COND z2ui5_cl_agent_audit=>ty_t_log( WHEN is_admin = abap_true AND all_users = abap_true
-                                                       THEN z2ui5_cl_agent_audit=>read( outcome  = lv_outcome
-                                                                                        max_rows = lv_window )
-                                                       ELSE z2ui5_cl_agent_audit=>read( uname    = sy-uname
-                                                                                        outcome  = lv_outcome
-                                                                                        max_rows = lv_window ) ).
+
+    IF lv_search IS NOT INITIAL.
+      temp2 = c_search_rows.
+    ELSE.
+      temp2 = c_list_rows.
+    ENDIF.
+
+    lv_window = temp2.
+
+    IF is_admin = abap_true AND all_users = abap_true.
+      temp3 = z2ui5_cl_agent_audit=>read( outcome = lv_outcome max_rows = lv_window ).
+    ELSE.
+      temp3 = z2ui5_cl_agent_audit=>read( uname = sy-uname outcome = lv_outcome max_rows = lv_window ).
+    ENDIF.
+
+    lt_log = temp3.
     CLEAR t_entry.
-    LOOP AT lt_log INTO DATA(ls_log).
+
+    LOOP AT lt_log INTO ls_log.
       IF lines( t_entry ) >= c_list_rows.
         EXIT.
       ENDIF.
       IF lv_search IS NOT INITIAL.
-        DATA(lv_hay) = to_upper( |{ ls_log-app } { ls_log-event } { ls_log-session_id } { ls_log-uname } { ls_log-text } { ls_log-operation }| ).
+
+        lv_hay = to_upper( |{ ls_log-app } { ls_log-event } { ls_log-session_id } { ls_log-uname } { ls_log-text } { ls_log-operation }| ).
         IF find( val = lv_hay
                  sub = lv_search ) < 0.
           CONTINUE.
         ENDIF.
       ENDIF.
       lv_ts = |{ ls_log-timestampl }|.
-      INSERT VALUE #( id        = ls_log-id
-                      time      = COND #( WHEN strlen( lv_ts ) >= 14
-                                          THEN |{ lv_ts(4) }-{ lv_ts+4(2) }-{ lv_ts+6(2) } { lv_ts+8(2) }:{ lv_ts+10(2) }:{ lv_ts+12(2) } UTC|
-                                          ELSE lv_ts )
-                      uname     = ls_log-uname
-                      app       = ls_log-app
-                      session   = ls_log-session_id
-                      operation = ls_log-operation
-                      event     = ls_log-event
-                      outcome   = ls_log-outcome
-                      state     = COND #( WHEN ls_log-outcome = z2ui5_cl_agent_audit=>cs_outcome-ok THEN `Success` ELSE `Error` )
-                      client    = ls_log-mcp_client
-                      text      = ls_log-text
-                      args      = ls_log-args ) INTO TABLE t_entry.
+
+      CLEAR temp4.
+      temp4-id = ls_log-id.
+
+      IF strlen( lv_ts ) >= 14.
+        temp6 = |{ lv_ts(4) }-{ lv_ts+4(2) }-{ lv_ts+6(2) } { lv_ts+8(2) }:{ lv_ts+10(2) }:{ lv_ts+12(2) } UTC|.
+      ELSE.
+        temp6 = lv_ts.
+      ENDIF.
+      temp4-time = temp6.
+      temp4-uname = ls_log-uname.
+      temp4-app = ls_log-app.
+      temp4-session = ls_log-session_id.
+      temp4-operation = ls_log-operation.
+      temp4-event = ls_log-event.
+      temp4-outcome = ls_log-outcome.
+
+      IF ls_log-outcome = z2ui5_cl_agent_audit=>cs_outcome-ok.
+        temp7 = `Success`.
+      ELSE.
+        temp7 = `Error`.
+      ENDIF.
+      temp4-state = temp7.
+      temp4-client = ls_log-mcp_client.
+      temp4-text = ls_log-text.
+      temp4-args = ls_log-args.
+      INSERT temp4 INTO TABLE t_entry.
     ENDLOOP.
-    title = |Agent audit log - { lines( t_entry ) } call(s){ COND #( WHEN is_admin = abap_true AND all_users = abap_true
-                                                                    THEN `, all users`
-                                                                    ELSE |, user { sy-uname }| ) }| &&
-            |{ COND #( WHEN lines( t_entry ) >= c_list_rows
-                       THEN |, the newest { c_list_rows } shown - narrow the search|
-                       WHEN lines( lt_log ) >= lv_window AND lv_search IS NOT INITIAL
-                       THEN |, searched the newest { lv_window } entries only| ) }|.
+
+    IF is_admin = abap_true AND all_users = abap_true.
+      temp5 = `, all users`.
+    ELSE.
+      temp5 = |, user { sy-uname }|.
+    ENDIF.
+
+    IF lines( t_entry ) >= c_list_rows.
+      temp8 = |, the newest { c_list_rows } shown - narrow the search|.
+    ELSEIF lines( lt_log ) >= lv_window AND lv_search IS NOT INITIAL.
+      temp8 = |, searched the newest { lv_window } entries only|.
+    ELSE.
+      CLEAR temp8.
+    ENDIF.
+    title = |Agent audit log - { lines( t_entry ) } call(s){ temp5 }| &&
+            |{ temp8 }|.
 
   ENDMETHOD.
 

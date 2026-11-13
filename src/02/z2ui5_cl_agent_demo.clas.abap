@@ -28,14 +28,14 @@ CLASS z2ui5_cl_agent_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
         hotel       TYPE abap_bool,
         selkz       TYPE abap_bool,
       END OF ty_s_request.
-    TYPES ty_t_request TYPE STANDARD TABLE OF ty_s_request WITH EMPTY KEY.
+    TYPES ty_t_request TYPE STANDARD TABLE OF ty_s_request WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_stop,
         city   TYPE string,
         nights TYPE i,
       END OF ty_s_stop.
-    TYPES ty_t_stop TYPE STANDARD TABLE OF ty_s_stop WITH EMPTY KEY.
+    TYPES ty_t_stop TYPE STANDARD TABLE OF ty_s_stop WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_choice,
@@ -43,7 +43,7 @@ CLASS z2ui5_cl_agent_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
         text  TYPE string,
         selkz TYPE abap_bool,
       END OF ty_s_choice.
-    TYPES ty_t_choice TYPE STANDARD TABLE OF ty_s_choice WITH EMPTY KEY.
+    TYPES ty_t_choice TYPE STANDARD TABLE OF ty_s_choice WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_trip,
@@ -84,11 +84,25 @@ ENDCLASS.
 CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
 
   METHOD z2ui5_if_agent_app~describe.
+    DATA temp1 TYPE z2ui5_if_agent_app=>ty_t_event.
+    DATA temp2 LIKE LINE OF temp1.
+    DATA temp3 TYPE string_table.
 
     result-description = `Travel requests - the example app of the abap2UI5 agent addon`.
-    result-t_event = VALUE #( ( event = `SUBMIT`  policy = z2ui5_if_agent_app=>cs_policy-confirm )
-                              ( event = `DELETE*` policy = z2ui5_if_agent_app=>cs_policy-forbidden ) ).
-    result-t_sensitive = VALUE #( ( `/IBAN` ) ).
+
+    CLEAR temp1.
+
+    temp2-event = `SUBMIT`.
+    temp2-policy = z2ui5_if_agent_app=>cs_policy-confirm.
+    INSERT temp2 INTO TABLE temp1.
+    temp2-event = `DELETE*`.
+    temp2-policy = z2ui5_if_agent_app=>cs_policy-forbidden.
+    INSERT temp2 INTO TABLE temp1.
+    result-t_event = temp1.
+
+    CLEAR temp3.
+    INSERT `/IBAN` INTO TABLE temp3.
+    result-t_sensitive = temp3.
 
   ENDMETHOD.
 
@@ -99,12 +113,12 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
       RETURN.
     ENDIF.
     me->client = client.
-    IF client->check_on_init( ).
+    IF client->check_on_init( ) IS NOT INITIAL.
       model_init( ).
       view_display( ).
-    ELSEIF client->check_on_navigated( ).
+    ELSEIF client->check_on_navigated( ) IS NOT INITIAL.
       view_display( ).
-    ELSEIF client->check_on_event( ).
+    ELSEIF client->check_on_event( ) IS NOT INITIAL.
       on_event( ).
     ENDIF.
 
@@ -112,7 +126,9 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
 
   METHOD view_display.
 
-    DATA(view) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA view TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA page TYPE REF TO z2ui5_cl_ui5_view_builder.
+    view = z2ui5_cl_ui5_view_builder=>factory(
         )->ele( n = `View` ns = `mvc`
             )->a( n = `xmlns`        v = `sap.m`
             )->a( n = `xmlns:mvc`    v = `sap.ui.core.mvc`
@@ -121,7 +137,8 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
             )->a( n = `displayBlock` v = `true`
             )->a( n = `height`       v = `100%` ).
 
-    DATA(page) = view->ele( `Shell`
+
+    page = view->ele( `Shell`
         )->ele( `Page`
             )->a( n = `title` v = `Travel requests` ).
 
@@ -307,12 +324,15 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
 
   METHOD popup_display.
 
-    DATA(popup) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA popup TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA dialog TYPE REF TO z2ui5_cl_ui5_view_builder.
+    popup = z2ui5_cl_ui5_view_builder=>factory(
         )->ele( n = `FragmentDefinition` ns = `core`
             )->a( n = `xmlns`      v = `sap.m`
             )->a( n = `xmlns:core` v = `sap.ui.core` ).
 
-    DATA(dialog) = popup->ele( `Dialog`
+
+    dialog = popup->ele( `Dialog`
         )->a( n = `title` v = `Note for the approver` ).
 
     dialog->ele( `content`
@@ -340,7 +360,8 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
 
     " a value help: one row is picked - its SELKZ travels with the confirm,
     " the picked item's title is the event argument
-    DATA(popup) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA popup TYPE REF TO z2ui5_cl_ui5_view_builder.
+    popup = z2ui5_cl_ui5_view_builder=>factory(
         )->ele( n = `FragmentDefinition` ns = `core`
             )->a( n = `xmlns`      v = `sap.m`
             )->a( n = `xmlns:core` v = `sap.ui.core` ).
@@ -364,7 +385,8 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
 
     " a value help for several rows: the ticked rows travel with the OK, the
     " event argument is how many were selected
-    DATA(popup) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA popup TYPE REF TO z2ui5_cl_ui5_view_builder.
+    popup = z2ui5_cl_ui5_view_builder=>factory(
         )->ele( n = `FragmentDefinition` ns = `core`
             )->a( n = `xmlns`      v = `sap.m`
             )->a( n = `xmlns:core` v = `sap.ui.core` ).
@@ -403,6 +425,16 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD on_event.
+        DATA temp5 TYPE z2ui5_cl_agent_demo=>ty_s_request.
+        DATA lv_id TYPE string.
+        DATA lv_nights TYPE i.
+        DATA ls_stop LIKE LINE OF trip-t_stop.
+        DATA temp6 TYPE string.
+        DATA temp1 TYPE string.
+        DATA lv_count TYPE i.
+        DATA lv_selected TYPE i.
+        DATA ls_dest LIKE LINE OF t_dest.
+        DATA ls_tag LIKE LINE OF t_tag.
 
     CASE client->get_event( ).
 
@@ -412,17 +444,21 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
                                        type = `error` ).
           RETURN.
         ENDIF.
-        INSERT VALUE #( id          = lines( t_request ) + 1
-                        name        = name
-                        destination = destination
-                        days        = days
-                        hotel       = hotel ) INTO TABLE t_request.
+
+        CLEAR temp5.
+        temp5-id = lines( t_request ) + 1.
+        temp5-name = name.
+        temp5-destination = destination.
+        temp5-days = days.
+        temp5-hotel = hotel.
+        INSERT temp5 INTO TABLE t_request.
         status = |Request { lines( t_request ) } added|.
         CLEAR name.
         client->message_toast_display( status ).
 
       WHEN `DETAIL`.
-        DATA(lv_id) = client->get_event_arg( ).
+
+        lv_id = client->get_event_arg( ).
         client->message_box_display( |Request { lv_id }| ).
 
       WHEN `POPUP_OPEN`.
@@ -433,18 +469,31 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
         status = |Note: { note }|.
 
       WHEN `PLAN`.
-        DATA(lv_nights) = 0.
-        LOOP AT trip-t_stop INTO DATA(ls_stop).
+
+        lv_nights = 0.
+
+        LOOP AT trip-t_stop INTO ls_stop.
           lv_nights = lv_nights + ls_stop-nights.
         ENDLOOP.
+
+        IF tags IS INITIAL.
+          temp6 = `none`.
+        ELSE.
+          temp6 = concat_lines_of( table = tags sep = `,` ).
+        ENDIF.
+
+        IF hotel = abap_true.
+          temp1 = `yes`.
+        ELSE.
+          temp1 = `no`.
+        ENDIF.
         status = |Plan: { trip-purpose }, { lines( trip-t_stop ) } stop(s), { lv_nights } night(s), | &&
-                 |tags { COND #( WHEN tags IS INITIAL THEN `none`
-                                 ELSE concat_lines_of( table = tags
-                                                       sep   = `,` ) ) }, | &&
-                 |hotel { COND #( WHEN hotel = abap_true THEN `yes` ELSE `no` ) }|.
+                 |tags { temp6 }, | &&
+                 |hotel { temp1 }|.
 
       WHEN `SUBMIT`.
-        DATA(lv_count) = 0.
+
+        lv_count = 0.
         LOOP AT t_request TRANSPORTING NO FIELDS WHERE selkz = abap_true. "#EC CI_SORTSEQ
           lv_count = lv_count + 1.
         ENDLOOP.
@@ -465,8 +514,10 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
 
       WHEN `DEST_PICKED`.
         client->popup_destroy( ).
-        DATA(lv_selected) = 0.
-        LOOP AT t_dest INTO DATA(ls_dest) WHERE selkz = abap_true. "#EC CI_SORTSEQ
+
+        lv_selected = 0.
+
+        LOOP AT t_dest INTO ls_dest WHERE selkz = abap_true. "#EC CI_SORTSEQ
           lv_selected = lv_selected + 1.
           destination = ls_dest-key.
         ENDLOOP.
@@ -475,7 +526,8 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
       WHEN `TAGS_PICKED`.
         client->popup_destroy( ).
         CLEAR tags.
-        LOOP AT t_tag INTO DATA(ls_tag) WHERE selkz = abap_true. "#EC CI_SORTSEQ
+
+        LOOP AT t_tag INTO ls_tag WHERE selkz = abap_true. "#EC CI_SORTSEQ
           INSERT ls_tag-key INTO TABLE tags.
         ENDLOOP.
         status = |{ client->get_event_arg( ) } tag(s) picked: { concat_lines_of( table = tags
@@ -486,20 +538,69 @@ CLASS z2ui5_cl_agent_demo IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD model_init.
+    DATA temp7 TYPE z2ui5_cl_agent_demo=>ty_t_request.
+    DATA temp8 LIKE LINE OF temp7.
+    DATA temp9 TYPE z2ui5_cl_agent_demo=>ty_t_choice.
+    DATA temp10 LIKE LINE OF temp9.
+    DATA temp11 TYPE z2ui5_cl_agent_demo=>ty_t_choice.
+    DATA temp12 LIKE LINE OF temp11.
+    DATA temp2 TYPE z2ui5_cl_agent_demo=>ty_t_stop.
+    DATA temp3 LIKE LINE OF temp2.
 
     destination = `BER`.
     days = 3.
-    t_request = VALUE #( ( id = 1 name = `Alice` destination = `PAR` days = 2 )
-                         ( id = 2 name = `Bob`   destination = `ROM` days = 5 ) ).
-    t_dest = VALUE #( ( key = `BER` text = `Berlin` )
-                      ( key = `PAR` text = `Paris` )
-                      ( key = `ROM` text = `Rome` ) ).
-    t_tag = VALUE #( ( key = `FAIR`  text = `Trade fair` )
-                     ( key = `MEET`  text = `Customer meeting` )
-                     ( key = `TRAIN` text = `Training` ) ).
-    trip = VALUE #( purpose = `Customer visit`
-                    t_stop  = VALUE #( ( city = `Lyon` nights = 1 )
-                                       ( city = `Nice` nights = 2 ) ) ).
+
+    CLEAR temp7.
+
+    temp8-id = 1.
+    temp8-name = `Alice`.
+    temp8-destination = `PAR`.
+    temp8-days = 2.
+    INSERT temp8 INTO TABLE temp7.
+    temp8-id = 2.
+    temp8-name = `Bob`.
+    temp8-destination = `ROM`.
+    temp8-days = 5.
+    INSERT temp8 INTO TABLE temp7.
+    t_request = temp7.
+
+    CLEAR temp9.
+
+    temp10-key = `BER`.
+    temp10-text = `Berlin`.
+    INSERT temp10 INTO TABLE temp9.
+    temp10-key = `PAR`.
+    temp10-text = `Paris`.
+    INSERT temp10 INTO TABLE temp9.
+    temp10-key = `ROM`.
+    temp10-text = `Rome`.
+    INSERT temp10 INTO TABLE temp9.
+    t_dest = temp9.
+
+    CLEAR temp11.
+
+    temp12-key = `FAIR`.
+    temp12-text = `Trade fair`.
+    INSERT temp12 INTO TABLE temp11.
+    temp12-key = `MEET`.
+    temp12-text = `Customer meeting`.
+    INSERT temp12 INTO TABLE temp11.
+    temp12-key = `TRAIN`.
+    temp12-text = `Training`.
+    INSERT temp12 INTO TABLE temp11.
+    t_tag = temp11.
+    CLEAR trip.
+    trip-purpose = `Customer visit`.
+
+    CLEAR temp2.
+
+    temp3-city = `Lyon`.
+    temp3-nights = 1.
+    INSERT temp3 INTO TABLE temp2.
+    temp3-city = `Nice`.
+    temp3-nights = 2.
+    INSERT temp3 INTO TABLE temp2.
+    trip-t_stop = temp2.
 
   ENDMETHOD.
 

@@ -37,7 +37,7 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
         role TYPE string,
         text TYPE string,
       END OF ty_s_turn.
-    TYPES ty_t_turn TYPE STANDARD TABLE OF ty_s_turn WITH EMPTY KEY.
+    TYPES ty_t_turn TYPE STANDARD TABLE OF ty_s_turn WITH DEFAULT KEY.
 
     TYPES:
       "! field: as the model named it (id, path or name); label, path, kind:
@@ -50,7 +50,7 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
         kind  TYPE string,
         value TYPE string,
       END OF ty_s_value.
-    TYPES ty_t_value TYPE STANDARD TABLE OF ty_s_value WITH EMPTY KEY.
+    TYPES ty_t_value TYPE STANDARD TABLE OF ty_s_value WITH DEFAULT KEY.
 
     TYPES:
       "! present: the model proposed something. valid: it passed the
@@ -221,14 +221,15 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
   METHOD session_new.
 
-    result = NEW #( client = c_client
-                    mode   = z2ui5_cl_agent_session=>cs_mode-copilot ).
+    CREATE OBJECT result EXPORTING client = c_client mode = z2ui5_cl_agent_session=>cs_mode-copilot.
 
   ENDMETHOD.
 
   METHOD attach.
 
-    DATA(ls_result) = session_new( )->app_attach( draft ).
+    DATA ls_result TYPE z2ui5_cl_agent_session=>ty_s_result.
+        DATA lo_json TYPE REF TO z2ui5_cl_ajson.
+    ls_result = session_new( )->app_attach( draft ).
     IF ls_result-is_error = abap_true.
       result-error = ls_result-text.
       RETURN.
@@ -236,7 +237,8 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     result-ok = abap_true.
     result-session = ls_result-session.
     TRY.
-        DATA(lo_json) = z2ui5_cl_ajson=>parse( ls_result-text ).
+
+        lo_json = z2ui5_cl_ajson=>parse( ls_result-text ).
         result-app = lo_json->get_string( `/app` ).
         result-title = lo_json->get_string( `/title` ).
       CATCH cx_root ##NO_HANDLER.
@@ -298,15 +300,46 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
   METHOD mask.
 
     DATA lt_drop TYPE string_table.
+        DATA lo_json TYPE REF TO z2ui5_cl_ajson.
+        DATA lv_count TYPE i.
+          DATA lv_id TYPE string.
+        DATA lv_tables TYPE i.
+          DATA lv_table TYPE string.
+          DATA lv_path TYPE string.
+          DATA temp24 TYPE z2ui5_cl_agent_snapshot=>ty_s_table.
+          DATA ls_snap_table LIKE temp24.
+          DATA lv_columns TYPE i.
+            DATA lv_column TYPE string.
+            DATA lv_column_masked TYPE abap_bool.
+            DATA temp25 TYPE z2ui5_cl_agent_snapshot=>ty_s_cellspec.
+            DATA ls_cellspec LIKE temp25.
+            DATA lt_read TYPE string_table.
+            DATA lv_read LIKE LINE OF lt_read.
+              DATA lv_read_index LIKE sy-tabix.
+                DATA lv_read_name LIKE lv_read.
+            DATA lv_rows TYPE i.
+              DATA lv_row_masked LIKE lv_column_masked.
+        DATA lv_texts TYPE i.
+          DATA lv_text_path TYPE string.
+          DATA lv_text_value TYPE string.
+          DATA ls_source TYPE z2ui5_cl_agent_snapshot=>ty_s_text_source.
+          DATA lv_source LIKE LINE OF ls_source-t_path.
+            DATA lv_source_name LIKE lv_source.
+        DATA lv_actions TYPE i.
+            DATA temp26 LIKE LINE OF lt_drop.
+        DATA lv_drop LIKE LINE OF lt_drop.
 
     TRY.
-        DATA(lo_json) = z2ui5_cl_ajson=>parse( iv_json            = io_snap->get_json( )
+
+        lo_json = z2ui5_cl_ajson=>parse( iv_json            = io_snap->get_json( )
                                                iv_keep_item_order = abap_true ).
 
         " password inputs and sensitive fields: the model never sees them
-        DATA(lv_count) = lines( lo_json->members( `/fields` ) ).
+
+        lv_count = lines( lo_json->members( `/fields` ) ).
         DO lv_count TIMES.
-          DATA(lv_id) = lo_json->get_string( |/fields/{ sy-index }/id| ).
+
+          lv_id = lo_json->get_string( |/fields/{ sy-index }/id| ).
           IF check_protected( io_snap = io_snap
                               field   = lv_id ) = abap_true.
             lo_json->set( iv_path = |/fields/{ sy-index }/value|
@@ -315,31 +348,47 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         ENDDO.
 
         " columns of tables that are sensitive by name
-        DATA(lv_tables) = lines( lo_json->members( `/tables` ) ).
+
+        lv_tables = lines( lo_json->members( `/tables` ) ).
         DO lv_tables TIMES.
-          DATA(lv_table) = |/tables/{ sy-index }|.
-          DATA(lv_path) = lo_json->get_string( |{ lv_table }/path| ).
-          DATA(ls_snap_table) = VALUE z2ui5_cl_agent_snapshot=>ty_s_table( ).
+
+          lv_table = |/tables/{ sy-index }|.
+
+          lv_path = lo_json->get_string( |{ lv_table }/path| ).
+
+          CLEAR temp24.
+
+          ls_snap_table = temp24.
           READ TABLE io_snap->mt_table INTO ls_snap_table
                WITH KEY id = lo_json->get_string( |{ lv_table }/id| ). "#EC CI_SORTSEQ
-          DATA(lv_columns) = lines( lo_json->members( |{ lv_table }/columns| ) ).
+
+          lv_columns = lines( lo_json->members( |{ lv_table }/columns| ) ).
           DO lv_columns TIMES.
-            DATA(lv_column) = lo_json->get_string( |{ lv_table }/columns/{ sy-index }/name| ).
-            DATA(lv_column_masked) = z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
+
+            lv_column = lo_json->get_string( |{ lv_table }/columns/{ sy-index }/name| ).
+
+            lv_column_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                                                path = |{ lv_path }/{ lv_column }|
                                                                                name = lv_column ).
             " a cell bound to several fields or an expression ("{IBAN} ({BANK})",
             " "{= ${IBAN} }") is a column COL<n> - judged by the fields its
             " binding reads, by table path and by row path alike
-            DATA(ls_cellspec) = VALUE z2ui5_cl_agent_snapshot=>ty_s_cellspec( ).
+
+            CLEAR temp25.
+
+            ls_cellspec = temp25.
             READ TABLE ls_snap_table-t_cellspec INTO ls_cellspec WITH KEY name = lv_column. "#EC CI_SORTSEQ
-            DATA(lt_read) = z2ui5_cl_agent_snapshot=>binding_paths( ls_cellspec-binding ).
+
+            lt_read = z2ui5_cl_agent_snapshot=>binding_paths( ls_cellspec-binding ).
             DELETE lt_read WHERE table_line = lv_column.
-            LOOP AT lt_read INTO DATA(lv_read).
-              DATA(lv_read_index) = sy-tabix.
+
+            LOOP AT lt_read INTO lv_read.
+
+              lv_read_index = sy-tabix.
               " an absolute path inside a row is judged as it is
               IF strlen( lv_read ) > 0 AND lv_read(1) = `/`.
-                DATA(lv_read_name) = lv_read.
+
+                lv_read_name = lv_read.
                 WHILE lv_read_name CS `/`.
                   lv_read_name = substring_after( val = lv_read_name
                                                   sub = `/` ).
@@ -358,9 +407,11 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
                 lv_column_masked = abap_true.
               ENDIF.
             ENDLOOP.
-            DATA(lv_rows) = lines( lo_json->members( |{ lv_table }/rows| ) ).
+
+            lv_rows = lines( lo_json->members( |{ lv_table }/rows| ) ).
             DO lv_rows TIMES.
-              DATA(lv_row_masked) = lv_column_masked.
+
+              lv_row_masked = lv_column_masked.
               LOOP AT lt_read INTO lv_read.
                 IF z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
                                                              path = |{ lv_path }/{ sy-index - 1 }/{ lv_read }|
@@ -383,17 +434,23 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
         " texts that show a sensitive field ("IBAN: DE89...") - the snapshot
         " keeps which paths each text read
-        DATA(lv_texts) = lines( lo_json->members( `/texts` ) ).
+
+        lv_texts = lines( lo_json->members( `/texts` ) ).
         DO lv_texts TIMES.
-          DATA(lv_text_path) = |/texts/{ sy-index }|.
-          DATA(lv_text_value) = lo_json->get_string( lv_text_path ).
-          READ TABLE io_snap->mt_text_source INTO DATA(ls_source)
+
+          lv_text_path = |/texts/{ sy-index }|.
+
+          lv_text_value = lo_json->get_string( lv_text_path ).
+
+          READ TABLE io_snap->mt_text_source INTO ls_source
                WITH KEY text = lv_text_value. "#EC CI_SORTSEQ
           IF sy-subrc <> 0.
             CONTINUE.
           ENDIF.
-          LOOP AT ls_source-t_path INTO DATA(lv_source).
-            DATA(lv_source_name) = lv_source.
+
+          LOOP AT ls_source-t_path INTO lv_source.
+
+            lv_source_name = lv_source.
             " the field's own name: the last segment of the path
             WHILE lv_source_name CS `/`.
               lv_source_name = substring_after( val = lv_source_name
@@ -413,13 +470,17 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
         ENDDO.
 
         " forbidden actions: never proposed, so never shown
-        DATA(lv_actions) = lines( lo_json->members( `/actions` ) ).
+
+        lv_actions = lines( lo_json->members( `/actions` ) ).
         DO lv_actions TIMES.
           IF lo_json->get_string( |/actions/{ sy-index }/policy| ) = z2ui5_if_agent_app=>cs_policy-forbidden.
-            INSERT |/actions/{ sy-index }| INTO lt_drop INDEX 1.
+
+            temp26 = |/actions/{ sy-index }|.
+            INSERT temp26 INTO lt_drop INDEX 1.
           ENDIF.
         ENDDO.
-        LOOP AT lt_drop INTO DATA(lv_drop).
+
+        LOOP AT lt_drop INTO lv_drop.
           lo_json->delete( lv_drop ).
         ENDLOOP.
         result = lo_json->stringify( ).
@@ -432,11 +493,27 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
   METHOD check_protected.
 
     DATA lv_index TYPE i.
+    DATA ls_field LIKE LINE OF io_snap->mt_field.
+      DATA lv_upper TYPE string.
+    DATA temp27 TYPE string_table.
+    DATA lt_part LIKE temp27.
+    DATA lv_count TYPE i.
+    DATA temp28 TYPE string.
+    DATA temp29 TYPE string.
+    DATA lv_column LIKE temp28.
+    DATA lv_path LIKE field.
+      DATA temp30 TYPE string.
+      DATA temp31 TYPE string.
+      DATA lv_row LIKE temp30.
+      DATA lv_table TYPE string.
+      DATA ls_table LIKE LINE OF io_snap->mt_table.
+        DATA ls_spec LIKE LINE OF ls_table-t_cellspec.
 
     CLEAR: label, path, kind.
     " the field app_check( ) resolves the key to: by id, by path, by name in
     " any case - in that order, as the session resolves it
-    LOOP AT io_snap->mt_field INTO DATA(ls_field) WHERE id = field. "#EC CI_SORTSEQ
+
+    LOOP AT io_snap->mt_field INTO ls_field WHERE id = field. "#EC CI_SORTSEQ
       lv_index = sy-tabix.
       EXIT.
     ENDLOOP.
@@ -447,7 +524,8 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       ENDLOOP.
     ENDIF.
     IF lv_index = 0.
-      DATA(lv_upper) = to_upper( field ).
+
+      lv_upper = to_upper( field ).
       LOOP AT io_snap->mt_field INTO ls_field.
         IF to_upper( ls_field-name ) = lv_upper.
           lv_index = sy-tabix.
@@ -470,18 +548,42 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
     " a table cell "<table path or id>/<row>/<COLUMN>": sensitive by its
     " column or by its model path, as the audit log judges it
-    DATA(lt_part) = VALUE string_table( ).
+
+    CLEAR temp27.
+
+    lt_part = temp27.
     SPLIT field AT `/` INTO TABLE lt_part.
-    DATA(lv_count) = lines( lt_part ).
-    DATA(lv_column) = VALUE string( lt_part[ lv_count ] OPTIONAL ).
-    DATA(lv_path) = field.
+
+    lv_count = lines( lt_part ).
+
+    CLEAR temp28.
+
+    READ TABLE lt_part INTO temp29 INDEX lv_count.
+    IF sy-subrc = 0.
+      temp28 = temp29.
+    ENDIF.
+
+    lv_column = temp28.
+
+    lv_path = field.
     IF lv_count >= 3.
-      DATA(lv_row) = VALUE string( lt_part[ lv_count - 1 ] OPTIONAL ).
-      DATA(lv_table) = substring( val = field
+
+      CLEAR temp30.
+
+      READ TABLE lt_part INTO temp31 INDEX lv_count - 1.
+      IF sy-subrc = 0.
+        temp30 = temp31.
+      ENDIF.
+
+      lv_row = temp30.
+
+      lv_table = substring( val = field
                                   len = strlen( field ) - strlen( lv_row ) - strlen( lv_column ) - 2 ).
-      LOOP AT io_snap->mt_table INTO DATA(ls_table) WHERE id = lv_table OR path = lv_table. "#EC CI_SORTSEQ
+
+      LOOP AT io_snap->mt_table INTO ls_table WHERE id = lv_table OR path = lv_table. "#EC CI_SORTSEQ
         lv_path = |{ ls_table-path }/{ lv_row }/{ lv_column }|.
-        LOOP AT ls_table-t_cellspec INTO DATA(ls_spec) WHERE name = lv_column AND has_field_spec = abap_true. "#EC CI_SORTSEQ
+
+        LOOP AT ls_table-t_cellspec INTO ls_spec WHERE name = lv_column AND has_field_spec = abap_true. "#EC CI_SORTSEQ
           kind = ls_spec-field_kind.
           EXIT.
         ENDLOOP.
@@ -503,13 +605,17 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     DATA lt_json TYPE string_table.
     DATA lv_json TYPE string.
 
-    LOOP AT t_value INTO DATA(ls_value).
+    DATA ls_value LIKE LINE OF t_value.
+        DATA lv_key LIKE LINE OF lt_key.
+      DATA temp32 LIKE LINE OF lt_member.
+    LOOP AT t_value INTO ls_value.
       IF ls_value-kind = `multichoice`.
         " the proposal's values are text - the session takes a multichoice
         " as an array of keys
         SPLIT ls_value-value AT `,` INTO TABLE lt_key.
         CLEAR lt_json.
-        LOOP AT lt_key INTO DATA(lv_key).
+
+        LOOP AT lt_key INTO lv_key.
           lv_key = condense( lv_key ).
           IF lv_key IS NOT INITIAL.
             INSERT z2ui5_cl_agent_viewxml=>json_string( lv_key ) INTO TABLE lt_json.
@@ -520,7 +626,9 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       ELSE.
         lv_json = z2ui5_cl_agent_viewxml=>json_string( ls_value-value ).
       ENDIF.
-      INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-field ) }:{ lv_json }| INTO TABLE lt_member.
+
+      temp32 = |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-field ) }:{ lv_json }|.
+      INSERT temp32 INTO TABLE lt_member.
     ENDLOOP.
     IF lt_member IS NOT INITIAL.
       result = |\{{ concat_lines_of( table = lt_member
@@ -536,59 +644,100 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     DATA lv_content TYPE string.
     DATA lo_snap TYPE REF TO z2ui5_cl_agent_snapshot.
 
-    DATA(lv_session) = CONV string( session ).
+    DATA temp33 TYPE string.
+    DATA lv_session LIKE temp33.
+        DATA lx_session TYPE REF TO cx_root.
+    DATA lv_may_act TYPE abap_bool.
+    DATA lv_description TYPE z2ui5_if_agent_app=>ty_s_info-description.
+    DATA ls_turn LIKE LINE OF t_turn.
+      DATA temp34 TYPE z2ui5_if_agent_llm=>ty_s_message.
+    DATA temp35 TYPE string.
+    DATA temp36 TYPE z2ui5_if_agent_llm=>ty_s_message.
+        DATA temp37 TYPE z2ui5_if_agent_llm=>ty_s_request.
+        DATA ls_answer TYPE z2ui5_if_agent_llm=>ty_s_response.
+          DATA lv_count TYPE i.
+            DATA temp38 TYPE z2ui5_cl_agent_assist=>ty_s_value.
+        DATA lx TYPE REF TO cx_root.
+    temp33 = session.
+
+    lv_session = temp33.
     TRY.
         lo_snap = session_new( )->get_snapshot( lv_session ).
         lv_context = mask( lo_snap ).
-      CATCH cx_root INTO DATA(lx_session).
+
+      CATCH cx_root INTO lx_session.
         result-error = lx_session->get_text( ).
         RETURN.
     ENDTRY.
-    DATA(lv_may_act) = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot_act ).
-    DATA(lv_description) = z2ui5_cl_agent_settings=>get_app_info( lo_snap->mv_app )-description.
+
+    lv_may_act = z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-copilot_act ).
+
+    lv_description = z2ui5_cl_agent_settings=>get_app_info( lo_snap->mv_app )-description.
 
     " the conversation so far, then the screen as it is now and the question
-    LOOP AT t_turn INTO DATA(ls_turn) WHERE text IS NOT INITIAL. "#EC CI_SORTSEQ
+
+    LOOP AT t_turn INTO ls_turn WHERE text IS NOT INITIAL. "#EC CI_SORTSEQ
       IF ls_turn-role <> z2ui5_if_agent_llm=>cs_role-user AND ls_turn-role <> z2ui5_if_agent_llm=>cs_role-assistant.
         CONTINUE.
       ENDIF.
       IF lt_message IS INITIAL AND ls_turn-role <> z2ui5_if_agent_llm=>cs_role-user.
         CONTINUE.
       ENDIF.
-      INSERT VALUE #( role    = ls_turn-role
-                      content = ls_turn-text ) INTO TABLE lt_message.
+
+      CLEAR temp34.
+      temp34-role = ls_turn-role.
+      temp34-content = ls_turn-text.
+      INSERT temp34 INTO TABLE lt_message.
     ENDLOOP.
     " built in two statements: the 7.02 downport puts a statement it rewrites
     " on one line, and that line must stay within 255 characters
-    lv_content = |The app: { lo_snap->mv_app }{ COND #( WHEN lv_description IS NOT INITIAL THEN | - { lv_description }| ) }|.
+
+    IF lv_description IS NOT INITIAL.
+      temp35 = | - { lv_description }|.
+    ELSE.
+      CLEAR temp35.
+    ENDIF.
+    lv_content = |The app: { lo_snap->mv_app }{ temp35 }|.
     lv_content = lv_content &&
                  |{ cl_abap_char_utilities=>newline }The screen now (agent snapshot v1):| &&
                  |{ cl_abap_char_utilities=>newline }{ lv_context }| &&
                  |{ cl_abap_char_utilities=>newline }{ cl_abap_char_utilities=>newline }The question: { question }|.
-    INSERT VALUE #( role    = z2ui5_if_agent_llm=>cs_role-user
-                    content = lv_content ) INTO TABLE lt_message.
+
+    CLEAR temp36.
+    temp36-role = z2ui5_if_agent_llm=>cs_role-user.
+    temp36-content = lv_content.
+    INSERT temp36 INTO TABLE lt_message.
 
     TRY.
-        DATA(ls_answer) = z2ui5_cl_agent_llm=>create( )->chat( VALUE #( purpose   = `copilot`
-                                                                         app       = lo_snap->mv_app
-                                                                         system    = get_system( lv_may_act )
-                                                                         t_message = lt_message
-                                                                         schema    = get_schema( ) ) ).
+
+        CLEAR temp37.
+        temp37-purpose = `copilot`.
+        temp37-app = lo_snap->mv_app.
+        temp37-system = get_system( lv_may_act ).
+        temp37-t_message = lt_message.
+        temp37-schema = get_schema( ).
+
+        ls_answer = z2ui5_cl_agent_llm=>create( )->chat( temp37 ).
         result-text = ls_answer-json->get_string( `/answer` ).
         result-found = ls_answer-json->get_boolean( `/found` ).
         result-proposal-present = ls_answer-json->get_boolean( `/proposal/wanted` ).
         IF result-proposal-present = abap_true.
           result-proposal-summary = ls_answer-json->get_string( `/proposal/summary` ).
           result-proposal-event = condense( ls_answer-json->get_string( `/proposal/event` ) ).
-          DATA(lv_count) = lines( ls_answer-json->members( `/proposal/values` ) ).
+
+          lv_count = lines( ls_answer-json->members( `/proposal/values` ) ).
           DO lv_count TIMES.
-            INSERT VALUE #( field = condense( ls_answer-json->get_string( |/proposal/values/{ sy-index }/field| ) )
-                            value = ls_answer-json->get_string( |/proposal/values/{ sy-index }/value| ) )
+
+            CLEAR temp38.
+            temp38-field = condense( ls_answer-json->get_string( |/proposal/values/{ sy-index }/field| ) ).
+            temp38-value = ls_answer-json->get_string( |/proposal/values/{ sy-index }/value| ).
+            INSERT temp38
                    INTO TABLE result-proposal-t_value.
           ENDDO.
         ENDIF.
         result-ok = abap_true.
-      CATCH cx_root INTO DATA(lx).
+
+      CATCH cx_root INTO lx.
         result-error = lx->get_text( ).
         RETURN.
     ENDTRY.
@@ -616,7 +765,13 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     DATA lv_found TYPE abap_bool.
 
     " the fields: on the screen and not protected
-    LOOP AT cs_proposal-t_value REFERENCE INTO DATA(lr_value).
+    DATA temp39 LIKE LINE OF cs_proposal-t_value.
+    DATA lr_value LIKE REF TO temp39.
+      DATA temp40 TYPE z2ui5_cl_agent_assist=>ty_s_proposal-policy.
+      DATA temp1 TYPE xsdboolean.
+    DATA temp41 TYPE string.
+    DATA ls_check TYPE z2ui5_cl_agent_session=>ty_s_result.
+    LOOP AT cs_proposal-t_value REFERENCE INTO lr_value.
       IF check_protected( EXPORTING io_snap = io_snap
                                     field   = lr_value->field
                           IMPORTING label   = lr_value->label
@@ -659,20 +814,33 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       cs_proposal-event = ls_action-event.
       cs_proposal-action = ls_action-id.
       cs_proposal-label = ls_action-label.
-      cs_proposal-policy = COND #( WHEN ls_action-policy IS INITIAL THEN z2ui5_if_agent_app=>cs_policy-allowed
-                                   ELSE ls_action-policy ).
+
+      IF ls_action-policy IS INITIAL.
+        temp40 = z2ui5_if_agent_app=>cs_policy-allowed.
+      ELSE.
+        temp40 = ls_action-policy.
+      ENDIF.
+      cs_proposal-policy = temp40.
       IF cs_proposal-policy = z2ui5_if_agent_app=>cs_policy-forbidden.
         cs_proposal-reason = |the action { ls_action-label } ({ ls_action-event }) is forbidden for agents - the copilot never offers it|.
         RETURN.
       ENDIF.
-      cs_proposal-needs_human = xsdbool( cs_proposal-policy = z2ui5_if_agent_app=>cs_policy-confirm ).
+
+      temp1 = boolc( cs_proposal-policy = z2ui5_if_agent_app=>cs_policy-confirm ).
+      cs_proposal-needs_human = temp1.
     ENDIF.
 
     " the rest exactly as the MCP endpoint's app_act checks it, without the act
-    DATA(ls_check) = session_new( )->app_check( session = session
+
+    IF cs_proposal-needs_human = abap_false.
+      temp41 = cs_proposal-action.
+    ELSE.
+      CLEAR temp41.
+    ENDIF.
+
+    ls_check = session_new( )->app_check( session = session
                                                 values  = values_json( cs_proposal-t_value )
-                                                event   = COND string( WHEN cs_proposal-needs_human = abap_false
-                                                                  THEN cs_proposal-action ) ).
+                                                event   = temp41 ).
     IF ls_check-is_error = abap_true.
       cs_proposal-reason = ls_check-text.
       RETURN.
@@ -684,6 +852,16 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
   METHOD act.
 
     DATA lt_text TYPE string_table.
+    DATA lo_session TYPE REF TO z2ui5_cl_agent_session.
+    DATA lv_fire TYPE abap_bool.
+    DATA temp2 TYPE xsdboolean.
+    DATA temp42 TYPE string.
+      DATA temp7 TYPE string.
+    DATA ls_result TYPE z2ui5_cl_agent_session=>ty_s_result.
+      DATA temp43 TYPE z2ui5_cl_agent_assist=>ty_s_done-text.
+        DATA lo_json TYPE REF TO z2ui5_cl_ajson.
+        DATA lv_count TYPE i.
+    DATA temp44 TYPE string.
 
     IF is_proposal-valid = abap_false.
       result-error = `only a validated proposal runs`.
@@ -697,16 +875,30 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       result-session = session.
       RETURN.
     ENDIF.
-    DATA(lo_session) = session_new( ).
-    DATA(lv_fire) = xsdbool( is_proposal-event IS NOT INITIAL AND is_proposal-needs_human = abap_false ).
+
+    lo_session = session_new( ).
+
+
+    temp2 = boolc( is_proposal-event IS NOT INITIAL AND is_proposal-needs_human = abap_false ).
+    lv_fire = temp2.
     " the session validates all of it again - and never fires a confirm or
     " forbidden event
-    DATA(ls_result) = lo_session->app_act( session = session
+
+    IF lv_fire = abap_true.
+
+      IF is_proposal-action IS NOT INITIAL.
+        temp7 = is_proposal-action.
+      ELSE.
+        temp7 = is_proposal-event.
+      ENDIF.
+      temp42 = temp7.
+    ELSE.
+      CLEAR temp42.
+    ENDIF.
+
+    ls_result = lo_session->app_act( session = session
                                            values  = values_json( is_proposal-t_value )
-                                           event   = COND string( WHEN lv_fire = abap_true
-                                                                  THEN COND #( WHEN is_proposal-action IS NOT INITIAL
-                                                                               THEN is_proposal-action
-                                                                               ELSE is_proposal-event ) ) ).
+                                           event   = temp42 ).
     IF ls_result-is_error = abap_true.
       result-error = ls_result-text.
       result-session = session.
@@ -716,42 +908,62 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     result-session = ls_result-session.
 
     IF lv_fire = abap_false.
-      result-text = COND #( WHEN is_proposal-needs_human = abap_true
-                            THEN |Filled { lines( is_proposal-t_value ) } field(s). Press "{ is_proposal-label }" on the screen yourself - | &&
-                                 |the app asks for a person there, so the copilot never presses it.|
-                            ELSE |Filled { lines( is_proposal-t_value ) } field(s) - they are on the screen when you close the copilot.| ).
+
+      IF is_proposal-needs_human = abap_true.
+        temp43 = |Filled { lines( is_proposal-t_value ) } field(s). Press "{ is_proposal-label }" on the screen yourself - | && |the app asks for a person there, so the copilot never presses it.|.
+      ELSE.
+        temp43 = |Filled { lines( is_proposal-t_value ) } field(s) - they are on the screen when you close the copilot.|.
+      ENDIF.
+      result-text = temp43.
       RETURN.
     ENDIF.
     TRY.
-        DATA(lo_json) = z2ui5_cl_ajson=>parse( ls_result-text ).
-        DATA(lv_count) = lines( lo_json->members( `/messages` ) ).
+
+        lo_json = z2ui5_cl_ajson=>parse( ls_result-text ).
+
+        lv_count = lines( lo_json->members( `/messages` ) ).
         DO lv_count TIMES.
           INSERT lo_json->get_string( |/messages/{ sy-index }/text| ) INTO TABLE lt_text.
         ENDDO.
       CATCH cx_root ##NO_HANDLER.
         " the snapshot is the session's own JSON
     ENDTRY.
-    result-text = |Done: { is_proposal-label }.{ COND #( WHEN lt_text IS NOT INITIAL
-                                                         THEN | The app says: { concat_lines_of( table = lt_text
-                                                                                                 sep   = ` / ` ) }| ) }| &&
+
+    IF lt_text IS NOT INITIAL.
+      temp44 = | The app says: { concat_lines_of( table = lt_text sep = ` / ` ) }|.
+    ELSE.
+      CLEAR temp44.
+    ENDIF.
+    result-text = |Done: { is_proposal-label }.{ temp44 }| &&
                   ` You see it when you close the copilot.`.
 
   ENDMETHOD.
 
   METHOD apply_pending.
+        DATA lo_snap TYPE REF TO z2ui5_cl_agent_snapshot.
+    DATA temp45 TYPE z2ui5_cl_agent_snapshot=>ty_t_pending.
+    DATA ls_pending LIKE LINE OF temp45.
+        DATA temp46 LIKE LINE OF t_refused.
+          DATA lx TYPE REF TO cx_root.
 
     CLEAR t_refused.
     TRY.
-        DATA(lo_snap) = session_new( )->get_snapshot( session ).
+
+        lo_snap = session_new( )->get_snapshot( session ).
       CATCH cx_root.
         RETURN.
     ENDTRY.
     " each value with its model: one typed into a dialog was read from the
     " main model - the stale value there written over the user's, and the
     " path reported as filled
-    LOOP AT lo_snap->get_pending( ) INTO DATA(ls_pending).
+
+    temp45 = lo_snap->get_pending( ).
+
+    LOOP AT temp45 INTO ls_pending.
       IF ls_pending-model_key <> z2ui5_cl_agent_snapshot=>cs_model-main.
-        INSERT |{ ls_pending-path } was typed into a dialog - enter it yourself| INTO TABLE t_refused.
+
+        temp46 = |{ ls_pending-path } was typed into a dialog - enter it yourself|.
+        INSERT temp46 INTO TABLE t_refused.
         CONTINUE.
       ENDIF.
       TRY.
@@ -759,7 +971,8 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
                  path = ls_pending-path
                  val  = ls_pending-val ).
           INSERT ls_pending-path INTO TABLE result.
-        CATCH cx_root INTO DATA(lx).
+
+        CATCH cx_root INTO lx.
           " a path that is no attribute: the user enters it
           INSERT lx->get_text( ) INTO TABLE t_refused.
       ENDTRY.
@@ -774,6 +987,20 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     FIELD-SYMBOLS <current> TYPE any.
     FIELD-SYMBOLS <table> TYPE ANY TABLE.
     FIELD-SYMBOLS <next> TYPE any.
+    DATA lv_segment LIKE LINE OF lt_segment.
+        DATA lv_attribute TYPE string.
+        DATA lo_type TYPE REF TO cl_abap_typedescr.
+          DATA temp47 TYPE i.
+          DATA lv_index TYPE i.
+          DATA lv_tabix TYPE i.
+          FIELD-SYMBOLS <row> TYPE ANY.
+            DATA lv_member TYPE string.
+          DATA temp48 TYPE string.
+    DATA lv_text TYPE string.
+    DATA lo_target TYPE REF TO cl_abap_typedescr.
+        DATA temp3 TYPE xsdboolean.
+            DATA temp1 TYPE REF TO z2ui5_cl_ajson.
+            DATA lx TYPE REF TO cx_root.
 
     SPLIT path AT `/` INTO TABLE lt_segment.
     DELETE lt_segment WHERE table_line IS INITIAL.
@@ -781,19 +1008,27 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path } is no attribute path of the app|.
     ENDIF.
 
-    LOOP AT lt_segment INTO DATA(lv_segment).
+
+    LOOP AT lt_segment INTO lv_segment.
       IF sy-tabix = 1.
-        DATA(lv_attribute) = to_upper( lv_segment ).
+
+        lv_attribute = to_upper( lv_segment ).
         ASSIGN app->(lv_attribute) TO <current>.
       ELSE.
-        DATA(lo_type) = cl_abap_typedescr=>describe_by_data( <current> ).
+
+        lo_type = cl_abap_typedescr=>describe_by_data( <current> ).
         " a failed ASSIGN leaves <next> where the last segment put it
         UNASSIGN <next>.
         IF lo_type->kind = cl_abap_typedescr=>kind_table.
           ASSIGN <current> TO <table>.
-          DATA(lv_index) = CONV i( lv_segment ) + 1.
-          DATA(lv_tabix) = 0.
-          LOOP AT <table> ASSIGNING FIELD-SYMBOL(<row>).
+
+          temp47 = lv_segment.
+
+          lv_index = temp47 + 1.
+
+          lv_tabix = 0.
+
+          LOOP AT <table> ASSIGNING <row>.
             lv_tabix = lv_tabix + 1.
             IF lv_tabix = lv_index.
               ASSIGN <row> TO <next>.
@@ -805,11 +1040,14 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
           " MO_SUB->VALUE as /MO_SUB/VALUE
           lo_object = <current>.
           IF lo_object IS BOUND.
-            DATA(lv_member) = to_upper( lv_segment ).
+
+            lv_member = to_upper( lv_segment ).
             ASSIGN lo_object->(lv_member) TO <next>.
           ENDIF.
         ELSE.
-          ASSIGN COMPONENT to_upper( lv_segment ) OF STRUCTURE <current> TO <next>.
+
+          temp48 = to_upper( lv_segment ).
+ASSIGN COMPONENT temp48 OF STRUCTURE <current> TO <next>.
         ENDIF.
         IF <next> IS NOT ASSIGNED.
           RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path } is no attribute path of the app|.
@@ -821,11 +1059,15 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
 
-    DATA(lv_text) = z2ui5_cl_agent_viewxml=>val_to_string( val ).
-    DATA(lo_target) = cl_abap_typedescr=>describe_by_data( <current> ).
+
+    lv_text = z2ui5_cl_agent_viewxml=>val_to_string( val ).
+
+    lo_target = cl_abap_typedescr=>describe_by_data( <current> ).
     CASE val-kind.
       WHEN z2ui5_cl_agent_viewxml=>cs_kind-boolean.
-        <current> = xsdbool( lv_text = `true` ).
+
+        temp3 = boolc( lv_text = `true` ).
+        <current> = temp3.
       WHEN z2ui5_cl_agent_viewxml=>cs_kind-number.
         <current> = val-num.
       WHEN z2ui5_cl_agent_viewxml=>cs_kind-array.
@@ -834,8 +1076,11 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
           RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path } holds no list - the keys { lv_text } do not fit|.
         ENDIF.
         TRY.
-            z2ui5_cl_ajson=>parse( val-json )->to_abap( IMPORTING ev_container = <current> ).
-          CATCH cx_root INTO DATA(lx).
+
+            temp1 = z2ui5_cl_ajson=>parse( val-json ).
+            temp1->to_abap( IMPORTING ev_container = <current> ).
+
+          CATCH cx_root INTO lx.
             RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: the keys { lv_text } do not fit - { lx->get_text( ) }|.
         ENDTRY.
       WHEN OTHERS.
@@ -858,7 +1103,16 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     " as the model shows a date (2026-10-06) or as ABAP holds it (20261006),
     " and a day the calendar has - anything else is refused, never written
     " as a date that is none
-    DATA(lv_date) = condense( value ).
+    DATA lv_date TYPE string.
+    DATA temp49 TYPE i.
+    DATA lv_year LIKE temp49.
+    DATA temp50 TYPE i.
+    DATA lv_month LIKE temp50.
+    DATA temp51 TYPE i.
+    DATA lv_day LIKE temp51.
+    DATA lv_last TYPE i.
+        DATA temp52 TYPE i.
+    lv_date = condense( value ).
     IF lv_date IS INITIAL.
       RETURN.
     ENDIF.
@@ -877,20 +1131,31 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     IF strlen( lv_date ) <> 8 OR lv_date CN `0123456789`.
       RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no date (YYYY-MM-DD)|.
     ENDIF.
-    DATA(lv_year) = CONV i( substring( val = lv_date
-                                       len = 4 ) ).
-    DATA(lv_month) = CONV i( substring( val = lv_date
-                                        off = 4
-                                        len = 2 ) ).
-    DATA(lv_day) = CONV i( substring( val = lv_date
-                                      off = 6
-                                      len = 2 ) ).
-    DATA(lv_last) = 31.
+
+    temp49 = substring( val = lv_date len = 4 ).
+
+    lv_year = temp49.
+
+    temp50 = substring( val = lv_date off = 4 len = 2 ).
+
+    lv_month = temp50.
+
+    temp51 = substring( val = lv_date off = 6 len = 2 ).
+
+    lv_day = temp51.
+
+    lv_last = 31.
     CASE lv_month.
       WHEN 4 OR 6 OR 9 OR 11.
         lv_last = 30.
       WHEN 2.
-        lv_last = COND #( WHEN ( lv_year MOD 4 = 0 AND lv_year MOD 100 <> 0 ) OR lv_year MOD 400 = 0 THEN 29 ELSE 28 ).
+
+        IF ( lv_year MOD 4 = 0 AND lv_year MOD 100 <> 0 ) OR lv_year MOD 400 = 0.
+          temp52 = 29.
+        ELSE.
+          temp52 = 28.
+        ENDIF.
+        lv_last = temp52.
     ENDCASE.
     IF lv_year < 1 OR lv_month < 1 OR lv_month > 12 OR lv_day < 1 OR lv_day > lv_last.
       RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no date of the calendar|.
@@ -908,21 +1173,28 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     " as the model shows a time (09:30:00), without seconds (9:30) or as
     " ABAP holds it (093000), and a time the clock has - anything else is
     " refused, never written as a time that is none
-    DATA(lv_value) = condense( value ).
+    DATA lv_value TYPE string.
+      DATA temp1 TYPE string.
+      DATA temp2 TYPE string.
+      DATA temp3 TYPE string.
+    DATA lv_part LIKE LINE OF lt_part.
+      DATA temp53 TYPE i.
+    lv_value = condense( value ).
     IF lv_value IS INITIAL.
       RETURN.
     ENDIF.
     IF lv_value CA `:`.
       SPLIT lv_value AT `:` INTO TABLE lt_part.
     ELSEIF strlen( lv_value ) = 6.
-      INSERT substring( val = lv_value
-                        len = 2 ) INTO TABLE lt_part.
-      INSERT substring( val = lv_value
-                        off = 2
-                        len = 2 ) INTO TABLE lt_part.
-      INSERT substring( val = lv_value
-                        off = 4
-                        len = 2 ) INTO TABLE lt_part.
+
+      temp1 = substring( val = lv_value len = 2 ).
+      INSERT temp1 INTO TABLE lt_part.
+
+      temp2 = substring( val = lv_value off = 2 len = 2 ).
+      INSERT temp2 INTO TABLE lt_part.
+
+      temp3 = substring( val = lv_value off = 4 len = 2 ).
+      INSERT temp3 INTO TABLE lt_part.
     ENDIF.
     IF lines( lt_part ) = 2.
       INSERT `00` INTO TABLE lt_part.
@@ -930,7 +1202,8 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     IF lines( lt_part ) <> 3.
       RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no time (HH:MM or HH:MM:SS)|.
     ENDIF.
-    LOOP AT lt_part INTO DATA(lv_part).
+
+    LOOP AT lt_part INTO lv_part.
       " the hour in one or two digits, minutes and seconds in two
       lv_max = 59.
       IF sy-tabix = 1.
@@ -941,7 +1214,9 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       IF lv_part IS INITIAL OR lv_part CN `0123456789` OR strlen( lv_part ) > 2.
         RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no time (HH:MM or HH:MM:SS)|.
       ENDIF.
-      IF CONV i( lv_part ) > lv_max.
+
+      temp53 = lv_part.
+      IF temp53 > lv_max.
         RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: '{ value }' is no time (HH:MM or HH:MM:SS)|.
       ENDIF.
       lv_time = |{ lv_time }{ lv_part WIDTH = 2 ALIGN = RIGHT PAD = `0` }|.

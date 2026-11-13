@@ -420,9 +420,16 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
 
   METHOD check_own_app.
 
+    " stays unbound - only its type is read (rtti_get_ref_type_name)
+    DATA lo_self TYPE REF TO z2ui5_cl_agent_settings.
+
     " the addon's own apps change and show the rules - never agent-operable;
-    " nor the copilot, which operates apps itself
-    result = xsdbool( app CP `Z2UI5_CL_AGENT_APP_*` OR app CP `Z2UI5_CL_AGENT_COPILOT*` ).
+    " nor the copilot, which operates apps itself. Named behind the prefix of
+    " this class's own name, which a namespace rename carries along - a
+    " literal Z2UI5_ pattern matched nothing in a renamed installation
+    DATA(lv_prefix) = substring_before( val = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( lo_self )
+                                        sub = `CL_AGENT_SETTINGS` ).
+    result = xsdbool( app CP |{ lv_prefix }CL_AGENT_APP_*| OR app CP |{ lv_prefix }CL_AGENT_COPILOT*| ).
 
   ENDMETHOD.
 

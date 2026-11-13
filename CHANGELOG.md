@@ -28,6 +28,13 @@ and by its lint targets, not yet on a system in production use, and its API -
   settings' default provider follows. A provider class name stored in the
   settings must be changed by hand.
 - Uses headless-frontend's shortened names (`z2ui5_cl_frontend_sim`).
+- In a renamed installation the addon's own apps and the copilot stay out of
+  reach of agents: the guard named them by the literal pattern
+  `Z2UI5_CL_AGENT_APP_*`, which matched nothing there, so an APP allow rule
+  such as `*` made the settings app agent-operable. It derives the prefix
+  from its own class name now.
+- `build-rename` refuses a name of 10 characters before it starts, and its
+  input says 9 - it promised 10, and the rename then failed.
 
 ### The MCP endpoint
 

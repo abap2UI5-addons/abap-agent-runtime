@@ -30,10 +30,12 @@ in step with every change.
 | `src/03/` | ABAP Standard entry: `z2ui5_cl_agent_http` (`if_http_extension`) + ICF node `/sap/bc/z2ui5_agent` (SICF); `z2ui5_cl_agent_llm_std` (the model's POST, `cl_http_client`) |
 | `src/04/` | ABAP Cloud entry: `z2ui5_cl_agent_http_cloud` (`if_http_service_extension`); `z2ui5_cl_agent_llm_cloud` (the model's POST, `cl_web_http_client_manager`) |
 | `.github/abaplint/` | `abap_cloud.jsonc` (excludes 03), `abap_702.jsonc` (excludes 04, downport) |
-| `.github/workflows/` | `ABAP_STANDARD`, `ABAP_CLOUD`, `ABAP_702`, `ABAP_UNIT`, `check-abap2UI5`, `check-rename`, `build-rename`, `genui-vocab`, `publish-branches`, `publish-702` (and `abap-702`, which lints the generated `702` branch), `release` (on a tag only - RELEASING.md), `bump-deps`, `deploy-pages` |
+| `.github/workflows/` | `ci`, `ci-702`, `build-rename`, `bump-deps`, `deploy-pages` (callers of the shared CI template - section CI below) and this repository's own `genui-vocab`, `publish-branches`, `release` (on a tag only - RELEASING.md) |
+| `.github/deps.json` | headless-frontend (`main`) pinned by commit - CI's abaplint, rename and unit take it from there; `bump-deps` moves the pin |
 | `.github/scripts/release-gate.mjs` | `npm run check:version` (every push, part of `npm run check`) / `check:release` (before a tag; `release.yaml` runs it with `--tag`) - `package.json`, `z2ui5_if_agent_app=>version` and `CHANGELOG.md` agree |
 | `CHANGELOG.md`, `RELEASING.md` | what changed (every user-visible change under `## Unreleased`), and how a release is cut: one tag `X.Y.Z`, the generated branches tagged `X.Y.Z-standard` / `X.Y.Z-cloud` |
-| `.github/scripts/unit.mjs` | `npm run unit` - the ABAP Unit tests on abap2UI5's transpiled runtime, in `.unit/` (git-ignored); `ABAP_UNIT` runs it |
+| `.github/scripts/unit.mjs` | `npm run unit` - the ABAP Unit tests on abap2UI5's transpiled runtime, in `.unit/` (git-ignored); the `unit` job of `ci` runs it |
+| `.github/scripts/check-702.sh` | `npm run check:702` - a scratch copy of `src/` in `build/702` downported and linted with `abap_702.jsonc`; `src/` is never rewritten |
 | `.github/scripts/genui-vocab.mjs` | `npm run genui:vocab` / `genui:check` / `genui:drift` - generates `z2ui5_cl_agent_gen_vocab` from `.github/genui/portable-v1.json` (pinned copy of abap2UI5/protocol `profiles/portable-v1.json`) and the linter's UI5 metadata and icon data |
 | `abaplint.jsonc` | ABAP Standard 7.50, the strict rule set (excludes 04) |
 | `abap2ui5lint.jsonc` | the abap2UI5 linter (UI5 1.71 floor, `chain-house-layout`) |
@@ -144,13 +146,15 @@ in step with every change.
 ```
 npm ci
 npm run check       # lint, lint:cloud, check:abap2ui5, genui:check, check:version, rename
+npm run check:702   # downports a scratch copy in build/702 and lints it
 npm run unit        # ABAP Unit, transpiled - minutes on the first run
 ```
 
-`ABAP_702` (CI): `npm run downport`, then `npx abaplint
-.github/abaplint/abap_702.jsonc` - on a copy, never commit. headless-frontend
+`npm run check:702` (CI: a job of `ci`): `npm run downport`, then `npx
+abaplint .github/abaplint/abap_702.jsonc`, on a copy in `build/702` -
+`npm run downport` itself rewrites `src/`, never commit that. headless-frontend
 is an abaplint dependency there, resolved from its own `702` branch. Unit
-tests (`ABAP_UNIT`, `npm run unit`): transpiled runtime of abap2UI5 (README,
+tests (the `unit` job of `ci`, `npm run unit`): transpiled runtime of abap2UI5 (README,
 "Development"), every risk level; `ltcl_session` /
 `ltcl_mcp` are `RISK LEVEL DANGEROUS` (they write the addon's tables and
 restore them in `teardown`), the parser and snapshot tests are `HARMLESS`.
@@ -164,9 +168,48 @@ iteration of `npm run downport`.
 Local runs can pre-fill `.abaplint-deps/` (git-ignored) - abaplint uses a
 dependency folder that exists instead of cloning.
 
+## CI
+
+CI comes from the shared CI template of abap2UI5-addons (reusable workflows in
+[rap-ext](https://github.com/abap2UI5-addons/rap-ext/blob/main/.github/ci/README.md),
+pinned by commit in the `uses:` lines and moved by `bump-deps`):
+
+* `ci` - push to `main`, every pull request, weekly and by hand; one job per
+  check: abaplint with `abaplint.jsonc` (ABAP Standard 7.50, without 04) and
+  `.github/abaplint/abap_cloud.jsonc` (ABAP Cloud, without 03);
+  `npm run check:702` (the 7.02 gate of a pull request, on a scratch copy) and
+  `npm run check:version`; `unit` (`npm run unit`); `rename`
+  (`npm run rename`); `abap2ui5lint` (render off - `abap2ui5lint.jsonc` has
+  `"render": false`)
+* `ci-702` - on every push to `main` `npm run auto_downport`, a force-push of
+  the result to the branch `702`, then abaplint on that branch
+  (`.github/abaplint/abap_702.jsonc`). Never commit to `702` by hand.
+* `build-rename` (manual), `deploy-pages`, `bump-deps` (monthly: npm, the
+  actions and the template pin - those two only with the `DEPS_TOKEN` secret -
+  and the headless-frontend pin in `.github/deps.json`)
+* not from the template: `genui-vocab` (the generated vocabulary is what the
+  pins generate, and the pinned profile has not drifted from abap2UI5/protocol
+  main), `publish-branches` (`standard` / `cloud`), `release` (a tag only)
+
+headless-frontend (`main`) is pinned by commit in `.github/deps.json`: in CI
+`pin-deps.mjs` of the template fills `.abaplint-deps/headless-frontend` with
+that commit before abaplint and the rename run, and `unit.mjs` reads the pin
+itself. The `702` dependencies (abap2UI5 and headless-frontend) stay
+unpinned, on their own `702` branch, and abap2UI5 stays on `main` (no core
+pin). The weekly scheduled run is the canary: headless-frontend at the tip
+of its `main` (`DEPS_TIP=1` for `npm run unit` on a laptop). To lint exactly
+what CI lints: `node <rap-ext>/.github/ci/pin-deps.mjs`, `npm run check`,
+`node <rap-ext>/.github/ci/pin-deps.mjs clean`.
+
+The required status checks of the branch protection are the job names of
+`ci`: `check / abaplint (./abaplint.jsonc)`, `check / abaplint
+(.github/abaplint/abap_cloud.jsonc)`, `check / npm run check:702`,
+`check / npm run check:version`, `check / unit`, `check / rename`,
+`check / abap2ui5lint`.
+
 ## Namespace rename
 
-`npm run rename` (CI: `check-rename`) and the manual `build-rename` workflow
+`npm run rename` (CI: the `rename` job of `ci`) and the manual `build-rename` workflow
 are abap2UI5's namespace rename for this addon - `.github/scripts/rename.mjs`,
 the same file in every addon that has one. Every `z2ui5_` object becomes
 `<name>_...`, for a customer name such as `ZMYUI5` or a registered namespace

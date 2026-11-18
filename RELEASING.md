@@ -105,7 +105,8 @@ There is no dry run of the workflow itself: it runs on a pushed tag only
 (no branch push, no manual dispatch), so nothing in it can publish from a
 branch. The rehearsal is step 3 - `npm run check:release`, `npm run check`
 and `npm run unit` are the checks the job runs before it publishes, and the
-7.02 downport lint is the `ABAP_702` workflow on the merge commit.
+7.02 downport lint is `npm run check:702` (a job of `ci`) and the `ci-702`
+workflow on the merge commit.
 
 ## What the workflow does NOT decide
 

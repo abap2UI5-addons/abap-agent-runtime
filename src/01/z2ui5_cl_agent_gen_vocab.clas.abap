@@ -13,7 +13,7 @@ CLASS z2ui5_cl_agent_gen_vocab DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CONSTANTS c_profile TYPE string VALUE `portable-v1`.
     CONSTANTS c_floor TYPE string VALUE `1.71`.
     "! sha256 of the pinned profile this class was generated from
-    CONSTANTS c_source TYPE string VALUE `abaa67bb19ee798efeee118a34b723e664afbab4985592bd8e7942206a9c1f39`.
+    CONSTANTS c_source TYPE string VALUE `5dc3e6be15c70c41bd5580eb40154957f792231a527207f0208ed22e278867dc`.
 
     TYPES:
       "! control: the full UI5 name. kind: D default aggregation, P property,
@@ -1029,7 +1029,6 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.ui.layout.form.SimpleForm;P;labelSpanS;I` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;labelSpanXL;I` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;layout;E;ResponsiveLayout|GridLayout|ResponsiveGridLayout|ColumnLayout` TO lt_raw.
-    APPEND `sap.ui.layout.form.SimpleForm;P;maxContainerCols;I` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;singleContainerFullSize;B` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;visible;B` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;width;C` TO lt_raw.

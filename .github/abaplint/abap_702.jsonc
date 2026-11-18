@@ -1,10 +1,11 @@
 {
-  // NetWeaver 7.02: `npm run downport` rewrites src/ in place with this
-  // config, then it lints the result - never commit downported source to
-  // main. publish-702 (`npm run auto_downport`) writes the result to the 702
-  // branch. headless-frontend resolves from its own 702 branch, which its
-  // publish-702 workflow generates the same way. Package 04 (ABAP Cloud
-  // entry) is not a 7.02 target.
+  // NetWeaver 7.02: `npm run check:702` downports a scratch copy of src/ in
+  // build/702 with this config and lints the result (`npm run downport`
+  // rewrites src/ in place - never commit downported source to main).
+  // ci-702 (`npm run auto_downport`) writes the result to the 702 branch.
+  // headless-frontend resolves from its own 702 branch, which its own
+  // workflow generates the same way. Package 04 (ABAP Cloud entry) is not a
+  // 7.02 target.
   "global": {
     "files": "/../../src/**/*.*",
     "exclude": ["/src/04/"]

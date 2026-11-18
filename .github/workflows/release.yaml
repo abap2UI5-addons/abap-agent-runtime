@@ -61,7 +61,7 @@ jobs:
         # the branch tags are placed on the generated branches, which have
         # to be fetched
         fetch-depth: 0
-    # what npm run unit builds in (ABAP_UNIT.yaml does the same)
+    # what npm run unit builds in (the unit job of ci.yaml clones the same)
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: abap2UI5/abap2UI5
@@ -74,7 +74,7 @@ jobs:
         ref: main
         path: .unit/headless-frontend
         persist-credentials: false
-    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
         node-version: '22'
         cache: 'npm'
@@ -101,8 +101,9 @@ jobs:
       env:
         UNIT_NO_FETCH: '1'
 
-    # last of the checks: the downport rewrites src/ in place (ABAP_702.yaml
-    # does the same; nothing after this step reads the sources)
+    # last of the checks: the downport rewrites src/ in place (ci.yaml's
+    # npm run check:702 does the same on a scratch copy; nothing after this
+    # step reads the sources)
     - name: 7.02 downport lint
       run: |
         mkdir -p src/zz_headless_frontend

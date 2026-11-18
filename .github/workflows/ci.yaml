@@ -1,0 +1,51 @@
+name: ci
+
+# The checks of this repository, from the shared CI template of
+# abap2UI5-addons (rap-ext, .github/ci/README.md):
+#
+#   abaplint      ABAP Standard 7.50 (abaplint.jsonc, without package 04) and
+#                 ABAP Cloud (.github/abaplint/abap_cloud.jsonc, without 03)
+#   npm-scripts   check:702 (a scratch copy of src/ downported and linted with
+#                 abap_702.jsonc - the 7.02 gate of a pull request; ci-702
+#                 publishes the branch) and check:version (package.json,
+#                 z2ui5_if_agent_app=>version and CHANGELOG.md agree)
+#   unit          the ABAP Unit tests on the transpiled runtime (npm run unit)
+#   rename        the namespace rename check (npm run rename)
+#   abap2ui5lint  the app classes and their views (abap2ui5lint.jsonc, render
+#                 off there)
+#
+# The generated vocabulary of generative UI keeps its own workflow
+# (genui-vocab). headless-frontend, the simulator this addon runs on, is
+# resolved at the commit .github/deps.json pins, and the monthly bump-deps
+# moves the pin. The weekly run is the canary: headless-frontend at the tip
+# of its main, and abap2UI5 main, which the configs follow.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # write only for publish-badges, which runs on main and never for a pull
+    # request; every job that runs the code keeps a read-only token
+    permissions:
+      contents: write
+    uses: abap2UI5-addons/rap-ext/.github/workflows/addon-check.yaml@d599eb227a476d120b473ae3b707fe983ab3e441 # ci-v1.1.0
+    with:
+      abaplint: '["./abaplint.jsonc", ".github/abaplint/abap_cloud.jsonc"]'
+      npm-scripts: '["check:702", "check:version"]'
+      unit: true
+      rename: true
+      abap2ui5lint-render: false
+      canary: ${{ github.event_name == 'schedule' }}

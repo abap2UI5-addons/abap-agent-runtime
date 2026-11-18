@@ -6,11 +6,8 @@
 [![headless-frontend](https://img.shields.io/badge/requires-headless--frontend-blue)](https://github.com/abap2UI5/headless-frontend)
 [![License](https://img.shields.io/github/license/abap2UI5-addons/abap-agent-runtime)](LICENSE)
 <br>
-[![ABAP Cloud](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ABAP_CLOUD.yaml?branch=main&label=ABAP%20Cloud)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ABAP_CLOUD.yaml)
-[![ABAP Standard](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ABAP_STANDARD.yaml?branch=main&label=ABAP%20Standard)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ABAP_STANDARD.yaml)
-[![ABAP 7.02](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ABAP_702.yaml?branch=main&label=ABAP%207.02)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ABAP_702.yaml)
-[![ABAP Unit](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ABAP_UNIT.yaml?branch=main&label=ABAP%20Unit)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ABAP_UNIT.yaml)
-[![check-abap2UI5](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/check-abap2UI5.yaml?branch=main&label=check-abap2UI5)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/check-abap2UI5.yaml)
+[![CI](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ci.yaml?branch=main&label=CI)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ci.yaml)
+[![ABAP 7.02](https://img.shields.io/github/actions/workflow/status/abap2UI5-addons/abap-agent-runtime/ci-702.yaml?branch=main&label=ABAP%207.02)](https://github.com/abap2UI5-addons/abap-agent-runtime/actions/workflows/ci-702.yaml)
 
 > **Status: experimental - not yet in a release; details can still
 > change.** Everything described here is on `main` and in the generated
@@ -19,10 +16,10 @@
 > with the four app tools, the agent snapshot v1 (byte-identical with the reference on its recorded sessions),
 > opt-in, policy and audit, the language model client, generative UI and the
 > in-app copilot. How it is verified: the ABAP Unit tests of every class run
-> on abap2UI5's transpiled Node runtime (`ABAP_UNIT`), the sources lint as
-> ABAP Standard 7.50 and ABAP Cloud (`ABAP_STANDARD`, `ABAP_CLOUD`), and the
-> 7.02 downport is lint-only (`ABAP_702` - no 7.02 system has run it). It
-> has been pulled into a 7.5x on-premise system (the activation fixes of
+> on abap2UI5's transpiled Node runtime (the `unit` job of `ci`), the sources
+> lint as ABAP Standard 7.50 and ABAP Cloud (the abaplint jobs of `ci`), and
+> the 7.02 downport is lint-only (`check:702` and `ci-702` - no 7.02 system
+> has run it). It has been pulled into a 7.5x on-premise system (the activation fixes of
 > 2026-10-08 came from that), not yet run in production use, and the ABAP
 > Cloud HTTP service setup is written down but still *to verify on your
 > system* ([Installation](#installation)). The API - `z2ui5_if_agent_app`,
@@ -94,7 +91,7 @@ audit log ([AI at runtime](#ai-at-runtime)):
 
 - ABAP Cloud (BTP ABAP environment, S/4HANA Cloud Public Edition) or ABAP
   Standard 7.50 or higher (on-premise, S/4HANA, NetWeaver); the 7.02
-  downport is linted in CI (`ABAP_702`) and published as the branch `702`
+  downport is linted in CI (`ci`, `ci-702`) and published as the branch `702`
   (see [Development](#development))
 - [abap2UI5](https://github.com/abap2UI5/abap2UI5) and
   [abap2UI5/headless-frontend](https://github.com/abap2UI5/headless-frontend),
@@ -695,30 +692,33 @@ npm ci
 npm run lint            # abaplint, ABAP Standard 7.50, the strict rule set
 npm run lint:cloud      # ABAP Cloud
 npm run check:abap2ui5  # the abap2UI5 linter on the apps (package 02)
+npm run check:702       # a scratch copy downported and linted as 7.02 (src/ untouched)
 npm run genui:check     # z2ui5_cl_agent_gen_vocab is what the pinned profile generates
 npm run check:version   # package.json, z2ui5_if_agent_app=>version and CHANGELOG.md agree
 npm run rename          # the namespace rename still lints
 npm run unit            # the ABAP Unit tests on abap2UI5's transpiled runtime
 ```
 
-`npm run check` runs everything but `unit`. Every user-visible change gets
+`npm run check` runs everything but `unit` and `check:702`. Every user-visible change gets
 an entry under `## Unreleased` in [CHANGELOG.md](CHANGELOG.md);
 [RELEASING.md](RELEASING.md) is how a release is cut from it (one tag,
 `.github/workflows/release.yaml`).
 
-The ABAP_702 workflow downports `src/` and lints the result as 7.02 against the
-702 branches of abap2UI5 and headless-frontend. On every push to `main`,
-publish-702 writes the downported source (without package 04) to the `702`
-branch - install from there on NetWeaver 7.02, together with the `702` branches
+`npm run check:702` (a job of the `ci` workflow) downports a scratch copy of
+`src/` in `build/702` and lints the result as 7.02 against the 702 branches of
+abap2UI5 and headless-frontend. On every push to `main`, the `ci-702` workflow
+writes the downported source (without package 04) to the `702` branch and
+lints it there - install from there on NetWeaver 7.02, together with the `702` branches
 of abap2UI5 and headless-frontend. Never commit to it.
 
 **Unit tests.** `npm run unit` runs the `Z2UI5_CL_AGENT*` tests - all of them,
 the `DANGEROUS` ones included - on the transpiled runtime abap2UI5 uses for its
 own suite (SQLite behind the database statements); `UNIT_FILTER=ltcl_session
 npm run unit` runs only those whose `OBJECT: class->method` contains the
-text. `.github/scripts/unit.mjs` is the whole recipe, and the `ABAP_UNIT`
-workflow runs the same script on every push and pull request: checkouts of
-abap2UI5 `main` and headless-frontend in `.unit/` (git-ignored; cloned on the
+text. `.github/scripts/unit.mjs` is the whole recipe, and the `unit` job of
+the `ci` workflow runs the same script on every push to `main` and every pull
+request: checkouts of abap2UI5 `main` and headless-frontend (at the commit
+`.github/deps.json` pins; `DEPS_TIP=1` for the tip of its `main`) in `.unit/` (git-ignored; cloned on the
 first run, refreshed on every later one), `npm ci` in abap2UI5,
 headless-frontend's `src/` and this repository's `src/01` and `src/02` copied
 in as extra packages, `npm run downport && npm run auto_transpile`, then the

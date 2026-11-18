@@ -1029,7 +1029,6 @@ CLASS z2ui5_cl_agent_gen_vocab IMPLEMENTATION.
     APPEND `sap.ui.layout.form.SimpleForm;P;labelSpanS;I` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;labelSpanXL;I` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;layout;E;ResponsiveLayout|GridLayout|ResponsiveGridLayout|ColumnLayout` TO lt_raw.
-    APPEND `sap.ui.layout.form.SimpleForm;P;maxContainerCols;I` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;singleContainerFullSize;B` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;visible;B` TO lt_raw.
     APPEND `sap.ui.layout.form.SimpleForm;P;width;C` TO lt_raw.

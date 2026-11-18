@@ -249,7 +249,7 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
 
         )->tag( `Button`
             )->a( n = `text`  v = `Close`
-            )->a( n = `press` v = client->_event( `DETAIL_CLOSE` ) ).
+            )->a( n = `press` v = client->follow_up_action( client->cs_event-popup_close ) ).
 
     client->popup_display( popup->stringify( ) ).
 
@@ -268,9 +268,6 @@ CLASS z2ui5_cl_agent_app_audit IMPLEMENTATION.
         IF sy-subrc = 0.
           popup_detail( ).
         ENDIF.
-
-      WHEN `DETAIL_CLOSE`.
-        client->popup_destroy( ).
 
     ENDCASE.
 

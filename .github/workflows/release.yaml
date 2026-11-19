@@ -68,10 +68,15 @@ jobs:
         ref: main
         path: .unit/abap2UI5
         persist-credentials: false
+    # the commit .github/deps.json pins - what ci.yaml's unit job tests, not
+    # the tip of main, so a release tests what its pull request tested
+    - name: The pinned commit of headless-frontend
+      id: pin
+      run: echo "sha=$(jq -r '."abap2UI5/headless-frontend".sha' .github/deps.json)" >> "$GITHUB_OUTPUT"
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: abap2UI5/headless-frontend
-        ref: main
+        ref: ${{ steps.pin.outputs.sha }}
         path: .unit/headless-frontend
         persist-credentials: false
     - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

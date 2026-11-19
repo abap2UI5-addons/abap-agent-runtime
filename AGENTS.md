@@ -193,8 +193,8 @@ pinned by commit in the `uses:` lines and moved by `bump-deps`):
 
 headless-frontend (`main`) is pinned by commit in `.github/deps.json`: in CI
 `pin-deps.mjs` of the template fills `.abaplint-deps/headless-frontend` with
-that commit before abaplint and the rename run, and `unit.mjs` reads the pin
-itself. The `702` dependencies (abap2UI5 and headless-frontend) stay
+that commit before abaplint and the rename run, `unit.mjs` reads the pin
+itself, and `release.yaml` checks out the same commit for its unit run. The `702` dependencies (abap2UI5 and headless-frontend) stay
 unpinned, on their own `702` branch, and abap2UI5 stays on `main` (no core
 pin). The weekly scheduled run is the canary: headless-frontend at the tip
 of its `main` (`DEPS_TIP=1` for `npm run unit` on a laptop). To lint exactly

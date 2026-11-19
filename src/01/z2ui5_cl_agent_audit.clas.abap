@@ -37,7 +37,7 @@ CLASS z2ui5_cl_agent_audit DEFINITION PUBLIC FINAL CREATE PUBLIC.
         client    TYPE string,
       END OF ty_s_entry.
 
-    TYPES ty_t_log TYPE STANDARD TABLE OF z2ui5_t_14 WITH EMPTY KEY.
+    TYPES ty_t_log TYPE STANDARD TABLE OF z2ui5_t_14 WITH DEFAULT KEY.
 
     CLASS-METHODS log
       IMPORTING
@@ -92,7 +92,7 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
           ls_row-args = |{ z2ui5_cl_agent_viewxml=>cut( val = ls_row-args
                                                         len = c_max_args - 3 ) }...|.
         ENDIF.
-        INSERT z2ui5_t_14 FROM @ls_row.
+        INSERT z2ui5_t_14 FROM ls_row.
       CATCH cx_root ##NO_HANDLER.
         " the audit must never break the call it records
     ENDTRY.
@@ -103,33 +103,47 @@ CLASS z2ui5_cl_agent_audit IMPLEMENTATION.
 
     DATA lt_uname TYPE RANGE OF z2ui5_t_14-uname.
     DATA lt_outcome TYPE RANGE OF z2ui5_t_14-outcome.
+      DATA temp1 LIKE LINE OF lt_uname.
+      DATA temp2 LIKE LINE OF lt_outcome.
 
     IF uname IS SUPPLIED.
-      INSERT VALUE #( sign = `I` option = `EQ` low = to_upper( uname ) ) INTO TABLE lt_uname.
+
+      CLEAR temp1.
+      temp1-sign = `I`.
+      temp1-option = `EQ`.
+      temp1-low = to_upper( uname ).
+      INSERT temp1 INTO TABLE lt_uname.
     ENDIF.
     " filtered here, not after the read: filtered from the newest rows only,
     " the refused calls of last month were "0 call(s)"
     IF outcome IS NOT INITIAL.
-      INSERT VALUE #( sign = `I` option = `EQ` low = outcome ) INTO TABLE lt_outcome.
+
+      CLEAR temp2.
+      temp2-sign = `I`.
+      temp2-option = `EQ`.
+      temp2-low = outcome.
+      INSERT temp2 INTO TABLE lt_outcome.
     ENDIF.
-    SELECT * FROM z2ui5_t_14 WHERE uname IN @lt_uname AND outcome IN @lt_outcome
+    SELECT * FROM z2ui5_t_14 INTO TABLE result WHERE uname IN lt_uname AND outcome IN lt_outcome
       ORDER BY timestampl DESCENDING
-      INTO TABLE @result
-      UP TO @max_rows ROWS.
+
+      UP TO max_rows ROWS.
 
   ENDMETHOD.
 
   METHOD cleanup.
+    DATA lv_limit TYPE timestampl.
 
     " less than a day would delete what was just written; more than the
     " seconds an integer holds (68 years) reaches back before any entry
     IF days < 1 OR days > c_max_days.
       RETURN.
     ENDIF.
-    DATA(lv_limit) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
+
+    lv_limit = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
                          time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
                          seconds = days * 86400 ).
-    DELETE FROM z2ui5_t_14 WHERE timestampl < @lv_limit.
+    DELETE FROM z2ui5_t_14 WHERE timestampl < lv_limit.
     result = sy-dbcnt.
 
   ENDMETHOD.

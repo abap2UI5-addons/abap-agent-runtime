@@ -39,6 +39,7 @@ CLASS z2ui5_cl_agent_llm_std IMPLEMENTATION.
     DATA lo_client TYPE REF TO if_http_client.
     DATA lv_destination TYPE c LENGTH 32.
     DATA lv_message TYPE string.
+    DATA ls_header LIKE LINE OF is_request-t_header.
 
     IF is_request-destination IS NOT INITIAL.
       lv_destination = is_request-destination.
@@ -85,7 +86,8 @@ CLASS z2ui5_cl_agent_llm_std IMPLEMENTATION.
     ENDIF.
 
     lo_client->request->set_method( 'POST' ).
-    LOOP AT is_request-t_header INTO DATA(ls_header).
+
+    LOOP AT is_request-t_header INTO ls_header.
       IF to_lower( ls_header-name ) = `content-type`.
         lo_client->request->set_content_type( ls_header-value ).
       ELSE.

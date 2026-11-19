@@ -49,15 +49,15 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
         nan  TYPE abap_bool,
         json TYPE string,
       END OF ty_s_val.
-    TYPES ty_t_val TYPE STANDARD TABLE OF ty_s_val WITH EMPTY KEY.
+    TYPES ty_t_val TYPE STANDARD TABLE OF ty_s_val WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_attr,
         name  TYPE string,
         value TYPE string,
       END OF ty_s_attr.
-    TYPES ty_t_attr TYPE STANDARD TABLE OF ty_s_attr WITH EMPTY KEY.
-    TYPES ty_t_int TYPE STANDARD TABLE OF i WITH EMPTY KEY.
+    TYPES ty_t_attr TYPE STANDARD TABLE OF ty_s_attr WITH DEFAULT KEY.
+    TYPES ty_t_int TYPE STANDARD TABLE OF i WITH DEFAULT KEY.
 
     TYPES:
       "! One element. The table index IS the id; node 1 is the document.
@@ -75,7 +75,7 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
         t_ns    TYPE ty_t_attr,
         text    TYPE string,
       END OF ty_s_node.
-    TYPES ty_t_node TYPE STANDARD TABLE OF ty_s_node WITH EMPTY KEY.
+    TYPES ty_t_node TYPE STANDARD TABLE OF ty_s_node WITH DEFAULT KEY.
 
     TYPES:
       "! One part of a binding: a text, or one {...} body classified as a
@@ -94,7 +94,7 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
         expression TYPE string,
         computed   TYPE string,
       END OF ty_s_part.
-    TYPES ty_t_part TYPE STANDARD TABLE OF ty_s_part WITH EMPTY KEY.
+    TYPES ty_t_part TYPE STANDARD TABLE OF ty_s_part WITH DEFAULT KEY.
 
     CONSTANTS:
       BEGIN OF cs_binding,
@@ -133,7 +133,7 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
         raw      TYPE string,
         describe TYPE string,
       END OF ty_s_arg.
-    TYPES ty_t_arg TYPE STANDARD TABLE OF ty_s_arg WITH EMPTY KEY.
+    TYPES ty_t_arg TYPE STANDARD TABLE OF ty_s_arg WITH DEFAULT KEY.
 
     TYPES:
       "! An event handler: fn eB (eBP included) with event, flags and args,
@@ -154,7 +154,7 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
         ref TYPE string,
         val TYPE ty_s_val,
       END OF ty_s_ref_val.
-    TYPES ty_t_ref_val TYPE STANDARD TABLE OF ty_s_ref_val WITH EMPTY KEY.
+    TYPES ty_t_ref_val TYPE STANDARD TABLE OF ty_s_ref_val WITH DEFAULT KEY.
 
     CLASS-METHODS parse_xml
       IMPORTING
@@ -341,14 +341,14 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
         type  TYPE string,
         value TYPE string,
       END OF ty_s_token.
-    TYPES ty_t_token TYPE STANDARD TABLE OF ty_s_token WITH EMPTY KEY.
+    TYPES ty_t_token TYPE STANDARD TABLE OF ty_s_token WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_raw_part,
         is_binding TYPE abap_bool,
         text       TYPE string,
       END OF ty_s_raw_part.
-    TYPES ty_t_raw_part TYPE STANDARD TABLE OF ty_s_raw_part WITH EMPTY KEY.
+    TYPES ty_t_raw_part TYPE STANDARD TABLE OF ty_s_raw_part WITH DEFAULT KEY.
 
     CONSTANTS c_word TYPE string VALUE `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_`.
     CONSTANTS c_alpha TYPE string VALUE `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`.
@@ -538,11 +538,14 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD is_ws.
+    DATA temp1 TYPE xsdboolean.
 
     IF val IS INITIAL.
       RETURN.
     ENDIF.
-    result = xsdbool( val CA ws( ) ).
+
+    temp1 = boolc( val CA ws( ) ).
+    result = temp1.
 
   ENDMETHOD.
 
@@ -551,6 +554,7 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     DATA lv_ws TYPE string.
     DATA lv_from TYPE i.
     DATA lv_to TYPE i.
+      DATA lv_last TYPE i.
 
     result = val.
     lv_ws = ws( ).
@@ -559,7 +563,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       lv_from = lv_from + 1.
     ENDWHILE.
     WHILE lv_to > lv_from.
-      DATA(lv_last) = lv_to - 1.
+
+      lv_last = lv_to - 1.
       IF result+lv_last(1) CA lv_ws.
         lv_to = lv_last.
       ELSE.
@@ -575,12 +580,16 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   METHOD clip.
 
     DATA lv_ws TYPE string.
+    DATA lv_index TYPE i.
+      DATA lv_char TYPE string.
 
     result = val.
     lv_ws = ws( ).
-    DATA(lv_index) = 0.
+
+    lv_index = 0.
     WHILE lv_index < strlen( lv_ws ).
-      DATA(lv_char) = lv_ws+lv_index(1).
+
+      lv_char = lv_ws+lv_index(1).
       IF lv_char <> ` `.
         REPLACE ALL OCCURRENCES OF lv_char IN result WITH ` `.
       ENDIF.
@@ -605,6 +614,9 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD cut.
+          DATA temp17 TYPE xstring.
+          DATA lv_pairs TYPE string.
+    DATA lv_last TYPE string.
 
     result = val.
     IF len <= 0.
@@ -619,7 +631,10 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
     IF gv_high_set = abap_false.
       TRY.
-          DATA(lv_pairs) = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( c_surrogate_hex ) ).
+
+          temp17 = c_surrogate_hex.
+
+          lv_pairs = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( temp17 ).
           IF strlen( lv_pairs ) = 4.
             gv_high_first = substring( val = lv_pairs
                                        len = 1 ).
@@ -635,7 +650,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     IF gv_high_first IS INITIAL.
       RETURN.
     ENDIF.
-    DATA(lv_last) = substring( val = result
+
+    lv_last = substring( val = result
                                off = len - 1
                                len = 1 ).
     IF lv_last >= gv_high_first AND lv_last <= gv_high_last.
@@ -710,12 +726,31 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     DATA lv_code TYPE i.
     DATA lv_char TYPE string.
 
-    DATA(lv_src) = CONV string( val ).
-    DATA(lv_len) = strlen( lv_src ).
-    DATA(lv_pos) = 0.
+    DATA temp18 TYPE string.
+    DATA lv_src LIKE temp18.
+    DATA lv_len TYPE i.
+    DATA lv_pos TYPE i.
+      DATA lv_amp TYPE i.
+      DATA lv_semi TYPE i.
+      DATA lv_name TYPE string.
+      DATA lv_ok LIKE abap_false.
+        DATA lv_hex TYPE string.
+              DATA lv_index TYPE i.
+                DATA lv_digit TYPE i.
+              DATA temp2 TYPE xsdboolean.
+        DATA lv_dec TYPE string.
+              DATA temp3 TYPE xsdboolean.
+    temp18 = val.
+
+    lv_src = temp18.
+
+    lv_len = strlen( lv_src ).
+
+    lv_pos = 0.
 
     WHILE lv_pos < lv_len.
-      DATA(lv_amp) = find( val = lv_src
+
+      lv_amp = find( val = lv_src
                            sub = `&`
                            off = lv_pos ).
       IF lv_amp < 0.
@@ -726,7 +761,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       result = result && substring( val = lv_src
                                     off = lv_pos
                                     len = lv_amp - lv_pos ).
-      DATA(lv_semi) = find( val = lv_src
+
+      lv_semi = find( val = lv_src
                             sub = `;`
                             off = lv_amp + 1 ).
       IF lv_semi < 0.
@@ -735,20 +771,25 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
         RETURN.
       ENDIF.
 
-      DATA(lv_name) = substring( val = lv_src
+
+      lv_name = substring( val = lv_src
                                  off = lv_amp + 1
                                  len = lv_semi - lv_amp - 1 ).
       CLEAR lv_char.
-      DATA(lv_ok) = abap_false.
+
+      lv_ok = abap_false.
       IF strlen( lv_name ) > 2 AND ( lv_name(2) = `#x` OR lv_name(2) = `#X` ).
-        DATA(lv_hex) = substring( val = lv_name
+
+        lv_hex = substring( val = lv_name
                                   off = 2 ).
         IF lv_hex CO c_hex.
           TRY.
               lv_code = 0.
-              DATA(lv_index) = 0.
+
+              lv_index = 0.
               WHILE lv_index < strlen( lv_hex ).
-                DATA(lv_digit) = find( val  = c_hex
+
+                lv_digit = find( val  = c_hex
                                        sub  = lv_hex+lv_index(1)
                                        case = abap_true ).
                 IF lv_digit > 15.
@@ -758,19 +799,24 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
                 lv_index = lv_index + 1.
               ENDWHILE.
               lv_char = char_of_code( lv_code ).
-              lv_ok = xsdbool( lv_char IS NOT INITIAL ).
+
+              temp2 = boolc( lv_char IS NOT INITIAL ).
+              lv_ok = temp2.
             CATCH cx_root.
               lv_ok = abap_false.
           ENDTRY.
         ENDIF.
       ELSEIF strlen( lv_name ) > 1 AND lv_name(1) = `#`.
-        DATA(lv_dec) = substring( val = lv_name
+
+        lv_dec = substring( val = lv_name
                                   off = 1 ).
         IF lv_dec CO c_digit.
           TRY.
               lv_code = lv_dec.
               lv_char = char_of_code( lv_code ).
-              lv_ok = xsdbool( lv_char IS NOT INITIAL ).
+
+              temp3 = boolc( lv_char IS NOT INITIAL ).
+              lv_ok = temp3.
             CATCH cx_root.
               lv_ok = abap_false.
           ENDTRY.
@@ -814,25 +860,84 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     DATA lv_self_close TYPE abap_bool.
     DATA lv_ws TYPE string.
 
-    DATA(lv_src) = CONV string( xml ).
-    DATA(lv_len) = strlen( lv_src ).
+    DATA temp19 TYPE string.
+    DATA lv_src LIKE temp19.
+    DATA lv_len TYPE i.
+    DATA temp20 TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+    DATA lv_i TYPE i.
+      DATA lv_top LIKE LINE OF lt_stack.
+      FIELD-SYMBOLS <temp20> LIKE LINE OF lt_stack.
+      DATA temp31 LIKE sy-tabix.
+      DATA lv_lt TYPE i.
+        DATA lv_text TYPE string.
+          DATA lr_top TYPE REF TO z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA lv_rest TYPE i.
+        DATA lv_end TYPE i.
+        DATA temp21 TYPE i.
+        DATA temp22 TYPE i.
+        DATA lv_body_end LIKE temp22.
+        DATA temp23 TYPE i.
+      DATA temp24 TYPE string.
+      DATA lv_next LIKE temp24.
+        DATA temp25 TYPE i.
+        DATA temp26 TYPE i.
+      DATA lv_j TYPE i.
+        DATA lv_c TYPE string.
+          DATA lv_j1 TYPE i.
+        DATA lv_k LIKE lv_j.
+        DATA lv_name TYPE string.
+          DATA temp27 TYPE string.
+          DATA lv_quote LIKE temp27.
+            DATA temp28 TYPE i.
+          DATA lr_attr TYPE REF TO z2ui5_cl_agent_viewxml=>ty_s_attr.
+            DATA temp29 TYPE z2ui5_cl_agent_viewxml=>ty_s_attr.
+      DATA ls_parent TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA ls_attr LIKE LINE OF ls_node-t_attr.
+        DATA lv_prefix_decl TYPE string.
+        DATA lr_ns TYPE REF TO z2ui5_cl_agent_viewxml=>ty_s_attr.
+          DATA temp30 TYPE z2ui5_cl_agent_viewxml=>ty_s_attr.
+      DATA lv_colon TYPE i.
+      DATA ls_ns TYPE z2ui5_cl_agent_viewxml=>ty_s_attr.
+    temp19 = xml.
+
+    lv_src = temp19.
+
+    lv_len = strlen( lv_src ).
     lv_ws = ws( ).
 
-    INSERT VALUE #( id = 1 tag = `#document` local = `#document` ) INTO TABLE result.
+
+    CLEAR temp20.
+    temp20-id = 1.
+    temp20-tag = `#document`.
+    temp20-local = `#document`.
+    INSERT temp20 INTO TABLE result.
     INSERT 1 INTO TABLE lt_stack.
 
-    DATA(lv_i) = 0.
+
+    lv_i = 0.
     WHILE lv_i < lv_len.
 
-      DATA(lv_top) = lt_stack[ lines( lt_stack ) ].
-      DATA(lv_lt) = find( val = lv_src
+
+
+
+      temp31 = sy-tabix.
+      READ TABLE lt_stack INDEX lines( lt_stack ) ASSIGNING <temp20>.
+      sy-tabix = temp31.
+      IF sy-subrc <> 0.
+        ASSERT 1 = 0.
+      ENDIF.
+      lv_top = <temp20>.
+
+      lv_lt = find( val = lv_src
                           sub = `<`
                           off = lv_i ).
       IF lv_lt < 0.
-        DATA(lv_text) = decode_entities( substring( val = lv_src
+
+        lv_text = decode_entities( substring( val = lv_src
                                                     off = lv_i ) ).
         IF trim( lv_text ) IS NOT INITIAL.
-          READ TABLE result INDEX lv_top REFERENCE INTO DATA(lr_top).
+
+          READ TABLE result INDEX lv_top REFERENCE INTO lr_top.
           lr_top->text = lr_top->text && lv_text.
         ENDIF.
         EXIT.
@@ -847,14 +952,22 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
         ENDIF.
       ENDIF.
 
-      DATA(lv_rest) = lv_len - lv_lt.
+
+      lv_rest = lv_len - lv_lt.
 
       " a comment
       IF lv_rest >= 4 AND lv_src+lv_lt(4) = `<!--`.
-        DATA(lv_end) = find( val = lv_src
+
+        lv_end = find( val = lv_src
                              sub = `-->`
                              off = lv_lt + 4 ).
-        lv_i = COND #( WHEN lv_end < 0 THEN lv_len ELSE lv_end + 3 ).
+
+        IF lv_end < 0.
+          temp21 = lv_len.
+        ELSE.
+          temp21 = lv_end + 3.
+        ENDIF.
+        lv_i = temp21.
         CONTINUE.
       ENDIF.
 
@@ -863,22 +976,48 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
         lv_end = find( val = lv_src
                        sub = `]]>`
                        off = lv_lt + 9 ).
-        DATA(lv_body_end) = COND i( WHEN lv_end < 0 THEN lv_len ELSE lv_end ).
+
+        IF lv_end < 0.
+          temp22 = lv_len.
+        ELSE.
+          temp22 = lv_end.
+        ENDIF.
+
+        lv_body_end = temp22.
         READ TABLE result INDEX lv_top REFERENCE INTO lr_top.
         lr_top->text = lr_top->text && substring( val = lv_src
                                                   off = lv_lt + 9
                                                   len = lv_body_end - lv_lt - 9 ).
-        lv_i = COND #( WHEN lv_end < 0 THEN lv_len ELSE lv_end + 3 ).
+
+        IF lv_end < 0.
+          temp23 = lv_len.
+        ELSE.
+          temp23 = lv_end + 3.
+        ENDIF.
+        lv_i = temp23.
         CONTINUE.
       ENDIF.
 
       " a declaration or processing instruction
-      DATA(lv_next) = COND string( WHEN lv_rest > 1 THEN lv_src+lv_lt(2) ).
+
+      IF lv_rest > 1.
+        temp24 = lv_src+lv_lt(2).
+      ELSE.
+        CLEAR temp24.
+      ENDIF.
+
+      lv_next = temp24.
       IF lv_next = `<?` OR lv_next = `<!`.
         lv_end = find( val = lv_src
                        sub = `>`
                        off = lv_lt ).
-        lv_i = COND #( WHEN lv_end < 0 THEN lv_len ELSE lv_end + 1 ).
+
+        IF lv_end < 0.
+          temp25 = lv_len.
+        ELSE.
+          temp25 = lv_end + 1.
+        ENDIF.
+        lv_i = temp25.
         CONTINUE.
       ENDIF.
 
@@ -890,14 +1029,22 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
         IF lines( lt_stack ) > 1.
           DELETE lt_stack INDEX lines( lt_stack ).
         ENDIF.
-        lv_i = COND #( WHEN lv_end < 0 THEN lv_len ELSE lv_end + 1 ).
+
+        IF lv_end < 0.
+          temp26 = lv_len.
+        ELSE.
+          temp26 = lv_end + 1.
+        ENDIF.
+        lv_i = temp26.
         CONTINUE.
       ENDIF.
 
       " an opening tag: the name, then attributes up to the unquoted '>'
-      DATA(lv_j) = lv_lt + 1.
+
+      lv_j = lv_lt + 1.
       WHILE lv_j < lv_len.
-        DATA(lv_c) = lv_src+lv_j(1).
+
+        lv_c = lv_src+lv_j(1).
         IF lv_c CA lv_ws OR lv_c = `/` OR lv_c = `>`.
           EXIT.
         ENDIF.
@@ -923,7 +1070,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
           EXIT.
         ENDIF.
         IF lv_c = `/` AND lv_j + 1 < lv_len.
-          DATA(lv_j1) = lv_j + 1.
+
+          lv_j1 = lv_j + 1.
           IF lv_src+lv_j1(1) = `>`.
             lv_self_close = abap_true.
             lv_j = lv_j + 2.
@@ -931,7 +1079,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
           ENDIF.
         ENDIF.
 
-        DATA(lv_k) = lv_j.
+
+        lv_k = lv_j.
         WHILE lv_k < lv_len.
           lv_c = lv_src+lv_k(1).
           IF lv_c CA lv_ws OR lv_c = `=` OR lv_c = `/` OR lv_c = `>`.
@@ -939,7 +1088,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
           ENDIF.
           lv_k = lv_k + 1.
         ENDWHILE.
-        DATA(lv_name) = substring( val = lv_src
+
+        lv_name = substring( val = lv_src
                                    off = lv_j
                                    len = lv_k - lv_j ).
         lv_j = lv_k.
@@ -953,7 +1103,14 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
           WHILE lv_j < lv_len AND lv_src+lv_j(1) CA lv_ws.
             lv_j = lv_j + 1.
           ENDWHILE.
-          DATA(lv_quote) = COND string( WHEN lv_j < lv_len THEN lv_src+lv_j(1) ).
+
+          IF lv_j < lv_len.
+            temp27 = lv_src+lv_j(1).
+          ELSE.
+            CLEAR temp27.
+          ENDIF.
+
+          lv_quote = temp27.
           IF lv_quote = `"` OR lv_quote = `'`.
             lv_end = find( val = lv_src
                            sub = lv_quote
@@ -964,7 +1121,13 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
             lv_value = substring( val = lv_src
                                   off = lv_j + 1
                                   len = lv_end - lv_j - 1 ).
-            lv_j = COND #( WHEN lv_end >= lv_len THEN lv_len ELSE lv_end + 1 ).
+
+            IF lv_end >= lv_len.
+              temp28 = lv_len.
+            ELSE.
+              temp28 = lv_end + 1.
+            ENDIF.
+            lv_j = temp28.
           ELSE.
             lv_end = lv_j.
             WHILE lv_end < lv_len.
@@ -985,21 +1148,28 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
           " a stray character: step over it rather than loop
           lv_j = lv_j + 1.
         ELSE.
-          READ TABLE ls_node-t_attr REFERENCE INTO DATA(lr_attr) WITH KEY name = lv_name. "#EC CI_SORTSEQ
+
+          READ TABLE ls_node-t_attr REFERENCE INTO lr_attr WITH KEY name = lv_name. "#EC CI_SORTSEQ
           IF sy-subrc = 0.
             lr_attr->value = decode_entities( lv_value ).
           ELSE.
-            INSERT VALUE #( name  = lv_name
-                            value = decode_entities( lv_value ) ) INTO TABLE ls_node-t_attr.
+
+            CLEAR temp29.
+            temp29-name = lv_name.
+            temp29-value = decode_entities( lv_value ).
+            INSERT temp29 INTO TABLE ls_node-t_attr.
           ENDIF.
         ENDIF.
       ENDDO.
 
       " namespaces: the parent's map plus what this element declares
-      READ TABLE result INDEX lv_top INTO DATA(ls_parent).
+
+      READ TABLE result INDEX lv_top INTO ls_parent.
       ls_node-t_ns = ls_parent-t_ns.
-      LOOP AT ls_node-t_attr INTO DATA(ls_attr).
-        DATA(lv_prefix_decl) = ``.
+
+      LOOP AT ls_node-t_attr INTO ls_attr.
+
+        lv_prefix_decl = ``.
         IF ls_attr-name = `xmlns`.
           lv_prefix_decl = ``.
         ELSEIF strlen( ls_attr-name ) > 6 AND ls_attr-name(6) = `xmlns:`.
@@ -1008,16 +1178,21 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
         ELSE.
           CONTINUE.
         ENDIF.
-        READ TABLE ls_node-t_ns REFERENCE INTO DATA(lr_ns) WITH KEY name = lv_prefix_decl. "#EC CI_SORTSEQ
+
+        READ TABLE ls_node-t_ns REFERENCE INTO lr_ns WITH KEY name = lv_prefix_decl. "#EC CI_SORTSEQ
         IF sy-subrc = 0.
           lr_ns->value = ls_attr-value.
         ELSE.
-          INSERT VALUE #( name  = lv_prefix_decl
-                          value = ls_attr-value ) INTO TABLE ls_node-t_ns.
+
+          CLEAR temp30.
+          temp30-name = lv_prefix_decl.
+          temp30-value = ls_attr-value.
+          INSERT temp30 INTO TABLE ls_node-t_ns.
         ENDIF.
       ENDLOOP.
 
-      DATA(lv_colon) = find( val = ls_node-tag
+
+      lv_colon = find( val = ls_node-tag
                              sub = `:` ).
       IF lv_colon < 0.
         ls_node-local = ls_node-tag.
@@ -1026,7 +1201,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
         ls_node-local = substring( val = ls_node-tag
                                    off = lv_colon + 1 ).
       ENDIF.
-      READ TABLE ls_node-t_ns INTO DATA(ls_ns) WITH KEY name = ls_node-prefix. "#EC CI_SORTSEQ
+
+      READ TABLE ls_node-t_ns INTO ls_ns WITH KEY name = ls_node-prefix. "#EC CI_SORTSEQ
       IF sy-subrc = 0.
         ls_node-ns = ls_ns-value.
       ENDIF.
@@ -1045,28 +1221,44 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD is_aggregation.
+    DATA lv_first TYPE z2ui5_cl_agent_viewxml=>ty_s_node-local.
+    DATA temp4 TYPE xsdboolean.
 
     IF node-local IS INITIAL.
       RETURN.
     ENDIF.
-    DATA(lv_first) = node-local(1).
-    result = xsdbool( lv_first CA `abcdefghijklmnopqrstuvwxyz` ).
+
+    lv_first = node-local(1).
+
+    temp4 = boolc( lv_first CA `abcdefghijklmnopqrstuvwxyz` ).
+    result = temp4.
 
   ENDMETHOD.
 
   METHOD control_name.
 
-    result = COND #( WHEN node-ns IS NOT INITIAL THEN |{ node-ns }.{ node-local }| ELSE node-local ).
+    DATA temp31 TYPE string.
+    IF node-ns IS NOT INITIAL.
+      temp31 = |{ node-ns }.{ node-local }|.
+    ELSE.
+      temp31 = node-local.
+    ENDIF.
+    result = temp31.
 
   ENDMETHOD.
 
   METHOD attr.
 
     DATA lv_name TYPE string.
+    DATA ls_attr TYPE z2ui5_cl_agent_viewxml=>ty_s_attr.
+    DATA temp5 TYPE xsdboolean.
 
     lv_name = name.
-    READ TABLE node-t_attr INTO DATA(ls_attr) WITH KEY name = lv_name. "#EC CI_SORTSEQ
-    found = xsdbool( sy-subrc = 0 ).
+
+    READ TABLE node-t_attr INTO ls_attr WITH KEY name = lv_name. "#EC CI_SORTSEQ
+
+    temp5 = boolc( sy-subrc = 0 ).
+    found = temp5.
     IF found = abap_true.
       result = ls_attr-value.
     ENDIF.
@@ -1081,12 +1273,33 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     DATA lv_quote TYPE string.
     DATA lv_depth TYPE i.
 
-    DATA(lv_len) = strlen( val ).
-    DATA(lv_i) = 0.
+    DATA lv_len TYPE i.
+    DATA lv_i TYPE i.
+      DATA lv_c TYPE string.
+      DATA lv_i1 TYPE i.
+      DATA temp32 TYPE string.
+      DATA lv_n LIKE temp32.
+        DATA lv_j LIKE lv_i.
+          DATA lv_d TYPE string.
+          DATA temp33 TYPE z2ui5_cl_agent_viewxml=>ty_s_raw_part.
+        DATA temp34 TYPE z2ui5_cl_agent_viewxml=>ty_s_raw_part.
+      DATA temp35 TYPE z2ui5_cl_agent_viewxml=>ty_s_raw_part.
+    lv_len = strlen( val ).
+
+    lv_i = 0.
     WHILE lv_i < lv_len.
-      DATA(lv_c) = val+lv_i(1).
-      DATA(lv_i1) = lv_i + 1.
-      DATA(lv_n) = COND string( WHEN lv_i1 < lv_len THEN val+lv_i1(1) ).
+
+      lv_c = val+lv_i(1).
+
+      lv_i1 = lv_i + 1.
+
+      IF lv_i1 < lv_len.
+        temp32 = val+lv_i1(1).
+      ELSE.
+        CLEAR temp32.
+      ENDIF.
+
+      lv_n = temp32.
       IF lv_c = `\` AND ( lv_n = `{` OR lv_n = `}` OR lv_n = `\` ).
         lv_lit = lv_lit && lv_n.
         lv_i = lv_i + 2.
@@ -1095,9 +1308,11 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       IF lv_c = `{`.
         lv_depth = 0.
         CLEAR lv_quote.
-        DATA(lv_j) = lv_i.
+
+        lv_j = lv_i.
         WHILE lv_j < lv_len.
-          DATA(lv_d) = val+lv_j(1).
+
+          lv_d = val+lv_j(1).
           IF lv_quote IS NOT INITIAL.
             IF lv_d = `\`.
               lv_j = lv_j + 2.
@@ -1132,13 +1347,17 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
           EXIT.
         ENDIF.
         IF lv_lit IS NOT INITIAL.
-          INSERT VALUE #( text = lv_lit ) INTO TABLE result.
+
+          CLEAR temp33.
+          temp33-text = lv_lit.
+          INSERT temp33 INTO TABLE result.
         ENDIF.
         CLEAR lv_lit.
-        INSERT VALUE #( is_binding = abap_true
-                        text       = substring( val = val
-                                                off = lv_i + 1
-                                                len = lv_j - lv_i - 1 ) ) INTO TABLE result.
+
+        CLEAR temp34.
+        temp34-is_binding = abap_true.
+        temp34-text = substring( val = val off = lv_i + 1 len = lv_j - lv_i - 1 ).
+        INSERT temp34 INTO TABLE result.
         lv_i = lv_j + 1.
         CONTINUE.
       ENDIF.
@@ -1146,32 +1365,46 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       lv_i = lv_i + 1.
     ENDWHILE.
     IF lv_lit IS NOT INITIAL.
-      INSERT VALUE #( text = lv_lit ) INTO TABLE result.
+
+      CLEAR temp35.
+      temp35-text = lv_lit.
+      INSERT temp35 INTO TABLE result.
     ENDIF.
 
   ENDMETHOD.
 
   METHOD check_model_name.
+    DATA lv_first TYPE string.
+    DATA temp6 TYPE xsdboolean.
 
     " [A-Za-z_][\w.-]*
     IF val IS INITIAL.
       RETURN.
     ENDIF.
-    DATA(lv_first) = val(1).
+
+    lv_first = val(1).
     IF lv_first CN c_alpha.
       RETURN.
     ENDIF.
-    result = xsdbool( val CO c_name_chars ).
+
+    temp6 = boolc( val CO c_name_chars ).
+    result = temp6.
 
   ENDMETHOD.
 
   METHOD key_position.
 
     " the offset of the value behind (^|[,{\s])key\s*: - or -1
-    DATA(lv_off) = 0.
+    DATA lv_off TYPE i.
+      DATA lv_hit TYPE i.
+        DATA lv_before TYPE i.
+        DATA lv_b TYPE string.
+      DATA lv_pos TYPE i.
+    lv_off = 0.
     result = -1.
     DO.
-      DATA(lv_hit) = find( val = body
+
+      lv_hit = find( val = body
                            sub = key
                            off = lv_off ).
       IF lv_hit < 0.
@@ -1179,13 +1412,16 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       ENDIF.
       lv_off = lv_hit + 1.
       IF lv_hit > 0.
-        DATA(lv_before) = lv_hit - 1.
-        DATA(lv_b) = body+lv_before(1).
+
+        lv_before = lv_hit - 1.
+
+        lv_b = body+lv_before(1).
         IF NOT ( lv_b = `,` OR lv_b = `{` OR is_ws( lv_b ) = abap_true ).
           CONTINUE.
         ENDIF.
       ENDIF.
-      DATA(lv_pos) = lv_hit + strlen( key ).
+
+      lv_pos = lv_hit + strlen( key ).
       WHILE lv_pos < strlen( body ) AND is_ws( substring( val = body off = lv_pos len = 1 ) ) = abap_true.
         lv_pos = lv_pos + 1.
       ENDWHILE.
@@ -1198,10 +1434,14 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD key_quoted_value.
+    DATA lv_pos TYPE i.
+    DATA lv_quote TYPE string.
+    DATA lv_end TYPE i.
 
     " (^|[,{\s])key\s*:\s*(['"])(.*?)\1
     found = abap_false.
-    DATA(lv_pos) = key_position( body = body
+
+    lv_pos = key_position( body = body
                                  key  = key ).
     IF lv_pos < 0.
       RETURN.
@@ -1212,11 +1452,13 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     IF lv_pos >= strlen( body ).
       RETURN.
     ENDIF.
-    DATA(lv_quote) = body+lv_pos(1).
+
+    lv_quote = body+lv_pos(1).
     IF lv_quote <> `'` AND lv_quote <> `"`.
       RETURN.
     ENDIF.
-    DATA(lv_end) = find( val = body
+
+    lv_end = find( val = body
                          sub = lv_quote
                          off = lv_pos + 1 ).
     IF lv_end < 0.
@@ -1233,7 +1475,17 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(lv_b) = trim( body ).
+    DATA lv_b TYPE string.
+    DATA lv_model TYPE string.
+    DATA lv_rest LIKE lv_b.
+    DATA lv_gt TYPE i.
+    DATA lv_simple LIKE abap_true.
+      DATA temp7 TYPE xsdboolean.
+    DATA lv_path TYPE string.
+      DATA lv_model_key TYPE string.
+      DATA temp8 TYPE xsdboolean.
+      DATA temp9 TYPE xsdboolean.
+    lv_b = trim( body ).
     IF strlen( lv_b ) > 0 AND lv_b(1) = `=`.
       result-is_expr = abap_true.
       result-expression = substring( val = lv_b
@@ -1248,11 +1500,15 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     ENDIF.
 
     " a simple path, optionally with a model name: name>/A/B
-    DATA(lv_model) = ``.
-    DATA(lv_rest) = lv_b.
-    DATA(lv_gt) = find( val = lv_b
+
+    lv_model = ``.
+
+    lv_rest = lv_b.
+
+    lv_gt = find( val = lv_b
                         sub = `>` ).
-    DATA(lv_simple) = abap_true.
+
+    lv_simple = abap_true.
     IF lv_gt >= 0.
       lv_model = lv_b(lv_gt).
       lv_rest = substring( val = lv_b
@@ -1265,7 +1521,9 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       result-is_path = abap_true.
       result-path = lv_rest.
       result-model = lv_model.
-      result-relative = xsdbool( lv_rest(1) <> `/` ).
+
+      temp7 = boolc( lv_rest(1) <> `/` ).
+      result-relative = temp7.
       RETURN.
     ENDIF.
 
@@ -1275,7 +1533,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       result-computed = lv_b.
       RETURN.
     ENDIF.
-    DATA(lv_path) = key_quoted_value( EXPORTING body  = lv_b
+
+    lv_path = key_quoted_value( EXPORTING body  = lv_b
                                                 key   = `path`
                                       IMPORTING found = lv_found ).
     IF lv_found = abap_true.
@@ -1291,17 +1550,21 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       ENDIF.
       " model: 'name' binds to that model as well as name>/path does - a
       " value written to the default model's path would land elsewhere
-      DATA(lv_model_key) = key_quoted_value( EXPORTING body  = lv_b
+
+      lv_model_key = key_quoted_value( EXPORTING body  = lv_b
                                                        key   = `model`
                                              IMPORTING found = lv_found ).
       IF lv_found = abap_true AND lv_model_key IS NOT INITIAL.
         result-model = lv_model_key.
       ENDIF.
-      result-relative = xsdbool( result-path IS INITIAL OR result-path(1) <> `/` ).
+
+      temp8 = boolc( result-path IS INITIAL OR result-path(1) <> `/` ).
+      result-relative = temp8.
       result-type = key_quoted_value( body = lv_b
                                       key  = `type` ).
-      result-formatter = xsdbool( key_position( body = lv_b
-                                                key  = `formatter` ) >= 0 ).
+
+      temp9 = boolc( key_position( body = lv_b key = `formatter` ) >= 0 ).
+      result-formatter = temp9.
       RETURN.
     ENDIF.
 
@@ -1313,8 +1576,20 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
     DATA lt_binding TYPE ty_t_raw_part.
 
-    DATA(lt_raw) = split_binding_parts( CONV string( val ) ).
-    LOOP AT lt_raw INTO DATA(ls_raw) WHERE is_binding = abap_true.  "#EC CI_SORTSEQ
+    DATA temp36 TYPE string.
+    DATA lt_raw TYPE z2ui5_cl_agent_viewxml=>ty_t_raw_part.
+    DATA ls_raw LIKE LINE OF lt_raw.
+      DATA ls_info TYPE z2ui5_cl_agent_viewxml=>ty_s_part.
+      FIELD-SYMBOLS <temp32> LIKE LINE OF lt_binding.
+      DATA temp33 LIKE sy-tabix.
+        FIELD-SYMBOLS <temp37> LIKE LINE OF lt_binding.
+        DATA temp38 LIKE sy-tabix.
+        DATA temp39 TYPE z2ui5_cl_agent_viewxml=>ty_s_part.
+    temp36 = val.
+
+    lt_raw = split_binding_parts( temp36 ).
+
+    LOOP AT lt_raw INTO ls_raw WHERE is_binding = abap_true.  "#EC CI_SORTSEQ
       INSERT ls_raw INTO TABLE lt_binding.
     ENDLOOP.
 
@@ -1327,7 +1602,16 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     ENDIF.
 
     IF lines( lt_raw ) = 1.
-      DATA(ls_info) = binding_info( lt_binding[ 1 ]-text ).
+
+
+
+      temp33 = sy-tabix.
+      READ TABLE lt_binding INDEX 1 ASSIGNING <temp32>.
+      sy-tabix = temp33.
+      IF sy-subrc <> 0.
+        ASSERT 1 = 0.
+      ENDIF.
+      ls_info = binding_info( <temp32>-text ).
       IF ls_info-is_expr = abap_true.
         result-kind = cs_binding-expression.
         result-expression = ls_info-expression.
@@ -1343,7 +1627,15 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       ENDIF.
       result-kind = cs_binding-composite.
       IF ls_info-is_path = abap_false AND ls_info-computed IS INITIAL.
-        ls_info-computed = lt_binding[ 1 ]-text.
+
+
+        temp38 = sy-tabix.
+        READ TABLE lt_binding INDEX 1 ASSIGNING <temp37>.
+        sy-tabix = temp38.
+        IF sy-subrc <> 0.
+          ASSERT 1 = 0.
+        ENDIF.
+        ls_info-computed = <temp37>-text.
       ENDIF.
       INSERT ls_info INTO TABLE result-t_part.
       RETURN.
@@ -1354,8 +1646,11 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       IF ls_raw-is_binding = abap_true.
         INSERT binding_info( ls_raw-text ) INTO TABLE result-t_part.
       ELSE.
-        INSERT VALUE #( is_text = abap_true
-                        text    = ls_raw-text ) INTO TABLE result-t_part.
+
+        CLEAR temp39.
+        temp39-is_text = abap_true.
+        temp39-text = ls_raw-text.
+        INSERT temp39 INTO TABLE result-t_part.
       ENDIF.
     ENDLOOP.
 
@@ -1368,15 +1663,27 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     DATA lv_quote TYPE string.
     DATA lv_depth TYPE i.
 
-    DATA(lv_s) = CONV string( val ).
-    DATA(lv_len) = strlen( lv_s ).
-    DATA(lv_i) = 0.
+    DATA temp40 TYPE string.
+    DATA lv_s LIKE temp40.
+    DATA lv_len TYPE i.
+    DATA lv_i TYPE i.
+      DATA lv_c TYPE string.
+          DATA lv_i1 TYPE i.
+    temp40 = val.
+
+    lv_s = temp40.
+
+    lv_len = strlen( lv_s ).
+
+    lv_i = 0.
     WHILE lv_i < lv_len.
-      DATA(lv_c) = lv_s+lv_i(1).
+
+      lv_c = lv_s+lv_i(1).
       IF lv_quote IS NOT INITIAL.
         lv_cur = lv_cur && lv_c.
         IF lv_c = `\`.
-          DATA(lv_i1) = lv_i + 1.
+
+          lv_i1 = lv_i + 1.
           IF lv_i1 < lv_len.
             lv_cur = lv_cur && lv_s+lv_i1(1).
           ENDIF.
@@ -1417,29 +1724,49 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD js_string.
+    DATA lv_s TYPE string.
+    DATA lv_len TYPE i.
+    DATA lv_q TYPE string.
+    DATA lv_last_off TYPE i.
+    DATA lv_inner TYPE string.
+    DATA lv_i TYPE i.
+    DATA lv_ilen TYPE i.
+      DATA lv_c TYPE string.
+      DATA lv_i1 TYPE i.
+        DATA lv_e TYPE string.
 
     found = abap_false.
-    DATA(lv_s) = trim( val ).
-    DATA(lv_len) = strlen( lv_s ).
+
+    lv_s = trim( val ).
+
+    lv_len = strlen( lv_s ).
     IF lv_len < 2.
       RETURN.
     ENDIF.
-    DATA(lv_q) = lv_s(1).
-    DATA(lv_last_off) = lv_len - 1.
+
+    lv_q = lv_s(1).
+
+    lv_last_off = lv_len - 1.
     IF ( lv_q <> `'` AND lv_q <> `"` ) OR lv_s+lv_last_off(1) <> lv_q.
       RETURN.
     ENDIF.
     found = abap_true.
-    DATA(lv_inner) = substring( val = lv_s
+
+    lv_inner = substring( val = lv_s
                                 off = 1
                                 len = lv_len - 2 ).
-    DATA(lv_i) = 0.
-    DATA(lv_ilen) = strlen( lv_inner ).
+
+    lv_i = 0.
+
+    lv_ilen = strlen( lv_inner ).
     WHILE lv_i < lv_ilen.
-      DATA(lv_c) = lv_inner+lv_i(1).
-      DATA(lv_i1) = lv_i + 1.
+
+      lv_c = lv_inner+lv_i(1).
+
+      lv_i1 = lv_i + 1.
       IF lv_c = `\` AND lv_i1 < lv_ilen.
-        DATA(lv_e) = lv_inner+lv_i1(1).
+
+        lv_e = lv_inner+lv_i1(1).
         CASE lv_e.
           WHEN `n`.
             result = result && cl_abap_char_utilities=>newline.
@@ -1464,16 +1791,29 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
   METHOD number_normalize.
 
-    DATA(lv_s) = CONV string( val ).
-    DATA(lv_sign) = ``.
+    DATA temp41 TYPE string.
+    DATA lv_s LIKE temp41.
+    DATA lv_sign TYPE string.
+    DATA lv_int LIKE lv_s.
+    DATA lv_frac TYPE string.
+    DATA lv_dot TYPE i.
+      DATA lv_last TYPE i.
+    temp41 = val.
+
+    lv_s = temp41.
+
+    lv_sign = ``.
     IF strlen( lv_s ) > 0 AND lv_s(1) = `-`.
       lv_sign = `-`.
       lv_s = substring( val = lv_s
                         off = 1 ).
     ENDIF.
-    DATA(lv_int) = lv_s.
-    DATA(lv_frac) = ``.
-    DATA(lv_dot) = find( val = lv_s
+
+    lv_int = lv_s.
+
+    lv_frac = ``.
+
+    lv_dot = find( val = lv_s
                          sub = `.` ).
     IF lv_dot >= 0.
       lv_int = lv_s(lv_dot).
@@ -1488,7 +1828,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       lv_int = `0`.
     ENDIF.
     WHILE strlen( lv_frac ) > 0.
-      DATA(lv_last) = strlen( lv_frac ) - 1.
+
+      lv_last = strlen( lv_frac ) - 1.
       IF lv_frac+lv_last(1) <> `0`.
         EXIT.
       ENDIF.
@@ -1508,8 +1849,23 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(lv_s) = trim( val ).
-    DATA(lv_str) = js_string( EXPORTING val   = lv_s
+    DATA lv_s TYPE string.
+    DATA lv_str TYPE string.
+    DATA lv_num LIKE lv_s.
+    DATA lv_dot TYPE i.
+    DATA temp42 TYPE string.
+    DATA lv_int LIKE temp42.
+    DATA temp43 TYPE string.
+    DATA lv_frac LIKE temp43.
+      DATA temp10 TYPE xsdboolean.
+    DATA lv_len TYPE i.
+      DATA lv_last TYPE i.
+      DATA lv_body TYPE string.
+          DATA lv_prop TYPE string.
+          DATA lv_ppath TYPE string.
+    lv_s = trim( val ).
+
+    lv_str = js_string( EXPORTING val   = lv_s
                               IMPORTING found = lv_found ).
     IF lv_found = abap_true.
       result-static = abap_true.
@@ -1518,16 +1874,31 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     ENDIF.
 
     " -?[0-9]+(\.[0-9]+)?
-    DATA(lv_num) = lv_s.
+
+    lv_num = lv_s.
     IF strlen( lv_num ) > 0 AND lv_num(1) = `-`.
       lv_num = substring( val = lv_num
                           off = 1 ).
     ENDIF.
-    DATA(lv_dot) = find( val = lv_num
+
+    lv_dot = find( val = lv_num
                          sub = `.` ).
-    DATA(lv_int) = COND string( WHEN lv_dot < 0 THEN lv_num ELSE lv_num(lv_dot) ).
-    DATA(lv_frac) = COND string( WHEN lv_dot >= 0 THEN substring( val = lv_num
-                                                                  off = lv_dot + 1 ) ).
+
+    IF lv_dot < 0.
+      temp42 = lv_num.
+    ELSE.
+      temp42 = lv_num(lv_dot).
+    ENDIF.
+
+    lv_int = temp42.
+
+    IF lv_dot >= 0.
+      temp43 = substring( val = lv_num off = lv_dot + 1 ).
+    ELSE.
+      CLEAR temp43.
+    ENDIF.
+
+    lv_frac = temp43.
     IF lv_int IS NOT INITIAL AND lv_int CO c_digit
         AND ( lv_dot < 0 OR ( lv_frac IS NOT INITIAL AND lv_frac CO c_digit ) ).
       result-static = abap_true.
@@ -1537,21 +1908,27 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
     IF lv_s = `true` OR lv_s = `false`.
       result-static = abap_true.
-      result-val = val_boolean( xsdbool( lv_s = `true` ) ).
+
+      temp10 = boolc( lv_s = `true` ).
+      result-val = val_boolean( temp10 ).
       RETURN.
     ENDIF.
 
     " ${...}: a reference the client resolves
-    DATA(lv_len) = strlen( lv_s ).
+
+    lv_len = strlen( lv_s ).
     IF lv_len >= 3 AND lv_s(2) = `${`.
-      DATA(lv_last) = lv_len - 1.
-      DATA(lv_body) = substring( val = lv_s
+
+      lv_last = lv_len - 1.
+
+      lv_body = substring( val = lv_s
                                  off = 2
                                  len = lv_len - 3 ).
       IF lv_s+lv_last(1) = `}` AND lv_body NA `{}`.
         lv_body = trim( lv_body ).
         IF strlen( lv_body ) > 8 AND lv_body(8) = `$source>`.
-          DATA(lv_prop) = substring( val = lv_body
+
+          lv_prop = substring( val = lv_body
                                      off = 8 ).
           IF strlen( lv_prop ) > 0 AND lv_prop(1) = `/`.
             lv_prop = substring( val = lv_prop
@@ -1565,7 +1942,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
           ENDIF.
         ENDIF.
         IF strlen( lv_body ) >= 12 AND lv_body(12) = `$parameters>`.
-          DATA(lv_ppath) = substring( val = lv_body
+
+          lv_ppath = substring( val = lv_body
                                       off = 12 ).
           IF strlen( lv_ppath ) > 0 AND lv_ppath(1) = `/`.
             lv_ppath = substring( val = lv_ppath
@@ -1606,21 +1984,33 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   METHOD has_wire.
 
     " /\.(eB|eBP|eF)\s*\(/
-    DATA(lv_s) = CONV string( val ).
-    DATA(lv_off) = 0.
+    DATA temp44 TYPE string.
+    DATA lv_s LIKE temp44.
+    DATA lv_off TYPE i.
+      DATA lv_hit TYPE i.
+      DATA lv_pos TYPE i.
+      DATA lv_c TYPE string.
+    temp44 = val.
+
+    lv_s = temp44.
+
+    lv_off = 0.
     DO.
-      DATA(lv_hit) = find( val = lv_s
+
+      lv_hit = find( val = lv_s
                            sub = `.e`
                            off = lv_off ).
       IF lv_hit < 0.
         RETURN.
       ENDIF.
       lv_off = lv_hit + 1.
-      DATA(lv_pos) = lv_hit + 2.
+
+      lv_pos = lv_hit + 2.
       IF lv_pos >= strlen( lv_s ).
         RETURN.
       ENDIF.
-      DATA(lv_c) = lv_s+lv_pos(1).
+
+      lv_c = lv_s+lv_pos(1).
       IF lv_c <> `B` AND lv_c <> `F`.
         CONTINUE.
       ENDIF.
@@ -1645,7 +2035,30 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     DATA lv_fn TYPE string.
 
     " ^\.?(eB|eBP|eF)\s*\(([\s\S]*)\)\s*;?\s*$
-    DATA(lv_s) = trim( val ).
+    DATA lv_s TYPE string.
+    DATA lv_pos TYPE i.
+    DATA lv_tail TYPE string.
+    DATA lv_tlen TYPE i.
+      DATA lv_tlast TYPE i.
+    DATA lv_body TYPE string.
+    DATA lt_args TYPE string_table.
+      DATA temp45 TYPE string.
+      DATA temp46 TYPE string.
+      DATA lv_first LIKE temp45.
+      DATA lv_action TYPE string.
+      DATA lv_arg LIKE LINE OF lt_args.
+    DATA temp47 TYPE string.
+    DATA temp48 TYPE string.
+    DATA lv_head LIKE temp47.
+    DATA lv_hlen TYPE i.
+    DATA lv_hlast TYPE i.
+    DATA lt_inner TYPE string_table.
+    DATA temp49 TYPE string.
+    DATA temp50 TYPE string.
+    DATA lv_event_raw LIKE temp49.
+    DATA lv_event TYPE string.
+    DATA lv_flag LIKE LINE OF lt_inner.
+    lv_s = trim( val ).
     IF strlen( lv_s ) > 0 AND lv_s(1) = `.`.
       lv_s = substring( val = lv_s
                         off = 1 ).
@@ -1657,7 +2070,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     ELSE.
       RETURN.
     ENDIF.
-    DATA(lv_pos) = strlen( lv_fn ).
+
+    lv_pos = strlen( lv_fn ).
     WHILE lv_pos < strlen( lv_s ) AND is_ws( substring( val = lv_s off = lv_pos len = 1 ) ) = abap_true.
       lv_pos = lv_pos + 1.
     ENDWHILE.
@@ -1665,10 +2079,13 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       RETURN.
     ENDIF.
     " the body runs to the last ')' behind which only blanks and one ';' follow
-    DATA(lv_tail) = trim( lv_s ).
-    DATA(lv_tlen) = strlen( lv_tail ).
+
+    lv_tail = trim( lv_s ).
+
+    lv_tlen = strlen( lv_tail ).
     IF lv_tlen > 0.
-      DATA(lv_tlast) = lv_tlen - 1.
+
+      lv_tlast = lv_tlen - 1.
       IF lv_tail+lv_tlast(1) = `;`.
         lv_tail = trim( substring( val = lv_tail len = lv_tlast ) ).
       ENDIF.
@@ -1681,14 +2098,25 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     IF lv_tail+lv_tlast(1) <> `)` OR lv_tlast <= lv_pos.
       RETURN.
     ENDIF.
-    DATA(lv_body) = substring( val = lv_tail
+
+    lv_body = substring( val = lv_tail
                                off = lv_pos + 1
                                len = lv_tlast - lv_pos - 1 ).
-    DATA(lt_args) = split_args( lv_body ).
+
+    lt_args = split_args( lv_body ).
 
     IF lv_fn = `eF`.
-      DATA(lv_first) = VALUE string( lt_args[ 1 ] OPTIONAL ).
-      DATA(lv_action) = js_string( EXPORTING val   = lv_first
+
+      CLEAR temp45.
+
+      READ TABLE lt_args INTO temp46 INDEX 1.
+      IF sy-subrc = 0.
+        temp45 = temp46.
+      ENDIF.
+
+      lv_first = temp45.
+
+      lv_action = js_string( EXPORTING val   = lv_first
                                    IMPORTING found = lv_found ).
       IF lv_found = abap_false.
         RETURN.
@@ -1696,7 +2124,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       result-valid = abap_true.
       result-fn = `eF`.
       result-action = lv_action.
-      LOOP AT lt_args INTO DATA(lv_arg) FROM 2.
+
+      LOOP AT lt_args INTO lv_arg FROM 2.
         INSERT describe_arg( lv_arg ) INTO TABLE result-t_arg.
       ENDLOOP.
       RETURN.
@@ -1709,20 +2138,40 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
         ENDIF.
       ENDDO.
     ENDIF.
-    DATA(lv_head) = VALUE string( lt_args[ 1 ] OPTIONAL ).
-    DATA(lv_hlen) = strlen( lv_head ).
+
+    CLEAR temp47.
+
+    READ TABLE lt_args INTO temp48 INDEX 1.
+    IF sy-subrc = 0.
+      temp47 = temp48.
+    ENDIF.
+
+    lv_head = temp47.
+
+    lv_hlen = strlen( lv_head ).
     IF lv_hlen < 2 OR lv_head(1) <> `[`.
       RETURN.
     ENDIF.
-    DATA(lv_hlast) = lv_hlen - 1.
+
+    lv_hlast = lv_hlen - 1.
     IF lv_head+lv_hlast(1) <> `]`.
       RETURN.
     ENDIF.
-    DATA(lt_inner) = split_args( substring( val = lv_head
+
+    lt_inner = split_args( substring( val = lv_head
                                             off = 1
                                             len = lv_hlen - 2 ) ).
-    DATA(lv_event_raw) = VALUE string( lt_inner[ 1 ] OPTIONAL ).
-    DATA(lv_event) = js_string( EXPORTING val   = lv_event_raw
+
+    CLEAR temp49.
+
+    READ TABLE lt_inner INTO temp50 INDEX 1.
+    IF sy-subrc = 0.
+      temp49 = temp50.
+    ENDIF.
+
+    lv_event_raw = temp49.
+
+    lv_event = js_string( EXPORTING val   = lv_event_raw
                                 IMPORTING found = lv_found ).
     IF lv_found = abap_false.
       RETURN.
@@ -1730,7 +2179,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     result-valid = abap_true.
     result-fn = `eB`.
     result-event = lv_event.
-    LOOP AT lt_inner INTO DATA(lv_flag) FROM 2.
+
+    LOOP AT lt_inner INTO lv_flag FROM 2.
       INSERT lv_flag INTO TABLE result-t_flag.
     ENDLOOP.
     LOOP AT lt_args INTO lv_arg FROM 2.
@@ -1759,9 +2209,16 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD val_boolean.
+    DATA temp51 TYPE z2ui5_cl_agent_viewxml=>ty_s_val-str.
 
     result-kind = cs_kind-boolean.
-    result-str = COND #( WHEN val = abap_true THEN `true` ELSE `false` ).
+
+    IF val = abap_true.
+      temp51 = `true`.
+    ELSE.
+      temp51 = `false`.
+    ENDIF.
+    result-str = temp51.
 
   ENDMETHOD.
 
@@ -1782,14 +2239,23 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD val_truthy.
+        DATA temp11 TYPE xsdboolean.
+        DATA temp12 TYPE xsdboolean.
+        DATA temp13 TYPE xsdboolean.
 
     CASE val-kind.
       WHEN cs_kind-boolean.
-        result = xsdbool( val-str = `true` ).
+
+        temp11 = boolc( val-str = `true` ).
+        result = temp11.
       WHEN cs_kind-number.
-        result = xsdbool( val-nan = abap_false AND val-num <> 0 ).
+
+        temp12 = boolc( val-nan = abap_false AND val-num <> 0 ).
+        result = temp12.
       WHEN cs_kind-string.
-        result = xsdbool( val-str IS NOT INITIAL ).
+
+        temp13 = boolc( val-str IS NOT INITIAL ).
+        result = temp13.
       WHEN cs_kind-object OR cs_kind-array.
         result = abap_true.
       WHEN OTHERS.
@@ -1822,6 +2288,9 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD json_string.
+          DATA temp52 TYPE xstring.
+      DATA lv_off TYPE i.
+          DATA temp53 TYPE xstring.
 
     " escaped as JSON.stringify escapes: the backslash first, then the quote
     " and the control characters a view or a model actually carries
@@ -1838,14 +2307,17 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     " whole document invalid JSON (a vertical tab of a long text)
     IF gv_json_controls_set = abap_false.
       TRY.
-          gv_json_controls = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( c_json_control_hex ) ).
+
+          temp52 = c_json_control_hex.
+          gv_json_controls = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( temp52 ).
         CATCH cx_root.
           CLEAR gv_json_controls.
       ENDTRY.
       gv_json_controls_set = abap_true.
     ENDIF.
     IF gv_json_controls IS NOT INITIAL AND result CA gv_json_controls.
-      DATA(lv_off) = 0.
+
+      lv_off = 0.
       WHILE lv_off < strlen( gv_json_controls ).
         REPLACE ALL OCCURRENCES OF gv_json_controls+lv_off(1) IN result
                 WITH |\\u00{ to_lower( substring( val = c_json_control_hex
@@ -1859,7 +2331,9 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     " escaping above as it was. Raw in a body, it made it invalid JSON.
     IF gv_json_nul_set = abap_false.
       TRY.
-          gv_json_nul = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( `00` ) ).
+
+          temp53 = `00`.
+          gv_json_nul = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( temp53 ).
         CATCH cx_root.
           CLEAR gv_json_nul.
       ENDTRY.
@@ -1877,6 +2351,7 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD val_to_json.
+        DATA temp54 TYPE string.
 
     CASE val-kind.
       WHEN cs_kind-string.
@@ -1884,7 +2359,13 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       WHEN cs_kind-boolean.
         result = val-str.
       WHEN cs_kind-number.
-        result = COND #( WHEN val-nan = abap_true THEN `null` ELSE val-str ).
+
+        IF val-nan = abap_true.
+          temp54 = `null`.
+        ELSE.
+          temp54 = val-str.
+        ENDIF.
+        result = temp54.
       WHEN cs_kind-object OR cs_kind-array.
         result = val-json.
       WHEN OTHERS.
@@ -1894,6 +2375,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD val_to_number.
+        DATA lv_t TYPE string.
+        DATA lv_arg TYPE z2ui5_cl_agent_viewxml=>ty_s_arg.
 
     CASE val-kind.
       WHEN cs_kind-number.
@@ -1907,12 +2390,14 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       WHEN cs_kind-null.
         result = val_from_num( 0 ).
       WHEN cs_kind-string.
-        DATA(lv_t) = trim( val-str ).
+
+        lv_t = trim( val-str ).
         IF lv_t IS INITIAL.
           result = val_from_num( 0 ).
           RETURN.
         ENDIF.
-        DATA(lv_arg) = describe_arg( lv_t ).
+
+        lv_arg = describe_arg( lv_t ).
         IF lv_arg-static = abap_true AND lv_arg-val-kind = cs_kind-number.
           result = lv_arg-val.
         ELSE.
@@ -1925,18 +2410,26 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD val_strict_equal.
+      DATA temp14 TYPE xsdboolean.
+        DATA temp15 TYPE xsdboolean.
+        DATA temp16 TYPE xsdboolean.
 
     IF a-kind <> b-kind.
       " an initial kind is undefined as well
-      result = xsdbool( ( a-kind = cs_kind-undefined OR a-kind IS INITIAL )
-                    AND ( b-kind = cs_kind-undefined OR b-kind IS INITIAL ) ).
+
+      temp14 = boolc( ( a-kind = cs_kind-undefined OR a-kind IS INITIAL ) AND ( b-kind = cs_kind-undefined OR b-kind IS INITIAL ) ).
+      result = temp14.
       RETURN.
     ENDIF.
     CASE a-kind.
       WHEN cs_kind-number.
-        result = xsdbool( a-nan = abap_false AND b-nan = abap_false AND a-num = b-num ).
+
+        temp15 = boolc( a-nan = abap_false AND b-nan = abap_false AND a-num = b-num ).
+        result = temp15.
       WHEN cs_kind-string OR cs_kind-boolean.
-        result = xsdbool( a-str = b-str ).
+
+        temp16 = boolc( a-str = b-str ).
+        result = temp16.
       WHEN cs_kind-object OR cs_kind-array.
         result = abap_false.
       WHEN OTHERS.
@@ -1947,10 +2440,21 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
   METHOD val_loose_equal.
 
-    DATA(lv_a_nullish) = xsdbool( a-kind = cs_kind-null OR a-kind = cs_kind-undefined OR a-kind IS INITIAL ).
-    DATA(lv_b_nullish) = xsdbool( b-kind = cs_kind-null OR b-kind = cs_kind-undefined OR b-kind IS INITIAL ).
+    DATA lv_a_nullish TYPE abap_bool.
+    DATA temp17 TYPE xsdboolean.
+    DATA lv_b_nullish TYPE abap_bool.
+    DATA temp18 TYPE xsdboolean.
+      DATA temp19 TYPE xsdboolean.
+    temp17 = boolc( a-kind = cs_kind-null OR a-kind = cs_kind-undefined OR a-kind IS INITIAL ).
+    lv_a_nullish = temp17.
+
+
+    temp18 = boolc( b-kind = cs_kind-null OR b-kind = cs_kind-undefined OR b-kind IS INITIAL ).
+    lv_b_nullish = temp18.
     IF lv_a_nullish = abap_true OR lv_b_nullish = abap_true.
-      result = xsdbool( lv_a_nullish = abap_true AND lv_b_nullish = abap_true ).
+
+      temp19 = boolc( lv_a_nullish = abap_true AND lv_b_nullish = abap_true ).
+      result = temp19.
       RETURN.
     ENDIF.
     IF a-kind = b-kind.
@@ -1968,53 +2472,99 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD apply_op.
+        DATA temp55 TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+        DATA temp56 TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+        DATA temp20 TYPE xsdboolean.
+        DATA temp21 TYPE xsdboolean.
+              DATA temp22 TYPE xsdboolean.
+              DATA temp23 TYPE xsdboolean.
+              DATA temp24 TYPE xsdboolean.
+              DATA temp25 TYPE xsdboolean.
+        DATA ls_na TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+        DATA ls_nb TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+            DATA temp26 TYPE xsdboolean.
+            DATA temp27 TYPE xsdboolean.
+            DATA temp28 TYPE xsdboolean.
+            DATA temp29 TYPE xsdboolean.
 
     CASE op.
       WHEN `||`.
-        result = COND #( WHEN val_truthy( a ) = abap_true THEN a ELSE b ).
+
+        IF val_truthy( a ) = abap_true.
+          temp55 = a.
+        ELSE.
+          temp55 = b.
+        ENDIF.
+        result = temp55.
       WHEN `&&`.
-        result = COND #( WHEN val_truthy( a ) = abap_false THEN a ELSE b ).
+
+        IF val_truthy( a ) = abap_false.
+          temp56 = a.
+        ELSE.
+          temp56 = b.
+        ENDIF.
+        result = temp56.
       WHEN `===`.
         result = val_boolean( val_strict_equal( a = a
                                                 b = b ) ).
       WHEN `!==`.
-        result = val_boolean( xsdbool( val_strict_equal( a = a
-                                                         b = b ) = abap_false ) ).
+
+        temp20 = boolc( val_strict_equal( a = a b = b ) = abap_false ).
+        result = val_boolean( temp20 ).
       WHEN `==`.
         result = val_boolean( val_loose_equal( a = a
                                                b = b ) ).
       WHEN `!=`.
-        result = val_boolean( xsdbool( val_loose_equal( a = a
-                                                        b = b ) = abap_false ) ).
+
+        temp21 = boolc( val_loose_equal( a = a b = b ) = abap_false ).
+        result = val_boolean( temp21 ).
       WHEN `<` OR `>` OR `<=` OR `>=`.
         IF a-kind = cs_kind-string AND b-kind = cs_kind-string.
           CASE op.
             WHEN `<`.
-              result = val_boolean( xsdbool( a-str < b-str ) ).
+
+              temp22 = boolc( a-str < b-str ).
+              result = val_boolean( temp22 ).
             WHEN `>`.
-              result = val_boolean( xsdbool( a-str > b-str ) ).
+
+              temp23 = boolc( a-str > b-str ).
+              result = val_boolean( temp23 ).
             WHEN `<=`.
-              result = val_boolean( xsdbool( a-str <= b-str ) ).
+
+              temp24 = boolc( a-str <= b-str ).
+              result = val_boolean( temp24 ).
             WHEN OTHERS.
-              result = val_boolean( xsdbool( a-str >= b-str ) ).
+
+              temp25 = boolc( a-str >= b-str ).
+              result = val_boolean( temp25 ).
           ENDCASE.
           RETURN.
         ENDIF.
-        DATA(ls_na) = val_to_number( a ).
-        DATA(ls_nb) = val_to_number( b ).
+
+        ls_na = val_to_number( a ).
+
+        ls_nb = val_to_number( b ).
         IF ls_na-nan = abap_true OR ls_nb-nan = abap_true.
           result = val_boolean( abap_false ).
           RETURN.
         ENDIF.
         CASE op.
           WHEN `<`.
-            result = val_boolean( xsdbool( ls_na-num < ls_nb-num ) ).
+
+            temp26 = boolc( ls_na-num < ls_nb-num ).
+            result = val_boolean( temp26 ).
           WHEN `>`.
-            result = val_boolean( xsdbool( ls_na-num > ls_nb-num ) ).
+
+            temp27 = boolc( ls_na-num > ls_nb-num ).
+            result = val_boolean( temp27 ).
           WHEN `<=`.
-            result = val_boolean( xsdbool( ls_na-num <= ls_nb-num ) ).
+
+            temp28 = boolc( ls_na-num <= ls_nb-num ).
+            result = val_boolean( temp28 ).
           WHEN OTHERS.
-            result = val_boolean( xsdbool( ls_na-num >= ls_nb-num ) ).
+
+            temp29 = boolc( ls_na-num >= ls_nb-num ).
+            result = val_boolean( temp29 ).
         ENDCASE.
       WHEN `+`.
         IF a-kind = cs_kind-string OR b-kind = cs_kind-string
@@ -2063,16 +2613,64 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
     DATA lv_v TYPE string.
     DATA lv_found TYPE abap_bool.
+    DATA lv_len TYPE i.
+    DATA lv_i TYPE i.
+      DATA lv_c TYPE string.
+      DATA lv_i1 TYPE i.
+      DATA temp57 TYPE string.
+      DATA lv_next LIKE temp57.
+      DATA temp58 TYPE string.
+      DATA lv_two LIKE temp58.
+      DATA temp59 TYPE string.
+      DATA lv_three LIKE temp59.
+        DATA lv_end TYPE i.
+        DATA lv_body TYPE string.
+          DATA lv_path TYPE string.
+        DATA temp60 TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+        DATA lv_j TYPE i.
+            DATA lv_j1 TYPE i.
+        DATA temp61 TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+        DATA temp62 TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+        DATA temp63 TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+        DATA temp64 TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+        DATA temp65 TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+        DATA temp66 TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+        DATA temp67 TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
 
     failed = abap_false.
-    DATA(lv_len) = strlen( val ).
-    DATA(lv_i) = 0.
+
+    lv_len = strlen( val ).
+
+    lv_i = 0.
     WHILE lv_i < lv_len.
-      DATA(lv_c) = val+lv_i(1).
-      DATA(lv_i1) = lv_i + 1.
-      DATA(lv_next) = COND string( WHEN lv_i1 < lv_len THEN val+lv_i1(1) ).
-      DATA(lv_two) = COND string( WHEN lv_i + 2 <= lv_len THEN val+lv_i(2) ).
-      DATA(lv_three) = COND string( WHEN lv_i + 3 <= lv_len THEN val+lv_i(3) ).
+
+      lv_c = val+lv_i(1).
+
+      lv_i1 = lv_i + 1.
+
+      IF lv_i1 < lv_len.
+        temp57 = val+lv_i1(1).
+      ELSE.
+        CLEAR temp57.
+      ENDIF.
+
+      lv_next = temp57.
+
+      IF lv_i + 2 <= lv_len.
+        temp58 = val+lv_i(2).
+      ELSE.
+        CLEAR temp58.
+      ENDIF.
+
+      lv_two = temp58.
+
+      IF lv_i + 3 <= lv_len.
+        temp59 = val+lv_i(3).
+      ELSE.
+        CLEAR temp59.
+      ENDIF.
+
+      lv_three = temp59.
 
       IF is_ws( lv_c ) = abap_true.
         lv_i = lv_i + 1.
@@ -2080,19 +2678,22 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       ENDIF.
 
       IF lv_c = `$` AND lv_next = `{`.
-        DATA(lv_end) = find( val = val
+
+        lv_end = find( val = val
                              sub = `}`
                              off = lv_i ).
         IF lv_end < 0.
           failed = abap_true.
           RETURN.
         ENDIF.
-        DATA(lv_body) = trim( substring( val = val
+
+        lv_body = trim( substring( val = val
                                          off = lv_i + 2
                                          len = lv_end - lv_i - 2 ) ).
         " object syntax inside an expression: ${path: '/X', ...}
         IF strlen( lv_body ) >= 4 AND lv_body(4) = `path`.
-          DATA(lv_path) = key_quoted_value( EXPORTING body  = lv_body
+
+          lv_path = key_quoted_value( EXPORTING body  = lv_body
                                                       key   = `path`
                                             IMPORTING found = lv_found ).
           IF lv_found = abap_true AND key_position( body = lv_body
@@ -2100,18 +2701,23 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
             lv_body = lv_path.
           ENDIF.
         ENDIF.
-        INSERT VALUE #( type  = `ref`
-                        value = lv_body ) INTO TABLE result.
+
+        CLEAR temp60.
+        temp60-type = `ref`.
+        temp60-value = lv_body.
+        INSERT temp60 INTO TABLE result.
         lv_i = lv_end + 1.
         CONTINUE.
       ENDIF.
 
       IF lv_c = `"` OR lv_c = `'`.
-        DATA(lv_j) = lv_i + 1.
+
+        lv_j = lv_i + 1.
         CLEAR lv_v.
         WHILE lv_j < lv_len AND val+lv_j(1) <> lv_c.
           IF val+lv_j(1) = `\`.
-            DATA(lv_j1) = lv_j + 1.
+
+            lv_j1 = lv_j + 1.
             IF lv_j1 < lv_len.
               lv_v = lv_v && val+lv_j1(1).
             ENDIF.
@@ -2125,8 +2731,11 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
           failed = abap_true.
           RETURN.
         ENDIF.
-        INSERT VALUE #( type  = `str`
-                        value = lv_v ) INTO TABLE result.
+
+        CLEAR temp61.
+        temp61-type = `str`.
+        temp61-value = lv_v.
+        INSERT temp61 INTO TABLE result.
         lv_i = lv_j + 1.
         CONTINUE.
       ENDIF.
@@ -2143,10 +2752,11 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
             lv_j = lv_j + 1.
           ENDWHILE.
         ENDIF.
-        INSERT VALUE #( type  = `num`
-                        value = substring( val = val
-                                           off = lv_i
-                                           len = lv_j - lv_i ) ) INTO TABLE result.
+
+        CLEAR temp62.
+        temp62-type = `num`.
+        temp62-value = substring( val = val off = lv_i len = lv_j - lv_i ).
+        INSERT temp62 INTO TABLE result.
         lv_i = lv_j.
         CONTINUE.
       ENDIF.
@@ -2156,35 +2766,48 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
         WHILE lv_j < lv_len AND val+lv_j(1) CO c_word.
           lv_j = lv_j + 1.
         ENDWHILE.
-        INSERT VALUE #( type  = `word`
-                        value = substring( val = val
-                                           off = lv_i
-                                           len = lv_j - lv_i ) ) INTO TABLE result.
+
+        CLEAR temp63.
+        temp63-type = `word`.
+        temp63-value = substring( val = val off = lv_i len = lv_j - lv_i ).
+        INSERT temp63 INTO TABLE result.
         lv_i = lv_j.
         CONTINUE.
       ENDIF.
 
       IF lv_three = `===` OR lv_three = `!==`.
-        INSERT VALUE #( type  = `op`
-                        value = lv_three ) INTO TABLE result.
+
+        CLEAR temp64.
+        temp64-type = `op`.
+        temp64-value = lv_three.
+        INSERT temp64 INTO TABLE result.
         lv_i = lv_i + 3.
         CONTINUE.
       ENDIF.
       IF lv_two = `==` OR lv_two = `!=` OR lv_two = `<=` OR lv_two = `>=` OR lv_two = `&&` OR lv_two = `||`.
-        INSERT VALUE #( type  = `op`
-                        value = lv_two ) INTO TABLE result.
+
+        CLEAR temp65.
+        temp65-type = `op`.
+        temp65-value = lv_two.
+        INSERT temp65 INTO TABLE result.
         lv_i = lv_i + 2.
         CONTINUE.
       ENDIF.
       IF lv_c CA `<>+-*/%`.
-        INSERT VALUE #( type  = `op`
-                        value = lv_c ) INTO TABLE result.
+
+        CLEAR temp66.
+        temp66-type = `op`.
+        temp66-value = lv_c.
+        INSERT temp66 INTO TABLE result.
         lv_i = lv_i + 1.
         CONTINUE.
       ENDIF.
       IF lv_c CA `!?:().`.
-        INSERT VALUE #( type  = `punct`
-                        value = lv_c ) INTO TABLE result.
+
+        CLEAR temp67.
+        temp67-type = `punct`.
+        temp67-value = lv_c.
+        INSERT temp67 INTO TABLE result.
         lv_i = lv_i + 1.
         CONTINUE.
       ENDIF.
@@ -2198,12 +2821,18 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
     DATA lv_failed TYPE abap_bool.
 
-    DATA(lt_token) = tokenize( EXPORTING val    = CONV string( val )
+    DATA temp68 TYPE string.
+    DATA lt_token TYPE z2ui5_cl_agent_viewxml=>ty_t_token.
+    DATA ls_token LIKE LINE OF lt_token.
+    temp68 = val.
+
+    lt_token = tokenize( EXPORTING val    = temp68
                                IMPORTING failed = lv_failed ).
     IF lv_failed = abap_true.
       RETURN.
     ENDIF.
-    LOOP AT lt_token INTO DATA(ls_token) WHERE type = `ref`. "#EC CI_SORTSEQ
+
+    LOOP AT lt_token INTO ls_token WHERE type = `ref`. "#EC CI_SORTSEQ
       INSERT ls_token-value INTO TABLE result.
     ENDLOOP.
 
@@ -2212,17 +2841,24 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   METHOD eval_expression.
 
     DATA lv_failed TYPE abap_bool.
+    DATA lo_eval TYPE REF TO z2ui5_cl_agent_viewxml.
+    DATA temp69 TYPE string.
+        DATA ls_val TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
 
     result-kind = cs_kind-undefined.
-    DATA(lo_eval) = NEW z2ui5_cl_agent_viewxml( ).
-    lo_eval->mt_token = tokenize( EXPORTING val    = CONV string( val )
+
+    CREATE OBJECT lo_eval TYPE z2ui5_cl_agent_viewxml.
+
+    temp69 = val.
+    lo_eval->mt_token = tokenize( EXPORTING val    = temp69
                                   IMPORTING failed = lv_failed ).
     IF lv_failed = abap_true.
       RETURN.
     ENDIF.
     lo_eval->mt_ref = t_ref.
     TRY.
-        DATA(ls_val) = lo_eval->parse_ternary( ).
+
+        ls_val = lo_eval->parse_ternary( ).
         IF lo_eval->mv_pos = lines( lo_eval->mt_token ).
           result = ls_val.
         ENDIF.
@@ -2234,7 +2870,8 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
   METHOD peek.
 
-    DATA(lv_index) = mv_pos + 1.
+    DATA lv_index TYPE i.
+    lv_index = mv_pos + 1.
     READ TABLE mt_token INDEX lv_index INTO result.
     IF sy-subrc <> 0.
       CLEAR result.
@@ -2243,9 +2880,12 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD take.
+    DATA temp30 TYPE xsdboolean.
 
     result = peek( ).
-    found = xsdbool( result-type IS NOT INITIAL ).
+
+    temp30 = boolc( result-type IS NOT INITIAL ).
+    found = temp30.
     IF found = abap_true.
       mv_pos = mv_pos + 1.
     ENDIF.
@@ -2264,17 +2904,33 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(ls_cond) = parse_binary( 0 ).
-    DATA(ls_peek) = peek( ).
+    DATA ls_cond TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+    DATA ls_peek TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+      DATA ls_a TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+      DATA ls_colon TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+      DATA ls_b TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+      DATA temp70 TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+    ls_cond = parse_binary( 0 ).
+
+    ls_peek = peek( ).
     IF ls_peek-value = `?` AND ls_peek-type = `punct`.
       take( ).
-      DATA(ls_a) = parse_ternary( ).
-      DATA(ls_colon) = take( IMPORTING found = lv_found ).
+
+      ls_a = parse_ternary( ).
+
+      ls_colon = take( IMPORTING found = lv_found ).
       IF lv_found = abap_false OR ls_colon-value <> `:`.
         fail( ).
       ENDIF.
-      DATA(ls_b) = parse_ternary( ).
-      result = COND #( WHEN val_truthy( ls_cond ) = abap_true THEN ls_a ELSE ls_b ).
+
+      ls_b = parse_ternary( ).
+
+      IF val_truthy( ls_cond ) = abap_true.
+        temp70 = ls_a.
+      ELSE.
+        temp70 = ls_b.
+      ENDIF.
+      result = temp70.
       RETURN.
     ENDIF.
     result = ls_cond.
@@ -2284,6 +2940,15 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   METHOD parse_binary.
 
     DATA lt_ops TYPE string_table.
+        DATA temp71 TYPE string_table.
+        DATA temp73 TYPE string_table.
+        DATA temp75 TYPE string_table.
+        DATA temp77 TYPE string_table.
+        DATA temp79 TYPE string_table.
+        DATA temp81 TYPE string_table.
+      DATA ls_peek TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+      DATA temp83 LIKE sy-subrc.
+      DATA ls_right TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
 
     IF level >= 6.
       result = parse_postfix( ).
@@ -2291,27 +2956,59 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
     ENDIF.
     CASE level.
       WHEN 0.
-        lt_ops = VALUE #( ( `||` ) ).
+
+        CLEAR temp71.
+        INSERT `||` INTO TABLE temp71.
+        lt_ops = temp71.
       WHEN 1.
-        lt_ops = VALUE #( ( `&&` ) ).
+
+        CLEAR temp73.
+        INSERT `&&` INTO TABLE temp73.
+        lt_ops = temp73.
       WHEN 2.
-        lt_ops = VALUE #( ( `===` ) ( `!==` ) ( `==` ) ( `!=` ) ).
+
+        CLEAR temp75.
+        INSERT `===` INTO TABLE temp75.
+        INSERT `!==` INTO TABLE temp75.
+        INSERT `==` INTO TABLE temp75.
+        INSERT `!=` INTO TABLE temp75.
+        lt_ops = temp75.
       WHEN 3.
-        lt_ops = VALUE #( ( `<` ) ( `>` ) ( `<=` ) ( `>=` ) ).
+
+        CLEAR temp77.
+        INSERT `<` INTO TABLE temp77.
+        INSERT `>` INTO TABLE temp77.
+        INSERT `<=` INTO TABLE temp77.
+        INSERT `>=` INTO TABLE temp77.
+        lt_ops = temp77.
       WHEN 4.
-        lt_ops = VALUE #( ( `+` ) ( `-` ) ).
+
+        CLEAR temp79.
+        INSERT `+` INTO TABLE temp79.
+        INSERT `-` INTO TABLE temp79.
+        lt_ops = temp79.
       WHEN OTHERS.
-        lt_ops = VALUE #( ( `*` ) ( `/` ) ( `%` ) ).
+
+        CLEAR temp81.
+        INSERT `*` INTO TABLE temp81.
+        INSERT `/` INTO TABLE temp81.
+        INSERT `%` INTO TABLE temp81.
+        lt_ops = temp81.
     ENDCASE.
 
     result = parse_binary( level + 1 ).
     DO.
-      DATA(ls_peek) = peek( ).
-      IF ls_peek-type <> `op` OR NOT line_exists( lt_ops[ table_line = ls_peek-value ] ). "#EC CI_SORTSEQ
+
+      ls_peek = peek( ).
+
+      READ TABLE lt_ops WITH KEY table_line = ls_peek-value TRANSPORTING NO FIELDS.
+      temp83 = sy-subrc.
+      IF ls_peek-type <> `op` OR NOT temp83 = 0. "#EC CI_SORTSEQ
         EXIT.
       ENDIF.
       take( ).
-      DATA(ls_right) = parse_binary( level + 1 ).
+
+      ls_right = parse_binary( level + 1 ).
       result = apply_op( op = ls_peek-value
                          a  = result
                          b  = ls_right ).
@@ -2322,21 +3019,28 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
   METHOD parse_postfix.
 
     DATA lv_found TYPE abap_bool.
+      DATA ls_peek TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+      DATA ls_name TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+          DATA temp84 TYPE decfloat34.
 
     result = parse_primary( ).
     DO.
-      DATA(ls_peek) = peek( ).
+
+      ls_peek = peek( ).
       IF ls_peek-value <> `.` OR ls_peek-type <> `punct`.
         EXIT.
       ENDIF.
       take( ).
-      DATA(ls_name) = take( IMPORTING found = lv_found ).
+
+      ls_name = take( IMPORTING found = lv_found ).
       IF lv_found = abap_false OR ls_name-type <> `word` OR ls_name-value <> `length`.
         fail( ).
       ENDIF.
       CASE result-kind.
         WHEN cs_kind-string.
-          result = val_from_num( CONV decfloat34( strlen( result-str ) ) ).
+
+          temp84 = strlen( result-str ).
+          result = val_from_num( temp84 ).
         WHEN cs_kind-array.
           result = val_from_num( result-num ).
         WHEN OTHERS.
@@ -2351,13 +3055,19 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(ls_token) = take( IMPORTING found = lv_found ).
+    DATA ls_token TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+        DATA ls_ref TYPE z2ui5_cl_agent_viewxml=>ty_s_ref_val.
+            DATA ls_close TYPE z2ui5_cl_agent_viewxml=>ty_s_token.
+            DATA temp31 TYPE xsdboolean.
+            DATA ls_num TYPE z2ui5_cl_agent_viewxml=>ty_s_val.
+    ls_token = take( IMPORTING found = lv_found ).
     IF lv_found = abap_false.
       fail( ).
     ENDIF.
     CASE ls_token-type.
       WHEN `ref`.
-        READ TABLE mt_ref INTO DATA(ls_ref) WITH KEY ref = ls_token-value. "#EC CI_SORTSEQ
+
+        READ TABLE mt_ref INTO ls_ref WITH KEY ref = ls_token-value. "#EC CI_SORTSEQ
         IF sy-subrc = 0.
           result = ls_ref-val.
         ENDIF.
@@ -2385,14 +3095,18 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
         CASE ls_token-value.
           WHEN `(`.
             result = parse_ternary( ).
-            DATA(ls_close) = take( IMPORTING found = lv_found ).
+
+            ls_close = take( IMPORTING found = lv_found ).
             IF lv_found = abap_false OR ls_close-value <> `)`.
               fail( ).
             ENDIF.
           WHEN `!`.
-            result = val_boolean( xsdbool( val_truthy( parse_postfix( ) ) = abap_false ) ).
+
+            temp31 = boolc( val_truthy( parse_postfix( ) ) = abap_false ).
+            result = val_boolean( temp31 ).
           WHEN `-`.
-            DATA(ls_num) = val_to_number( parse_postfix( ) ).
+
+            ls_num = val_to_number( parse_postfix( ) ).
             IF ls_num-nan = abap_true.
               result = ls_num.
             ELSE.

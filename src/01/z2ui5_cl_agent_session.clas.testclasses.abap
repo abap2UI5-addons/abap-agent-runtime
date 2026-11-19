@@ -9,7 +9,8 @@ CLASS ltd_draft_store DEFINITION FINAL FOR TESTING.
   PUBLIC SECTION.
     INTERFACES z2ui5_if_ui5_draft_store.
 
-    DATA mt_db TYPE STANDARD TABLE OF z2ui5_if_ui5_draft_store=>ty_s_db WITH EMPTY KEY.
+    TYPES temp1_d2ae6e4954 TYPE STANDARD TABLE OF z2ui5_if_ui5_draft_store=>ty_s_db WITH DEFAULT KEY.
+DATA mt_db TYPE temp1_d2ae6e4954.
 
 ENDCLASS.
 
@@ -25,13 +26,17 @@ CLASS ltd_draft_store IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD z2ui5_if_ui5_draft_store~create.
+    DATA temp1 TYPE z2ui5_t_01.
 
     DELETE mt_db WHERE id = draft-id.
-    INSERT VALUE #( id                = draft-id
-                    id_prev           = draft-id_prev
-                    id_prev_app       = draft-id_prev_app
-                    id_prev_app_stack = draft-id_prev_app_stack
-                    data              = model_xml ) INTO TABLE mt_db.
+
+    CLEAR temp1.
+    temp1-id = draft-id.
+    temp1-id_prev = draft-id_prev.
+    temp1-id_prev_app = draft-id_prev_app.
+    temp1-id_prev_app_stack = draft-id_prev_app_stack.
+    temp1-data = model_xml.
+    INSERT temp1 INTO TABLE mt_db.
 
   ENDMETHOD.
 
@@ -48,16 +53,24 @@ CLASS ltd_draft_store IMPLEMENTATION.
 
   METHOD z2ui5_if_ui5_draft_store~read_info.
 
-    DATA(ls_db) = z2ui5_if_ui5_draft_store~read_draft( id ).
-    result = VALUE #( id                = ls_db-id
-                      id_prev           = ls_db-id_prev
-                      id_prev_app       = ls_db-id_prev_app
-                      id_prev_app_stack = ls_db-id_prev_app_stack ).
+    DATA ls_db TYPE z2ui5_t_01.
+    ls_db = z2ui5_if_ui5_draft_store~read_draft( id ).
+    CLEAR result.
+    result-id = ls_db-id.
+    result-id_prev = ls_db-id_prev.
+    result-id_prev_app = ls_db-id_prev_app.
+    result-id_prev_app_stack = ls_db-id_prev_app_stack.
 
   ENDMETHOD.
 
   METHOD z2ui5_if_ui5_draft_store~check_exists.
-    result = xsdbool( line_exists( mt_db[ id = id ] ) ). "#EC CI_SORTSEQ
+    DATA temp2 LIKE sy-subrc.
+    DATA temp1 TYPE xsdboolean.
+    READ TABLE mt_db WITH KEY id = id TRANSPORTING NO FIELDS.
+    temp2 = sy-subrc.
+
+    temp1 = boolc( temp2 = 0 ).
+    result = temp1. "#EC CI_SORTSEQ
   ENDMETHOD.
 
   METHOD z2ui5_if_ui5_draft_store~cleanup.
@@ -145,15 +158,15 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD setup.
 
-    mo_store = NEW #( ).
+    CREATE OBJECT mo_store.
     z2ui5_cl_ui5_srv_draft=>set_instance( mo_store ).
     mv_start = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
 
-    SELECT * FROM z2ui5_t_17 INTO TABLE @mt_setting.
+    SELECT * FROM z2ui5_t_17 INTO TABLE mt_setting.
     DELETE FROM z2ui5_t_17.
     z2ui5_cl_agent_settings=>set_enabled( abap_true ).
     COMMIT WORK.
-    mo_session = NEW #( c_client ).
+    CREATE OBJECT mo_session EXPORTING CLIENT = c_client.
 
   ENDMETHOD.
 
@@ -161,10 +174,10 @@ CLASS ltcl_session IMPLEMENTATION.
 
     DATA li_default TYPE REF TO z2ui5_if_ui5_draft_store.
 
-    DELETE FROM z2ui5_t_16 WHERE uname = @sy-uname AND created_at >= @mv_start.
-    DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND mcp_client = @c_client AND timestampl >= @mv_start.
+    DELETE FROM z2ui5_t_16 WHERE uname = sy-uname AND created_at >= mv_start.
+    DELETE FROM z2ui5_t_14 WHERE uname = sy-uname AND mcp_client = c_client AND timestampl >= mv_start.
     DELETE FROM z2ui5_t_17.
-    INSERT z2ui5_t_17 FROM TABLE @mt_setting.
+    INSERT z2ui5_t_17 FROM TABLE mt_setting.
     COMMIT WORK.
     z2ui5_cl_agent_settings=>refresh( ).
     z2ui5_cl_ui5_srv_draft=>set_instance( li_default ).
@@ -203,7 +216,8 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD action_id.
 
-    DATA(lv_count) = lines( io_snap->members( `/actions` ) ).
+    DATA lv_count TYPE i.
+    lv_count = lines( io_snap->members( `/actions` ) ).
     DO lv_count TIMES.
       IF io_snap->get_string( |/actions/{ sy-index }/event| ) = event.
         result = io_snap->get_string( |/actions/{ sy-index }/id| ).
@@ -216,8 +230,14 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD start_snapshot.
 
-    DATA(ls_result) = start( ).
-    DATA(lo_snap) = ok( ls_result ).
+    DATA ls_result TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lo_snap TYPE REF TO z2ui5_if_ajson.
+    DATA lv_count TYPE i.
+    DATA lo_two TYPE REF TO z2ui5_if_ajson.
+    DATA lo_many TYPE REF TO z2ui5_if_ajson.
+    ls_result = start( ).
+
+    lo_snap = ok( ls_result ).
     cl_abap_unit_assert=>assert_equals( exp = 1
                                         act = lo_snap->get_integer( `/snapshotVersion` ) ).
     cl_abap_unit_assert=>assert_equals( exp = ls_result-session
@@ -239,7 +259,8 @@ CLASS ltcl_session IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = `SELKZ`
                                         act = lo_snap->get_string( `/tables/1/selectionField` ) ).
     " the policy of each event rides on its action
-    DATA(lv_count) = lines( lo_snap->members( `/actions` ) ).
+
+    lv_count = lines( lo_snap->members( `/actions` ) ).
     DO lv_count TIMES.
       CASE lo_snap->get_string( |/actions/{ sy-index }/event| ).
         WHEN `SUBMIT`.
@@ -256,12 +277,14 @@ CLASS ltcl_session IMPLEMENTATION.
     " app_describe answers the same from the session, no roundtrip
     cl_abap_unit_assert=>assert_equals( exp = ls_result-text
                                         act = mo_session->app_describe( ls_result-session )-text ).
-    DATA(lo_two) = ok( mo_session->app_describe( session  = ls_result-session
+
+    lo_two = ok( mo_session->app_describe( session  = ls_result-session
                                                  max_rows = `1` ) ).
     cl_abap_unit_assert=>assert_equals( exp = abap_true
                                         act = lo_two->get_boolean( `/tables/1/truncated` ) ).
     " beyond any integer: clamped to the limit like any number above it
-    DATA(lo_many) = ok( mo_session->app_describe( session  = ls_result-session
+
+    lo_many = ok( mo_session->app_describe( session  = ls_result-session
                                                   max_rows = `10000000000` ) ).
     cl_abap_unit_assert=>assert_equals( exp = abap_false
                                         act = lo_many->get_boolean( `/tables/1/truncated` ) ).
@@ -294,12 +317,18 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD act_values_event.
 
-    DATA(ls_start) = start( ).
-    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_act TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lo_snap TYPE REF TO z2ui5_if_ajson.
+    DATA lv_messages LIKE ls_act-text.
+    ls_start = start( ).
+
+    ls_act = mo_session->app_act( session = ls_start-session
                                         values  = `{"NAME":"Carol","/DAYS":5,"f2":"ROM","HOTEL":true}`
                                         event   = `ADD` ).
     COMMIT WORK.
-    DATA(lo_snap) = ok( ls_act ).
+
+    lo_snap = ok( ls_act ).
     " a roundtrip mints a new draft - the session moves on with it
     cl_abap_unit_assert=>assert_differs( exp = ls_start-session
                                          act = ls_act-session ).
@@ -312,7 +341,8 @@ CLASS ltcl_session IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = 5
                                         act = lo_snap->get_integer( `/tables/1/rows/3/DAYS` ) ).
     " the toast of the response, and the strip that is visible now
-    DATA(lv_messages) = ls_act-text.
+
+    lv_messages = ls_act-text.
     cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Request 3 added","source":"toast"*`
                                          act = lv_messages ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"source":"strip"*`
@@ -324,8 +354,11 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD earlier_session.
 
-    DATA(ls_start) = start( ).
-    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_act TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
+
+    ls_act = mo_session->app_act( session = ls_start-session
                                         values  = `{"NAME":"Eve"}`
                                         event   = `ADD` ).
     COMMIT WORK.
@@ -341,10 +374,13 @@ CLASS ltcl_session IMPLEMENTATION.
 
     " an id longer than the column is unknown - not the session of its first
     " 32 characters, nor an earlier state of it
-    DATA(ls_start) = start( ).
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_act TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
     refused( is_result = mo_session->app_describe( |{ ls_start-session }X| )
              pattern   = |*unknown session '{ ls_start-session }X'*| ).
-    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+
+    ls_act = mo_session->app_act( session = ls_start-session
                                         values  = `{"NAME":"Eve"}`
                                         event   = `ADD` ).
     COMMIT WORK.
@@ -357,7 +393,8 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD validation.
 
-    DATA(ls_start) = start( ).
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
     refused( is_result = mo_session->app_act( session = ls_start-session
                                               values  = `{"NOPE":"x"}` )
              pattern   = `*no field 'NOPE' on this screen - fields you can fill: f1 (Name, /NAME)*` ).
@@ -391,8 +428,11 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD policy.
 
-    DATA(ls_start) = start( ).
-    DATA(ls_submit) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_submit TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
+
+    ls_submit = mo_session->app_act( session = ls_start-session
                                            event   = `SUBMIT` ).
     refused( is_result = ls_submit
              pattern   = `*needs a human*` ).
@@ -424,11 +464,17 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD pending_values.
 
-    DATA(ls_start) = start( ).
-    DATA(ls_typed) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_typed TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lo_snap TYPE REF TO z2ui5_if_ajson.
+    DATA ls_add TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
+
+    ls_typed = mo_session->app_act( session = ls_start-session
                                           values  = `{"NAME":"Dave"}` ).
     COMMIT WORK.
-    DATA(lo_snap) = ok( ls_typed ).
+
+    lo_snap = ok( ls_typed ).
     " typing does not roundtrip: same session, the value pending
     cl_abap_unit_assert=>assert_equals( exp = ls_start-session
                                         act = ls_typed-session ).
@@ -439,7 +485,8 @@ CLASS ltcl_session IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = ls_typed-text
                                         act = mo_session->app_describe( ls_start-session )-text ).
 
-    DATA(ls_add) = mo_session->app_act( session = ls_start-session
+
+    ls_add = mo_session->app_act( session = ls_start-session
                                         event   = `ADD` ).
     COMMIT WORK.
     lo_snap = ok( ls_add ).
@@ -451,11 +498,18 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD popup_flow.
 
-    DATA(ls_start) = start( ).
-    DATA(ls_open) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_open TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lo_snap TYPE REF TO z2ui5_if_ajson.
+    DATA ls_close TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_ok TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
+
+    ls_open = mo_session->app_act( session = ls_start-session
                                          event   = `POPUP_OPEN` ).
     COMMIT WORK.
-    DATA(lo_snap) = ok( ls_open ).
+
+    lo_snap = ok( ls_open ).
     cl_abap_unit_assert=>assert_equals( exp = `popup`
                                         act = lo_snap->get_string( `/layer` ) ).
     cl_abap_unit_assert=>assert_equals( exp = `/NOTE`
@@ -474,7 +528,8 @@ CLASS ltcl_session IMPLEMENTATION.
              pattern   = `*takes no row and no args*` ).
 
     " closed in the browser: no roundtrip, the draft stays
-    DATA(ls_close) = mo_session->app_act( session = ls_open-session
+
+    ls_close = mo_session->app_act( session = ls_open-session
                                           event   = `@CLOSE_POPUP` ).
     COMMIT WORK.
     lo_snap = ok( ls_close ).
@@ -489,7 +544,8 @@ CLASS ltcl_session IMPLEMENTATION.
                                                         event   = `POPUP_OPEN` ) ).
     COMMIT WORK.
     ok( ls_open ).
-    DATA(ls_ok) = mo_session->app_act( session = ls_open-session
+
+    ls_ok = mo_session->app_act( session = ls_open-session
                                        values  = `{"/NOTE":"back on Friday"}`
                                        event   = `POPUP_OK` ).
     COMMIT WORK.
@@ -507,25 +563,41 @@ CLASS ltcl_session IMPLEMENTATION.
     " read from the main model - the stale value there written over the
     " user's, and the path reported as filled
     DATA lt_refused TYPE string_table.
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA temp1 TYPE REF TO z2ui5_cl_agent_session.
+    DATA ls_open TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA temp2 TYPE REF TO z2ui5_cl_agent_session.
+    DATA ls_typed TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA temp3 TYPE REF TO z2ui5_cl_agent_session.
+    DATA lo_demo TYPE REF TO z2ui5_cl_agent_demo.
+    DATA lt_written TYPE string_table.
 
     z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-copilot
                                       value = `on` ).
     COMMIT WORK.
-    DATA(ls_start) = NEW z2ui5_cl_agent_session( client = c_client
-                                                 mode   = z2ui5_cl_agent_session=>cs_mode-copilot )->app_start( c_app ).
+
+
+    CREATE OBJECT temp1 TYPE z2ui5_cl_agent_session EXPORTING client = c_client mode = z2ui5_cl_agent_session=>cs_mode-copilot.
+    ls_start = temp1->app_start( c_app ).
     COMMIT WORK.
-    DATA(ls_open) = NEW z2ui5_cl_agent_session( client = c_client
-                                                mode   = z2ui5_cl_agent_session=>cs_mode-copilot )->app_act( session = ls_start-session
+
+
+    CREATE OBJECT temp2 TYPE z2ui5_cl_agent_session EXPORTING client = c_client mode = z2ui5_cl_agent_session=>cs_mode-copilot.
+    ls_open = temp2->app_act( session = ls_start-session
                                                                                                          event   = `POPUP_OPEN` ).
     COMMIT WORK.
-    DATA(ls_typed) = NEW z2ui5_cl_agent_session( client = c_client
-                                                 mode   = z2ui5_cl_agent_session=>cs_mode-copilot )->app_act( session = ls_open-session
+
+
+    CREATE OBJECT temp3 TYPE z2ui5_cl_agent_session EXPORTING client = c_client mode = z2ui5_cl_agent_session=>cs_mode-copilot.
+    ls_typed = temp3->app_act( session = ls_open-session
                                                                                                           values  = `{"/NOTE":"back on Friday"}` ).
     COMMIT WORK.
     ok( ls_typed ).
-    DATA(lo_demo) = NEW z2ui5_cl_agent_demo( ).
+
+    CREATE OBJECT lo_demo TYPE z2ui5_cl_agent_demo.
     lo_demo->note = `typed by the user`.
-    DATA(lt_written) = z2ui5_cl_agent_assist=>apply_pending( EXPORTING session   = ls_typed-session
+
+    lt_written = z2ui5_cl_agent_assist=>apply_pending( EXPORTING session   = ls_typed-session
                                                                        app       = lo_demo
                                                              IMPORTING t_refused = lt_refused ).
     cl_abap_unit_assert=>assert_equals( exp = `typed by the user`
@@ -540,12 +612,15 @@ CLASS ltcl_session IMPLEMENTATION.
 
     " an act's max_rows is the session's from then on - app_describe
     " answered the stored snapshot for any max_rows asked
-    DATA(ls_start) = mo_session->app_start( app      = c_app
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_act TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = mo_session->app_start( app      = c_app
                                             max_rows = `1` ).
     COMMIT WORK.
     cl_abap_unit_assert=>assert_equals( exp = 1
                                         act = lines( ok( ls_start )->members( `/tables/1/rows` ) ) ).
-    DATA(ls_act) = mo_session->app_act( session  = ls_start-session
+
+    ls_act = mo_session->app_act( session  = ls_start-session
                                         values   = `{"NAME":"x"}`
                                         max_rows = `2` ).
     COMMIT WORK.
@@ -561,7 +636,9 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD row_action.
 
-    DATA(ls_start) = start( ).
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_detail TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
     refused( is_result = mo_session->app_act( session = ls_start-session
                                               event   = `DETAIL` )
              pattern   = `*is a row action of table t1 (2 rows) - pass row (0-1)*` ).
@@ -569,7 +646,8 @@ CLASS ltcl_session IMPLEMENTATION.
                                               event   = `DETAIL`
                                               row     = `7` )
              pattern   = `*table t1 has 2 row(s) - row 7 does not exist*` ).
-    DATA(ls_detail) = mo_session->app_act( session = ls_start-session
+
+    ls_detail = mo_session->app_act( session = ls_start-session
                                            event   = `DETAIL`
                                            row     = `1` ).
     COMMIT WORK.
@@ -582,12 +660,17 @@ CLASS ltcl_session IMPLEMENTATION.
   METHOD row_selection.
 
     " selecting a row is setting its selection field
-    DATA(ls_start) = start( ).
-    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_act TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lo_snap TYPE REF TO z2ui5_if_ajson.
+    ls_start = start( ).
+
+    ls_act = mo_session->app_act( session = ls_start-session
                                         values  = `{"/T_REQUEST/1/SELKZ":true,"NAME":"Fay"}`
                                         event   = `ADD` ).
     COMMIT WORK.
-    DATA(lo_snap) = ok( ls_act ).
+
+    lo_snap = ok( ls_act ).
     cl_abap_unit_assert=>assert_equals( exp = abap_true
                                         act = lo_snap->get_boolean( `/tables/1/rows/2/SELKZ` ) ).
     cl_abap_unit_assert=>assert_equals( exp = abap_false
@@ -601,12 +684,18 @@ CLASS ltcl_session IMPLEMENTATION.
   METHOD typed_values.
 
     " a boolean and a multichoice travel as JSON true / false and an array
-    DATA(ls_start) = start( ).
-    DATA(ls_plan) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_plan TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lo_snap TYPE REF TO z2ui5_if_ajson.
+    DATA ls_none TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
+
+    ls_plan = mo_session->app_act( session = ls_start-session
                                          values  = `{"HOTEL":true,"TAGS":["FAIR","MEET"]}`
                                          event   = `PLAN` ).
     COMMIT WORK.
-    DATA(lo_snap) = ok( ls_plan ).
+
+    lo_snap = ok( ls_plan ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Plan: Customer visit, 2 stop(s), 3 night(s), tags FAIR,MEET, hotel yes","source":"strip"*`
                                          act = ls_plan-text ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"path":"/TAGS"*"kind":"multichoice","value":["FAIR","MEET"]*`
@@ -619,7 +708,8 @@ CLASS ltcl_session IMPLEMENTATION.
                                               values  = `{"TAGS":"FAIR"}` )
              pattern   = `*is a multichoice - pass an array of keys*` ).
 
-    DATA(ls_none) = mo_session->app_act( session = ls_plan-session
+
+    ls_none = mo_session->app_act( session = ls_plan-session
                                          values  = `{"HOTEL":false,"TAGS":[]}`
                                          event   = action_id( io_snap = lo_snap
                                                               event   = `PLAN` ) ).
@@ -634,12 +724,19 @@ CLASS ltcl_session IMPLEMENTATION.
 
     " a field of a structure that holds a table, and a cell of that table:
     " the whole structure travels, its table with it
-    DATA(ls_start) = start( ).
-    DATA(ls_plan) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_plan TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lo_snap TYPE REF TO z2ui5_if_ajson.
+    DATA ls_typed TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_sent TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
+
+    ls_plan = mo_session->app_act( session = ls_start-session
                                          values  = `{"/TRIP/PURPOSE":"Fair","t2/1/NIGHTS":4}`
                                          event   = `PLAN` ).
     COMMIT WORK.
-    DATA(lo_snap) = ok( ls_plan ).
+
+    lo_snap = ok( ls_plan ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"text":"Plan: Fair, 2 stop(s), 5 night(s), tags none, hotel no","source":"strip"*`
                                          act = ls_plan-text ).
     cl_abap_unit_assert=>assert_equals( exp = `/TRIP/T_STOP`
@@ -650,11 +747,13 @@ CLASS ltcl_session IMPLEMENTATION.
                                         act = lo_snap->get_string( `/tables/2/rows/1/CITY` ) ).
 
     " pending first, sent with the next event - the same delta
-    DATA(ls_typed) = mo_session->app_act( session = ls_plan-session
+
+    ls_typed = mo_session->app_act( session = ls_plan-session
                                           values  = `{"t2/0/NIGHTS":3}` ).
     COMMIT WORK.
     ok( ls_typed ).
-    DATA(ls_sent) = mo_session->app_act( session = ls_typed-session
+
+    ls_sent = mo_session->app_act( session = ls_typed-session
                                          event   = `PLAN` ).
     COMMIT WORK.
     ok( ls_sent ).
@@ -675,13 +774,16 @@ CLASS ltcl_session IMPLEMENTATION.
 
   METHOD audit_masks.
 
-    DATA(ls_result) = mo_session->app_start( app    = c_app
+    DATA ls_result TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lv_args TYPE z2ui5_t_14-args.
+    ls_result = mo_session->app_start( app    = c_app
                                              values = `{"IBAN":"DE02100100109307118603","NAME":"Gus"}` ).
     COMMIT WORK.
     ok( ls_result ).
-    SELECT SINGLE args FROM z2ui5_t_14
-      WHERE uname = @sy-uname AND session_id = @ls_result-session AND operation = 'app_start'
-      INTO @DATA(lv_args). "#EC CI_NOORDER
+
+    SELECT SINGLE args FROM z2ui5_t_14 INTO lv_args
+      WHERE uname = sy-uname AND session_id = ls_result-session AND operation = 'app_start'
+      . "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_subrc( ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"IBAN":"***"*`
                                          act = lv_args ).
@@ -695,15 +797,20 @@ CLASS ltcl_session IMPLEMENTATION.
     " typed with an event that opens a popup: the next screen has no IBAN
     " field, and the value is still masked - judged against the screen it
     " was typed into
-    DATA(ls_start) = start( ).
-    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_act TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lv_args TYPE z2ui5_t_14-args.
+    ls_start = start( ).
+
+    ls_act = mo_session->app_act( session = ls_start-session
                                         values  = `{"IBAN":"DE02100100109307118603"}`
                                         event   = `POPUP_OPEN` ).
     COMMIT WORK.
     ok( ls_act ).
-    SELECT SINGLE args FROM z2ui5_t_14
-      WHERE uname = @sy-uname AND session_id = @ls_act-session AND operation = 'app_act'
-      INTO @DATA(lv_args). "#EC CI_NOORDER
+
+    SELECT SINGLE args FROM z2ui5_t_14 INTO lv_args
+      WHERE uname = sy-uname AND session_id = ls_act-session AND operation = 'app_act'
+      . "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_subrc( ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*"IBAN":"***"*`
                                          act = lv_args ).
@@ -718,12 +825,21 @@ CLASS ltcl_session IMPLEMENTATION.
     " another call holds the session (its claim puts changed_at ahead):
     " an act on it is refused before anything runs, and the row is left
     " as it was
-    DATA(ls_start) = start( ).
-    DATA(lv_id) = CONV z2ui5_t_16-id( ls_start-session ).
-    DATA(lv_ahead) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA temp3 TYPE z2ui5_t_16-id.
+    DATA lv_id LIKE temp3.
+    DATA lv_ahead TYPE timestampl.
+    DATA lv_still TYPE z2ui5_t_16-id.
+    ls_start = start( ).
+
+    temp3 = ls_start-session.
+
+    lv_id = temp3.
+
+    lv_ahead = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
                          time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
                          seconds = -300 ).
-    UPDATE z2ui5_t_16 SET changed_at = @lv_ahead WHERE id = @lv_id.
+    UPDATE z2ui5_t_16 SET changed_at = lv_ahead WHERE id = lv_id.
     COMMIT WORK.
     refused( is_result = mo_session->app_act( session = ls_start-session
                                               event   = `POPUP_OPEN` )
@@ -731,7 +847,8 @@ CLASS ltcl_session IMPLEMENTATION.
     refused( is_result = mo_session->app_act( session = ls_start-session
                                               values  = `{"NAME":"x"}` )
              pattern   = `*being continued by another call*` ).
-    SELECT SINGLE id FROM z2ui5_t_16 WHERE id = @lv_id INTO @DATA(lv_still).
+
+    SELECT SINGLE id FROM z2ui5_t_16 INTO lv_still WHERE id = lv_id .
     cl_abap_unit_assert=>assert_subrc( ).
     cl_abap_unit_assert=>assert_equals( exp = lv_id
                                         act = lv_still ).
@@ -752,13 +869,24 @@ CLASS ltcl_session IMPLEMENTATION.
     DATA lv_args TYPE string.
 
     " U+1F600 is two UTF-16 code units - its first one alone is no character
-    DATA(lv_emoji) = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( CONV xstring( `F09F9880` ) ).
-    DATA(lv_high) = substring( val = lv_emoji
+    DATA temp4 TYPE xstring.
+    DATA lv_emoji TYPE string.
+    DATA lv_high TYPE string.
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_act TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA temp5 TYPE z2ui5_cl_agent_audit=>ty_s_entry.
+    temp4 = `F09F9880`.
+
+    lv_emoji = z2ui5_cl_ui5_util_context=>conv_get_string_by_xstring( temp4 ).
+
+    lv_high = substring( val = lv_emoji
                                len = 1 ).
 
     " the refusal quotes the value cut to 80 characters - right in the pair
-    DATA(ls_start) = start( ).
-    DATA(ls_act) = mo_session->app_act( session = ls_start-session
+
+    ls_start = start( ).
+
+    ls_act = mo_session->app_act( session = ls_start-session
                                         values  = |\{"NAME":\{"k":"{ repeat( val = `a`
                                                                                occ = 73 ) }{ lv_emoji }"\}\}| ).
     refused( is_result = ls_act
@@ -768,16 +896,18 @@ CLASS ltcl_session IMPLEMENTATION.
                                                     sub = lv_high ) ).
 
     " the audit log cuts its arguments to c_max_args characters - in the pair
-    z2ui5_cl_agent_audit=>log( VALUE #( session   = `CUT_SURROGATE_PAIR`
-                                        operation = `app_list`
-                                        args      = |{ repeat( val = `a`
-                                                               occ = z2ui5_cl_agent_audit=>c_max_args - 4 ) }{ lv_emoji }tail|
-                                        outcome   = z2ui5_cl_agent_audit=>cs_outcome-ok
-                                        client    = c_client ) ).
+
+    CLEAR temp5.
+    temp5-session = `CUT_SURROGATE_PAIR`.
+    temp5-operation = `app_list`.
+    temp5-args = |{ repeat( val = `a` occ = z2ui5_cl_agent_audit=>c_max_args - 4 ) }{ lv_emoji }tail|.
+    temp5-outcome = z2ui5_cl_agent_audit=>cs_outcome-ok.
+    temp5-client = c_client.
+    z2ui5_cl_agent_audit=>log( temp5 ).
     COMMIT WORK.
-    SELECT SINGLE args FROM z2ui5_t_14
-      WHERE uname = @sy-uname AND session_id = 'CUT_SURROGATE_PAIR' AND timestampl >= @mv_start
-      INTO @lv_args. "#EC CI_NOORDER
+    SELECT SINGLE args FROM z2ui5_t_14 INTO lv_args
+      WHERE uname = sy-uname AND session_id = 'CUT_SURROGATE_PAIR' AND timestampl >= mv_start
+      . "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_subrc( ).
     cl_abap_unit_assert=>assert_equals( exp = |{ repeat( val = `a`
                                                          occ = z2ui5_cl_agent_audit=>c_max_args - 4 ) }...|
@@ -790,11 +920,14 @@ CLASS ltcl_session IMPLEMENTATION.
     " a key typed into the settings app and sent with another event than
     " Save (here by a user who may not change anything) is not kept in the
     " app's draft, nor sent back to the browser
-    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+    DATA lo_sim TYPE REF TO z2ui5_cl_frontend_sim.
+    DATA ls_db LIKE LINE OF mo_store->mt_db.
+    lo_sim = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `LLM_KEY`
                        value = `sk-unit-typed-key` ).
     lo_sim->click( `LLM_TEST` ).
-    LOOP AT mo_store->mt_db INTO DATA(ls_db).
+
+    LOOP AT mo_store->mt_db INTO ls_db.
       cl_abap_unit_assert=>assert_equals( exp = -1
                                           act = find( val = ls_db-data
                                                       sub = `sk-unit-typed-key` )
@@ -809,21 +942,25 @@ CLASS ltcl_session IMPLEMENTATION.
   METHOD admin_change_kept.
 
     DATA lv_count TYPE i.
+    DATA lo_sim TYPE REF TO z2ui5_cl_frontend_sim.
+    DATA lv_url TYPE z2ui5_t_17-value.
 
     " abap2UI5 rolls back what main( ) leaves open: a change an
     " administrator saves in the settings app - and its audit entry - is
     " committed by the app itself
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
-    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+
+    lo_sim = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `URL`
                        value = `/sap/bc/unit_handover` ).
     lo_sim->click( `URL_SAVE` ).
-    SELECT SINGLE value FROM z2ui5_t_17 WHERE kind = 'URL' INTO @DATA(lv_url). "#EC CI_NOORDER
+
+    SELECT SINGLE value FROM z2ui5_t_17 INTO lv_url WHERE kind = 'URL' . "#EC CI_NOORDER
     cl_abap_unit_assert=>assert_equals( exp = `/sap/bc/unit_handover`
                                         act = lv_url ).
-    SELECT COUNT(*) FROM z2ui5_t_14
-      WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start INTO @lv_count.
-    DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
+    SELECT COUNT(*) FROM z2ui5_t_14 INTO lv_count
+      WHERE uname = sy-uname AND operation = 'settings' AND timestampl >= mv_start .
+    DELETE FROM z2ui5_t_14 WHERE uname = sy-uname AND operation = 'settings' AND timestampl >= mv_start.
     COMMIT WORK.
     cl_abap_unit_assert=>assert_equals( exp = 1
                                         act = lv_count ).
@@ -833,11 +970,13 @@ CLASS ltcl_session IMPLEMENTATION.
   METHOD admin_rule_fits.
 
     DATA lv_count TYPE i.
+    DATA lo_sim TYPE REF TO z2ui5_cl_frontend_sim.
 
     " a rule longer than the settings table holds is refused, not cut: a
     " SENSITIVE pattern cut to 60 characters masks nothing
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
-    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
+
+    lo_sim = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `NEW_KIND`
                        value = `SENSITIVE` ).
     lo_sim->set_value( name  = `NEW_APP`
@@ -845,8 +984,8 @@ CLASS ltcl_session IMPLEMENTATION.
     lo_sim->set_value( name  = `NEW_ITEM`
                        value = `/MS_ORDER/S_PAYMENT/T_ACCOUNT/*/INTERNATIONAL_BANK_ACCOUNT_NUMBER` ).
     lo_sim->click( `RULE_ADD` ).
-    SELECT COUNT(*) FROM z2ui5_t_17 WHERE kind = 'SENSITIVE' INTO @lv_count.
-    DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
+    SELECT COUNT(*) FROM z2ui5_t_17 INTO lv_count WHERE kind = 'SENSITIVE' .
+    DELETE FROM z2ui5_t_14 WHERE uname = sy-uname AND operation = 'settings' AND timestampl >= mv_start.
     COMMIT WORK.
     cl_abap_unit_assert=>assert_equals( exp = 0
                                         act = lv_count ).
@@ -856,11 +995,13 @@ CLASS ltcl_session IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD audit_admin_revoked.
+    DATA lo_sim TYPE REF TO z2ui5_cl_frontend_sim.
 
     " the audit log app shows everybody's calls only while the user is an
     " agent administrator - not as long as its draft remembers that he was
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
-    DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_AUDIT` ).
+
+    lo_sim = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_AUDIT` ).
     z2ui5_cl_agent_settings=>remove( kind = z2ui5_cl_agent_settings=>cs_kind-admin
                                      app  = sy-uname ).
     COMMIT WORK.
@@ -875,11 +1016,18 @@ CLASS ltcl_session IMPLEMENTATION.
 
     " a SelectDialog value help: the pick selects the row (SELKZ), clears
     " the previous selection, and fills the confirm's argument from the row
-    DATA(ls_start) = start( ).
-    DATA(ls_help) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_help TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lo_snap TYPE REF TO z2ui5_if_ajson.
+    DATA ls_typed TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_pick TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
+
+    ls_help = mo_session->app_act( session = ls_start-session
                                          event   = `DEST_HELP` ).
     COMMIT WORK.
-    DATA(lo_snap) = ok( ls_help ).
+
+    lo_snap = ok( ls_help ).
     cl_abap_unit_assert=>assert_equals( exp = `popup`
                                         act = lo_snap->get_string( `/layer` ) ).
     cl_abap_unit_assert=>assert_equals( exp = `Destinations`
@@ -894,11 +1042,13 @@ CLASS ltcl_session IMPLEMENTATION.
                                          act = ls_help-text ).
 
     " a row ticked before: picking another one clears it
-    DATA(ls_typed) = mo_session->app_act( session = ls_help-session
+
+    ls_typed = mo_session->app_act( session = ls_help-session
                                           values  = `{"t1/0/SELKZ":true}` ).
     COMMIT WORK.
     ok( ls_typed ).
-    DATA(ls_pick) = mo_session->app_act( session = ls_typed-session
+
+    ls_pick = mo_session->app_act( session = ls_typed-session
                                          event   = `DEST_PICKED`
                                          row     = `2` ).
     COMMIT WORK.
@@ -929,16 +1079,24 @@ CLASS ltcl_session IMPLEMENTATION.
 
     " a TableSelectDialog for several rows: the pick adds its row to the
     " ticked ones, the argument counts the selected contexts
-    DATA(ls_start) = start( ).
-    DATA(ls_help) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_help TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA lo_snap TYPE REF TO z2ui5_if_ajson.
+    DATA ls_pick TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_none TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
+
+    ls_help = mo_session->app_act( session = ls_start-session
                                          event   = `TAGS_HELP` ).
     COMMIT WORK.
-    DATA(lo_snap) = ok( ls_help ).
+
+    lo_snap = ok( ls_help ).
     cl_abap_unit_assert=>assert_equals( exp = `sap.m.TableSelectDialog`
                                         act = lo_snap->get_string( `/tables/1/control` ) ).
     cl_abap_unit_assert=>assert_equals( exp = `Multi`
                                         act = lo_snap->get_string( `/tables/1/selectionMode` ) ).
-    DATA(ls_pick) = mo_session->app_act( session = ls_help-session
+
+    ls_pick = mo_session->app_act( session = ls_help-session
                                          values  = `{"t1/0/SELKZ":true}`
                                          event   = `TAGS_PICKED`
                                          row     = `2` ).
@@ -952,7 +1110,8 @@ CLASS ltcl_session IMPLEMENTATION.
                                    event   = `TAGS_HELP` ).
     COMMIT WORK.
     ok( ls_help ).
-    DATA(ls_none) = mo_session->app_act( session = ls_help-session
+
+    ls_none = mo_session->app_act( session = ls_help-session
                                          values  = `{"t1/0/SELKZ":false,"t1/2/SELKZ":false}`
                                          event   = `TAGS_PICKED` ).
     COMMIT WORK.
@@ -966,8 +1125,11 @@ CLASS ltcl_session IMPLEMENTATION.
 
     " picking one row needs one; a row that does not exist is refused; a
     " refused pick changes nothing
-    DATA(ls_start) = start( ).
-    DATA(ls_help) = mo_session->app_act( session = ls_start-session
+    DATA ls_start TYPE z2ui5_cl_agent_session=>ty_s_result.
+    DATA ls_help TYPE z2ui5_cl_agent_session=>ty_s_result.
+    ls_start = start( ).
+
+    ls_help = mo_session->app_act( session = ls_start-session
                                          event   = `DEST_HELP` ).
     COMMIT WORK.
     ok( ls_help ).
@@ -1047,18 +1209,29 @@ ENDCLASS.
 CLASS ltcl_args IMPLEMENTATION.
 
   METHOD screen.
+    DATA temp6 TYPE z2ui5_cl_agent_snapshot=>ty_s_input.
+    DATA temp4 TYPE z2ui5_cl_frontend_sim=>ty_t_layer.
+    DATA temp5 LIKE LINE OF temp4.
 
     mv_xml = |<mvc:View xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc" xmlns:t="sap.ui.table"><Page title="T">{ xml }</Page></mvc:View>|.
     mv_model = model.
-    mo_cut = NEW #( `ABAP Unit` ).
+    CREATE OBJECT mo_cut EXPORTING CLIENT = `ABAP Unit`.
     mo_cut->mt_pending = t_pending.
-    mo_cut->mo_snap = z2ui5_cl_agent_snapshot=>create( VALUE #( session   = `D1`
-                                                                 app       = `Z_T`
-                                                                 max_rows  = 20
-                                                                 t_pending = t_pending
-                                                                 t_layer   = VALUE #( ( layer = `MAIN`
-                                                                                        xml   = mv_xml
-                                                                                        model = mv_model ) ) ) ).
+
+    CLEAR temp6.
+    temp6-session = `D1`.
+    temp6-app = `Z_T`.
+    temp6-max_rows = 20.
+    temp6-t_pending = t_pending.
+
+    CLEAR temp4.
+
+    temp5-layer = `MAIN`.
+    temp5-xml = mv_xml.
+    temp5-model = mv_model.
+    INSERT temp5 INTO TABLE temp4.
+    temp6-t_layer = temp4.
+    mo_cut->mo_snap = z2ui5_cl_agent_snapshot=>create( temp6 ).
 
   ENDMETHOD.
 
@@ -1066,30 +1239,53 @@ CLASS ltcl_args IMPLEMENTATION.
 
     DATA lt_part TYPE string_table.
     DATA lt_picked TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+        DATA ls_action TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+        DATA temp2 TYPE xsdboolean.
+          DATA temp7 TYPE z2ui5_cl_agent_snapshot=>ty_s_input.
+          DATA temp6 TYPE z2ui5_cl_frontend_sim=>ty_t_layer.
+          DATA temp9 LIKE LINE OF temp6.
+        DATA temp10 TYPE z2ui5_cl_agent_session=>ty_t_input.
+        DATA temp8 TYPE z2ui5_cl_agent_viewxml=>ty_t_val.
+        DATA ls_val LIKE LINE OF temp8.
+        DATA lx TYPE REF TO z2ui5_cx_ui5_util_error.
 
     TRY.
-        DATA(ls_action) = mo_cut->find_action( event   = event
-                                               has_row = xsdbool( row IS NOT INITIAL ) ).
+
+
+        temp2 = boolc( row IS NOT INITIAL ).
+        ls_action = mo_cut->find_action( event   = event
+                                               has_row = temp2 ).
         IF ls_action-pick = abap_true.
           lt_picked = mo_cut->apply_pick( is_action = ls_action
                                           row_raw   = row ).
-          mo_cut->mo_snap = z2ui5_cl_agent_snapshot=>create( VALUE #( session   = `D1`
-                                                                       app       = `Z_T`
-                                                                       max_rows  = 20
-                                                                       t_pending = mo_cut->mt_pending
-                                                                       t_layer   = VALUE #( ( layer = `MAIN`
-                                                                                              xml   = mv_xml
-                                                                                              model = mv_model ) ) ) ).
+
+          CLEAR temp7.
+          temp7-session = `D1`.
+          temp7-app = `Z_T`.
+          temp7-max_rows = 20.
+          temp7-t_pending = mo_cut->mt_pending.
+
+          CLEAR temp6.
+
+          temp9-layer = `MAIN`.
+          temp9-xml = mv_xml.
+          temp9-model = mv_model.
+          INSERT temp9 INTO TABLE temp6.
+          temp7-t_layer = temp6.
+          mo_cut->mo_snap = z2ui5_cl_agent_snapshot=>create( temp7 ).
         ENDIF.
-        LOOP AT mo_cut->event_args( is_action = ls_action
-                                    t_given   = VALUE #( )
-                                    row_raw   = row
-                                    t_picked  = lt_picked ) INTO DATA(ls_val).
+
+        CLEAR temp10.
+
+        temp8 = mo_cut->event_args( is_action = ls_action t_given = temp10 row_raw = row t_picked = lt_picked ).
+
+        LOOP AT temp8 INTO ls_val.
           INSERT z2ui5_cl_agent_viewxml=>val_to_json( ls_val ) INTO TABLE lt_part.
         ENDLOOP.
         result = |[{ concat_lines_of( table = lt_part
                                       sep   = `,` ) }]|.
-      CATCH z2ui5_cx_ui5_util_error INTO DATA(lx).
+
+      CATCH z2ui5_cx_ui5_util_error INTO lx.
         result = lx->get_text( ).
     ENDTRY.
 
@@ -1099,8 +1295,12 @@ CLASS ltcl_args IMPLEMENTATION.
 
     DATA lt_part TYPE string_table.
 
-    LOOP AT mo_cut->mt_pending INTO DATA(ls_pending).
-      INSERT |{ ls_pending-path }={ z2ui5_cl_agent_viewxml=>val_to_json( ls_pending-val ) }| INTO TABLE lt_part.
+    DATA ls_pending LIKE LINE OF mo_cut->mt_pending.
+      DATA temp9 LIKE LINE OF lt_part.
+    LOOP AT mo_cut->mt_pending INTO ls_pending.
+
+      temp9 = |{ ls_pending-path }={ z2ui5_cl_agent_viewxml=>val_to_json( ls_pending-val ) }|.
+      INSERT temp9 INTO TABLE lt_part.
     ENDLOOP.
     result = concat_lines_of( table = lt_part
                               sep   = ` ` ).
@@ -1164,14 +1364,20 @@ CLASS ltcl_args IMPLEMENTATION.
   METHOD pick_ticked.
 
     " without row a multi-select dialog confirms what is ticked
+    DATA temp10 TYPE z2ui5_cl_agent_snapshot=>ty_t_pending.
+    DATA temp11 LIKE LINE OF temp10.
+    CLEAR temp10.
+
+    temp11-model_key = `MAIN`.
+    temp11-path = `/T/0/SEL`.
+    temp11-val = z2ui5_cl_agent_viewxml=>val_boolean( abap_true ).
+    INSERT temp11 INTO TABLE temp10.
     screen( xml       = dialog( multi = `true`
                                 args  = `, ${$parameters>/selectedContexts/0/sPath}` )
             model     = replace( val  = rows( )
                                  sub  = `"N":10,"SEL":true`
                                  with = `"N":10,"SEL":false` )
-            t_pending = VALUE #( ( model_key = `MAIN`
-                                   path      = `/T/0/SEL`
-                                   val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_true ) ) ) ).
+            t_pending = temp10 ).
     cl_abap_unit_assert=>assert_equals( exp = `["/T/0"]`
                                         act = act( `OK` ) ).
     cl_abap_unit_assert=>assert_equals( exp = `/T/0/SEL=true`
@@ -1208,11 +1414,23 @@ CLASS ltcl_args IMPLEMENTATION.
 
     " a marshalled control, an id, a cell that does not exist, a property the
     " template does not set: asked for in args
-    LOOP AT VALUE string_table( ( `${$parameters>/selectedItems}|$parameters:selectedItems` )
-                                ( `${$parameters>/selectedItem}.getId()|$expr:${$parameters>/selectedItem}.getId()` )
-                                ( `${$parameters>/selectedItem}.getCells()[5].getText()|$expr:${$parameters>/selectedItem}.getCells()[5].getText()` )
-                                ( `${$parameters>/selectedItem}.getHighlight()|$expr:${$parameters>/selectedItem}.getHighlight()` ) ) INTO DATA(lv_case).
-      SPLIT lv_case AT `|` INTO DATA(lv_arg) DATA(lv_describe).
+    DATA temp11 TYPE string_table.
+    DATA temp12 LIKE temp11.
+    DATA lv_case LIKE LINE OF temp12.
+      DATA lv_arg TYPE string.
+      DATA lv_describe TYPE string.
+    CLEAR temp11.
+    INSERT `${$parameters>/selectedItems}|$parameters:selectedItems` INTO TABLE temp11.
+    INSERT `${$parameters>/selectedItem}.getId()|$expr:${$parameters>/selectedItem}.getId()` INTO TABLE temp11.
+    INSERT `${$parameters>/selectedItem}.getCells()[5].getText()|$expr:${$parameters>/selectedItem}.getCells()[5].getText()` INTO TABLE temp11.
+    INSERT `${$parameters>/selectedItem}.getHighlight()|$expr:${$parameters>/selectedItem}.getHighlight()` INTO TABLE temp11.
+
+    temp12 = temp11.
+
+    LOOP AT temp12 INTO lv_case.
+
+
+      SPLIT lv_case AT `|` INTO lv_arg lv_describe.
       screen( xml   = dialog( multi = `false`
                               args  = |, { lv_arg }| )
               model = rows( ) ).
@@ -1275,23 +1493,35 @@ CLASS ltcl_args IMPLEMENTATION.
 
     " the values disable the action - the browser cannot press it then, so
     " the act does not fire it either
-    DATA(lv_xml) = `<CheckBox selected="{/OPEN}"/><Button text="Delete" enabled="{/OPEN}" press=".eB(['DEL'])"/>`.
+    DATA lv_xml TYPE string.
+    DATA ls_action TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+    DATA temp13 TYPE z2ui5_cl_agent_snapshot=>ty_t_pending.
+    DATA temp14 LIKE LINE OF temp13.
+        DATA lx TYPE REF TO z2ui5_cx_ui5_util_error.
+    lv_xml = `<CheckBox selected="{/OPEN}"/><Button text="Delete" enabled="{/OPEN}" press=".eB(['DEL'])"/>`.
     screen( xml   = lv_xml
             model = `{"OPEN":true}` ).
-    DATA(ls_action) = mo_cut->find_action( event   = `DEL`
+
+    ls_action = mo_cut->find_action( event   = `DEL`
                                            has_row = abap_false ).
     cl_abap_unit_assert=>assert_true( ls_action-enabled ).
+
+    CLEAR temp13.
+
+    temp14-model_key = `MAIN`.
+    temp14-path = `/OPEN`.
+    temp14-val = z2ui5_cl_agent_viewxml=>val_boolean( abap_false ).
+    INSERT temp14 INTO TABLE temp13.
     screen( xml       = lv_xml
             model     = `{"OPEN":true}`
-            t_pending = VALUE #( ( model_key = `MAIN`
-                                   path      = `/OPEN`
-                                   val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_false ) ) ) ).
+            t_pending = temp13 ).
     TRY.
         mo_cut->action_again( id      = ls_action-id
                               event   = `DEL`
                               refusal = `refused` ).
         cl_abap_unit_assert=>fail( `an action the values disabled was not refused` ).
-      CATCH z2ui5_cx_ui5_util_error INTO DATA(lx).
+
+      CATCH z2ui5_cx_ui5_util_error INTO lx.
         cl_abap_unit_assert=>assert_char_cp( exp = `action a1 (Delete) is disabled once the values are filled*`
                                              act = lx->get_text( ) ).
     ENDTRY.
@@ -1301,26 +1531,38 @@ CLASS ltcl_args IMPLEMENTATION.
   METHOD action_hidden.
 
     " the action checked before the values: still there, it is fired ...
-    DATA(lv_xml) = `<CheckBox selected="{/SHOW}"/><Button text="Go" visible="{/SHOW}" press=".eB(['GO'])"/>`.
+    DATA lv_xml TYPE string.
+    DATA ls_action TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+        DATA lx TYPE REF TO z2ui5_cx_ui5_util_error.
+    DATA temp15 TYPE z2ui5_cl_agent_snapshot=>ty_t_pending.
+    DATA temp16 LIKE LINE OF temp15.
+    lv_xml = `<CheckBox selected="{/SHOW}"/><Button text="Go" visible="{/SHOW}" press=".eB(['GO'])"/>`.
     screen( xml   = lv_xml
             model = `{"SHOW":true}` ).
-    DATA(ls_action) = mo_cut->find_action( event   = `GO`
+
+    ls_action = mo_cut->find_action( event   = `GO`
                                            has_row = abap_false ).
     TRY.
         cl_abap_unit_assert=>assert_equals( exp = `GO`
                                             act = mo_cut->action_again( id      = ls_action-id
                                                                         event   = `GO`
                                                                         refusal = `refused` )-event ).
-      CATCH z2ui5_cx_ui5_util_error INTO DATA(lx).
+
+      CATCH z2ui5_cx_ui5_util_error INTO lx.
         cl_abap_unit_assert=>fail( lx->get_text( ) ).
     ENDTRY.
 
     " ... hidden by the values, it is gone - refused, not fired as it was
+
+    CLEAR temp15.
+
+    temp16-model_key = `MAIN`.
+    temp16-path = `/SHOW`.
+    temp16-val = z2ui5_cl_agent_viewxml=>val_boolean( abap_false ).
+    INSERT temp16 INTO TABLE temp15.
     screen( xml       = lv_xml
             model     = `{"SHOW":true}`
-            t_pending = VALUE #( ( model_key = `MAIN`
-                                   path      = `/SHOW`
-                                   val       = z2ui5_cl_agent_viewxml=>val_boolean( abap_false ) ) ) ).
+            t_pending = temp15 ).
     TRY.
         mo_cut->action_again( id      = ls_action-id
                               event   = `GO`

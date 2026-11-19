@@ -29,7 +29,7 @@ CLASS z2ui5_cl_agent_genui_demo DEFINITION PUBLIC FINAL CREATE PUBLIC.
         seatsocc TYPE i,
         status   TYPE string,
       END OF ty_s_flight.
-    TYPES ty_t_flight TYPE STANDARD TABLE OF ty_s_flight WITH EMPTY KEY.
+    TYPES ty_t_flight TYPE STANDARD TABLE OF ty_s_flight WITH DEFAULT KEY.
 
     DATA t_flight   TYPE ty_t_flight.
     DATA request    TYPE string.
@@ -64,57 +64,124 @@ CLASS z2ui5_cl_agent_genui_demo IMPLEMENTATION.
   METHOD z2ui5_if_app~main.
 
     me->client = client.
-    IF client->check_on_init( ).
+    IF client->check_on_init( ) IS NOT INITIAL.
       model_init( ).
       view_display( ).
-    ELSEIF client->check_on_navigated( ).
+    ELSEIF client->check_on_navigated( ) IS NOT INITIAL.
       view_display( ).
-    ELSEIF client->check_on_event( ).
+    ELSEIF client->check_on_event( ) IS NOT INITIAL.
       on_event( ).
     ENDIF.
 
   ENDMETHOD.
 
   METHOD model_init.
+    DATA temp1 TYPE z2ui5_cl_agent_genui_demo=>ty_t_flight.
+    DATA temp2 LIKE LINE OF temp1.
 
     request = `the flights as a table grouped by carrier, with the price and the occupied seats`.
     configured = z2ui5_cl_agent_llm=>check_configured( ).
-    t_flight = VALUE #(
-      ( carrid = `LH` connid = `0400` fldate = `2026-10-05` cityfrom = `Frankfurt` cityto = `New York`
-        price = '666.00' currency = `EUR` seatsmax = 330 seatsocc = 312 status = `open` )
-      ( carrid = `LH` connid = `0402` fldate = `2026-10-06` cityfrom = `Frankfurt` cityto = `New York`
-        price = '702.50' currency = `EUR` seatsmax = 330 seatsocc = 330 status = `full` )
-      ( carrid = `AA` connid = `0017` fldate = `2026-10-05` cityfrom = `New York` cityto = `San Francisco`
-        price = '422.94' currency = `USD` seatsmax = 385 seatsocc = 201 status = `open` )
-      ( carrid = `AA` connid = `0064` fldate = `2026-10-07` cityfrom = `San Francisco` cityto = `New York`
-        price = '422.94' currency = `USD` seatsmax = 385 seatsocc = 0 status = `cancelled` )
-      ( carrid = `SQ` connid = `0002` fldate = `2026-10-08` cityfrom = `Singapore` cityto = `San Francisco`
-        price = '849.00' currency = `SGD` seatsmax = 280 seatsocc = 254 status = `open` )
-      ( carrid = `JL` connid = `0407` fldate = `2026-10-09` cityfrom = `Tokyo` cityto = `Frankfurt`
-        price = '1065.00' currency = `JPY` seatsmax = 280 seatsocc = 99 status = `open` ) ).
+
+    CLEAR temp1.
+
+    temp2-carrid = `LH`.
+    temp2-connid = `0400`.
+    temp2-fldate = `2026-10-05`.
+    temp2-cityfrom = `Frankfurt`.
+    temp2-cityto = `New York`.
+    temp2-price = '666.00'.
+    temp2-currency = `EUR`.
+    temp2-seatsmax = 330.
+    temp2-seatsocc = 312.
+    temp2-status = `open`.
+    INSERT temp2 INTO TABLE temp1.
+    temp2-carrid = `LH`.
+    temp2-connid = `0402`.
+    temp2-fldate = `2026-10-06`.
+    temp2-cityfrom = `Frankfurt`.
+    temp2-cityto = `New York`.
+    temp2-price = '702.50'.
+    temp2-currency = `EUR`.
+    temp2-seatsmax = 330.
+    temp2-seatsocc = 330.
+    temp2-status = `full`.
+    INSERT temp2 INTO TABLE temp1.
+    temp2-carrid = `AA`.
+    temp2-connid = `0017`.
+    temp2-fldate = `2026-10-05`.
+    temp2-cityfrom = `New York`.
+    temp2-cityto = `San Francisco`.
+    temp2-price = '422.94'.
+    temp2-currency = `USD`.
+    temp2-seatsmax = 385.
+    temp2-seatsocc = 201.
+    temp2-status = `open`.
+    INSERT temp2 INTO TABLE temp1.
+    temp2-carrid = `AA`.
+    temp2-connid = `0064`.
+    temp2-fldate = `2026-10-07`.
+    temp2-cityfrom = `San Francisco`.
+    temp2-cityto = `New York`.
+    temp2-price = '422.94'.
+    temp2-currency = `USD`.
+    temp2-seatsmax = 385.
+    temp2-seatsocc = 0.
+    temp2-status = `cancelled`.
+    INSERT temp2 INTO TABLE temp1.
+    temp2-carrid = `SQ`.
+    temp2-connid = `0002`.
+    temp2-fldate = `2026-10-08`.
+    temp2-cityfrom = `Singapore`.
+    temp2-cityto = `San Francisco`.
+    temp2-price = '849.00'.
+    temp2-currency = `SGD`.
+    temp2-seatsmax = 280.
+    temp2-seatsocc = 254.
+    temp2-status = `open`.
+    INSERT temp2 INTO TABLE temp1.
+    temp2-carrid = `JL`.
+    temp2-connid = `0407`.
+    temp2-fldate = `2026-10-09`.
+    temp2-cityfrom = `Tokyo`.
+    temp2-cityto = `Frankfurt`.
+    temp2-price = '1065.00'.
+    temp2-currency = `JPY`.
+    temp2-seatsmax = 280.
+    temp2-seatsocc = 99.
+    temp2-status = `open`.
+    INSERT temp2 INTO TABLE temp1.
+    t_flight = temp1.
 
   ENDMETHOD.
 
   METHOD view_display.
 
-    DATA(view) = z2ui5_cl_ui5_view_builder=>factory(
+    DATA view TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA page TYPE REF TO z2ui5_cl_ui5_view_builder.
+    DATA temp1 TYPE xsdboolean.
+    DATA table TYPE REF TO z2ui5_cl_ui5_view_builder.
+    view = z2ui5_cl_ui5_view_builder=>factory(
         )->ele( n = `View` ns = `mvc`
             )->a( n = `xmlns`        v = `sap.m`
             )->a( n = `xmlns:mvc`    v = `sap.ui.core.mvc`
             )->a( n = `displayBlock` v = `true`
             )->a( n = `height`       v = `100%` ).
 
-    DATA(page) = view->ele( `Shell`
+
+    page = view->ele( `Shell`
         )->ele( `Page`
             )->a( n = `title` v = `abap2UI5 agent - generative UI` ).
 
+
+    temp1 = boolc( configured = abap_false ).
     page->tag( `MessageStrip`
         )->a( n = `text`     v = `No language model is configured - an agent administrator sets it up in z2ui5_cl_agent_app_admin.`
         )->a( n = `type`     v = `Warning`
         )->a( n = `showIcon` v = `true`
-        )->a( n = `visible`  b = xsdbool( configured = abap_false ) ).
+        )->a( n = `visible`  b = temp1 ).
 
-    DATA(table) = page->ele( `Table`
+
+    table = page->ele( `Table`
         )->a( n = `headerText` v = `The data the view may show (the app decides - the model never chooses data)`
         )->a( n = `items`      v = client->_bind( t_flight ) ).
 
@@ -196,25 +263,54 @@ CLASS z2ui5_cl_agent_genui_demo IMPLEMENTATION.
 
   METHOD generate.
 
-    DATA(genui) = z2ui5_cl_agent_genui=>create( client = client
+    DATA temp3 TYPE z2ui5_cl_agent_genui=>ty_t_label.
+    DATA temp4 LIKE LINE OF temp3.
+    DATA temp1 TYPE string_table.
+    DATA genui TYPE REF TO z2ui5_cl_agent_genui.
+    DATA ls_result TYPE z2ui5_cl_agent_genui=>ty_s_result.
+    CLEAR temp3.
+
+    temp4-field = `CARRID`.
+    temp4-label = `Airline`.
+    INSERT temp4 INTO TABLE temp3.
+    temp4-field = `CONNID`.
+    temp4-label = `Connection`.
+    INSERT temp4 INTO TABLE temp3.
+    temp4-field = `FLDATE`.
+    temp4-label = `Date`.
+    INSERT temp4 INTO TABLE temp3.
+    temp4-field = `CITYFROM`.
+    temp4-label = `From`.
+    INSERT temp4 INTO TABLE temp3.
+    temp4-field = `CITYTO`.
+    temp4-label = `To`.
+    INSERT temp4 INTO TABLE temp3.
+    temp4-field = `SEATSMAX`.
+    temp4-label = `Seats`.
+    INSERT temp4 INTO TABLE temp3.
+    temp4-field = `SEATSOCC`.
+    temp4-label = `Occupied seats`.
+    INSERT temp4 INTO TABLE temp3.
+
+    CLEAR temp1.
+    INSERT `CARRID` INTO TABLE temp1.
+    INSERT `CONNID` INTO TABLE temp1.
+    INSERT `FLDATE` INTO TABLE temp1.
+
+    genui = z2ui5_cl_agent_genui=>create( client = client
                                                 app    = app_name( )
         )->add_table( name        = `flights`
                       val         = t_flight
                       description = `flights of the coming week, one row per flight`
-                      t_label     = VALUE #( ( field = `CARRID`   label = `Airline` )
-                                             ( field = `CONNID`   label = `Connection` )
-                                             ( field = `FLDATE`   label = `Date` )
-                                             ( field = `CITYFROM` label = `From` )
-                                             ( field = `CITYTO`   label = `To` )
-                                             ( field = `SEATSMAX` label = `Seats` )
-                                             ( field = `SEATSOCC` label = `Occupied seats` ) )
+                      t_label     = temp3
         )->add_event( event       = `ROW_SELECT`
                       description = `the user picks a flight`
-                      t_arg       = VALUE #( ( `CARRID` ) ( `CONNID` ) ( `FLDATE` ) )
+                      t_arg       = temp1
         )->add_event( event       = `REFRESH`
                       description = `reload the data` ).
 
-    DATA(ls_result) = genui->generate( request     = request
+
+    ls_result = genui->generate( request     = request
                                        close_event = `GENUI_CLOSE` ).
     report = concat_lines_of( table = ls_result-t_note
                               sep   = ` / ` ).

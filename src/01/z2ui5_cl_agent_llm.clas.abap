@@ -144,8 +144,9 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
     DATA li_inner TYPE REF TO z2ui5_if_agent_llm.
     " stays unbound - only its type is read (rtti_get_ref_type_name)
     DATA li_llm TYPE REF TO z2ui5_if_agent_llm.
+        DATA lx TYPE REF TO cx_root.
 
-    result = NEW #( ).
+    CREATE OBJECT result.
     result->mv_provider = get_provider( ).
     IF gi_double IS BOUND.
       result->mi_inner = gi_double.
@@ -172,7 +173,8 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
     TRY.
         CREATE OBJECT li_inner TYPE (result->mv_provider).
         result->mi_inner = li_inner.
-      CATCH cx_root INTO DATA(lx).
+
+      CATCH cx_root INTO lx.
         RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
           EXPORTING
             kind     = z2ui5_cx_agent_llm=>cs_kind-config
@@ -187,6 +189,12 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
     DATA li_http TYPE REF TO z2ui5_if_agent_llm_http.
     DATA lt_class TYPE string_table.
     DATA lo_self TYPE REF TO z2ui5_cl_agent_llm.
+    DATA lv_prefix TYPE string.
+    DATA temp11 TYPE string_table.
+    DATA temp3 LIKE LINE OF temp11.
+    DATA temp4 LIKE LINE OF temp11.
+    DATA lv_intf TYPE string.
+    DATA lv_class LIKE LINE OF lt_class.
 
     IF gi_http IS BOUND.
       result = gi_http.
@@ -195,11 +203,22 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
     " the two entries ship on different branches (standard / cloud), so they
     " are named, not referenced - behind the prefix of this class's own name,
     " which a namespace rename carries along
-    DATA(lv_prefix) = substring_before( val = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( lo_self )
+
+    lv_prefix = substring_before( val = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( lo_self )
                                         sub = `CL_AGENT_LLM` ).
-    lt_class = VALUE #( ( lv_prefix && `CL_AGENT_LLM_STD` ) ( lv_prefix && `CL_AGENT_LLM_CLOUD` ) ).
-    DATA(lv_intf) = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( li_http ).
-    LOOP AT lt_class INTO DATA(lv_class).
+
+    CLEAR temp11.
+
+    temp3 = lv_prefix && `CL_AGENT_LLM_STD`.
+    INSERT temp3 INTO TABLE temp11.
+
+    temp4 = lv_prefix && `CL_AGENT_LLM_CLOUD`.
+    INSERT temp4 INTO TABLE temp11.
+    lt_class = temp11.
+
+    lv_intf = z2ui5_cl_ui5_util_context=>rtti_get_ref_type_name( li_http ).
+
+    LOOP AT lt_class INTO lv_class.
       IF z2ui5_cl_ui5_util_context=>rtti_check_class_impl_intf( class = lv_class
                                                                 intf  = lv_intf ) = abap_false.
         CONTINUE.
@@ -224,7 +243,11 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
 
     DATA lx TYPE REF TO z2ui5_cx_agent_llm.
 
-    DATA(ls_request) = is_request.
+    DATA ls_request LIKE is_request.
+    DATA lv_start TYPE timestampl.
+              DATA lx_parse TYPE REF TO cx_root.
+        DATA lx_provider TYPE REF TO cx_root.
+    ls_request = is_request.
     IF ls_request-effort IS INITIAL.
       ls_request-effort = to_lower( z2ui5_cl_agent_settings=>get_llm( z2ui5_cl_agent_settings=>cs_llm-effort ) ).
     ENDIF.
@@ -242,7 +265,8 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
       ls_request-max_tokens = c_default_max_tokens.
     ENDIF.
 
-    DATA(lv_start) = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
+
+    lv_start = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
     TRY.
         result = mi_inner->chat( ls_request ).
 
@@ -281,7 +305,8 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
           TRY.
               result-json = z2ui5_cl_ajson=>parse( iv_json            = result-text
                                                    iv_keep_item_order = abap_true ).
-            CATCH cx_root INTO DATA(lx_parse).
+
+            CATCH cx_root INTO lx_parse.
               RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
                 EXPORTING
                   kind     = z2ui5_cx_agent_llm=>cs_kind-response
@@ -303,13 +328,12 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
                                  time_to   = z2ui5_cl_ui5_util_context=>time_get_timestampl( ) )
                error       = |{ lx->kind }: { lx->get_text( ) }| ).
         RAISE EXCEPTION lx.
-      CATCH cx_root INTO DATA(lx_provider).
+
+      CATCH cx_root INTO lx_provider.
         " a provider of your own may fail with anything (a conversion,
         " CX_SY_NO_HANDLER): audited and raised as the one exception the
         " callers handle - generate( ) of generative UI promises never to raise
-        lx = NEW #( kind     = z2ui5_cx_agent_llm=>cs_kind-response
-                    text     = |the language model provider { mv_provider } failed - { lx_provider->get_text( ) }|
-                    previous = lx_provider ).
+        CREATE OBJECT lx EXPORTING kind = z2ui5_cx_agent_llm=>cs_kind-response text = |the language model provider { mv_provider } failed - { lx_provider->get_text( ) }| previous = lx_provider.
         audit( is_request  = ls_request
                is_response = result
                ms          = z2ui5_cl_ui5_util_context=>time_diff_milliseconds(
@@ -325,9 +349,21 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
 
     DATA lt_message TYPE string_table.
 
-    DATA(lv_args) = |\{"model":{ z2ui5_cl_agent_viewxml=>json_string( is_response-model ) }| &&
+    DATA temp13 TYPE string.
+    DATA lv_args TYPE string.
+      DATA ls_message LIKE LINE OF is_request-t_message.
+        DATA temp14 LIKE LINE OF lt_message.
+    DATA temp15 TYPE z2ui5_cl_agent_audit=>ty_s_entry.
+    DATA temp5 TYPE z2ui5_cl_agent_audit=>ty_s_entry-outcome.
+    IF is_request-schema IS NOT INITIAL.
+      temp13 = `true`.
+    ELSE.
+      temp13 = `false`.
+    ENDIF.
+
+    lv_args = |\{"model":{ z2ui5_cl_agent_viewxml=>json_string( is_response-model ) }| &&
                     |,"effort":{ z2ui5_cl_agent_viewxml=>json_string( is_request-effort ) }| &&
-                    |,"structured":{ COND string( WHEN is_request-schema IS NOT INITIAL THEN `true` ELSE `false` ) }| &&
+                    |,"structured":{ temp13 }| &&
                     |,"stop_reason":{ z2ui5_cl_agent_viewxml=>json_string( is_response-stop_reason ) }| &&
                     |,"input_tokens":{ is_response-usage-input_tokens }| &&
                     |,"output_tokens":{ is_response-usage-output_tokens }| &&
@@ -340,10 +376,11 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
     " the whole screen) filled them - the answer was never kept, and the
     " args were no JSON any more.
     IF z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-log_prompts ) = abap_true.
-      LOOP AT is_request-t_message INTO DATA(ls_message).
-        INSERT |\{"role":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-role ) }| &&
-               |,"content":{ z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_viewxml=>cut( val = ls_message-content
-                                                                                                len = c_audit_text ) ) }\}|
+
+      LOOP AT is_request-t_message INTO ls_message.
+
+        temp14 = |\{"role":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-role ) }| && |,"content":{ z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_viewxml=>cut( val = ls_message-content len = c_audit_text ) ) }\}|.
+        INSERT temp14
                INTO TABLE lt_message.
       ENDLOOP.
       lv_args = |{ lv_args },"answer":{ z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_viewxml=>cut( val = is_response-text
@@ -352,15 +389,22 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
                                                  sep   = `,` ) }]|.
     ENDIF.
 
-    z2ui5_cl_agent_audit=>log( VALUE #( app       = is_request-app
-                                        operation = `llm`
-                                        event     = is_request-purpose
-                                        args      = |{ lv_args }\}|
-                                        outcome   = COND #( WHEN error IS INITIAL
-                                                            THEN z2ui5_cl_agent_audit=>cs_outcome-ok
-                                                            ELSE z2ui5_cl_agent_audit=>cs_outcome-error )
-                                        text      = error
-                                        client    = mv_provider ) ).
+
+    CLEAR temp15.
+    temp15-app = is_request-app.
+    temp15-operation = `llm`.
+    temp15-event = is_request-purpose.
+    temp15-args = |{ lv_args }\}|.
+
+    IF error IS INITIAL.
+      temp5 = z2ui5_cl_agent_audit=>cs_outcome-ok.
+    ELSE.
+      temp5 = z2ui5_cl_agent_audit=>cs_outcome-error.
+    ENDIF.
+    temp15-outcome = temp5.
+    temp15-text = error.
+    temp15-client = mv_provider.
+    z2ui5_cl_agent_audit=>log( temp15 ).
 
   ENDMETHOD.
 

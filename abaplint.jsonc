@@ -19,7 +19,7 @@
       // workflow for one yet
       "branch": "main",
       "folder": "/.abaplint-deps/abap2UI5",
-      "files": "/src/**/*.*"
+      "files": "/src/0[0-2]/**/*.*"
     },
     {
       // the simulator this addon runs on (resume, get_state, get_layers,

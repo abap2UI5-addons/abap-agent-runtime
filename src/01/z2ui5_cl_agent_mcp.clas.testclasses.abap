@@ -62,6 +62,14 @@ CLASS ltd_draft_store IMPLEMENTATION.
     " nothing expires within a test
   ENDMETHOD.
 
+  METHOD z2ui5_if_ui5_draft_store~prune_chain.
+    " the double keeps every draft - no test here measures the pruning
+  ENDMETHOD.
+
+  METHOD z2ui5_if_ui5_draft_store~touch.
+    " no expiry in the double, so there is no time to renew
+  ENDMETHOD.
+
 ENDCLASS.
 
 

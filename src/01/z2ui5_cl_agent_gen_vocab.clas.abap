@@ -13,7 +13,7 @@ CLASS z2ui5_cl_agent_gen_vocab DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CONSTANTS c_profile TYPE string VALUE `portable-v1`.
     CONSTANTS c_floor TYPE string VALUE `1.71`.
     "! sha256 of the pinned profile this class was generated from
-    CONSTANTS c_source TYPE string VALUE `5dc3e6be15c70c41bd5580eb40154957f792231a527207f0208ed22e278867dc`.
+    CONSTANTS c_source TYPE string VALUE `f4bc60e467f38472ddc0cb6b785ac3f2ebef3b91fe8954b21ba62bc89ae32980`.
 
     TYPES:
       "! control: the full UI5 name. kind: D default aggregation, P property,

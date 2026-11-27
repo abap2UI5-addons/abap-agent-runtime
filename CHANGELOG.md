@@ -131,6 +131,9 @@ and by its lint targets, not yet on a system in production use, and its API -
   took the first enabled one in the view, a row's. The action and the
   protected fields are resolved by the snapshot for both
   (`find_action( )`, `resolve_target( )`, `is_protected( )`).
+- The copilot sends the model the conversation it keeps itself, not the
+  list bound to the popup: an "assistant" turn written into that list in the
+  browser reached the model as the copilot's own words.
 
 ### Tooling
 

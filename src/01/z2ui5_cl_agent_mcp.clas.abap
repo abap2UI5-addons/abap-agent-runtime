@@ -37,6 +37,8 @@ CLASS z2ui5_cl_agent_mcp DEFINITION PUBLIC FINAL CREATE PUBLIC.
     "! The MCP revisions this endpoint speaks, newest first - it uses
     "! nothing (tools, JSON responses) that differs between them.
     CONSTANTS c_protocol_versions TYPE string VALUE `2025-11-25,2025-06-18,2025-03-26,2024-11-05`.
+    "! Seconds an MCP session (Z2UI5_T_15) lives without a request.
+    CONSTANTS c_session_seconds TYPE i VALUE 86400.
 
     TYPES:
       BEGIN OF ty_s_header,
@@ -540,7 +542,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
                         value = ls_row-id ) INTO TABLE mt_header.
         " MCP sessions older than a day are gone
         DATA(lv_limit) = z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = ls_row-created_at
-                                                                           seconds = 86400 ).
+                                                                           seconds = c_session_seconds ).
         DELETE FROM z2ui5_t_15 WHERE changed_at < @lv_limit.
       CATCH cx_root ##NO_HANDLER.
         " the session id is optional - without it the client name stays

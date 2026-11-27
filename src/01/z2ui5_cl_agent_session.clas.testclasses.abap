@@ -89,7 +89,6 @@ CLASS ltcl_session DEFINITION FINAL
 
     DATA mo_store   TYPE REF TO ltd_draft_store.
     DATA mo_session TYPE REF TO z2ui5_cl_agent_session.
-    DATA mt_setting TYPE z2ui5_cl_agent_settings=>ty_t_setting.
     DATA mv_start   TYPE timestampl.
 
     METHODS setup.
@@ -113,8 +112,10 @@ CLASS ltcl_session DEFINITION FINAL
     METHODS disabled            FOR TESTING.
     METHODS audit_masks         FOR TESTING.
     METHODS audit_masks_act     FOR TESTING.
+    METHODS audit_masks_refusal FOR TESTING.
     METHODS claimed_session     FOR TESTING.
     METHODS audit_cleanup_range FOR TESTING.
+    METHODS session_cleanup     FOR TESTING.
     METHODS cut_surrogate_pair  FOR TESTING.
     METHODS admin_key_not_kept  FOR TESTING.
     METHODS admin_change_kept   FOR TESTING.
@@ -157,10 +158,10 @@ CLASS ltcl_session IMPLEMENTATION.
     z2ui5_cl_ui5_srv_draft=>set_instance( mo_store ).
     mv_start = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
 
-    SELECT * FROM z2ui5_t_17 INTO TABLE @mt_setting.
-    DELETE FROM z2ui5_t_17.
+    " the settings live in the test buffer - the system's Z2UI5_T_17 is
+    " neither changed nor committed
+    z2ui5_cl_agent_settings=>set_test_buffer( ).
     z2ui5_cl_agent_settings=>set_enabled( abap_true ).
-    COMMIT WORK.
     mo_session = NEW #( c_client ).
 
   ENDMETHOD.
@@ -171,10 +172,8 @@ CLASS ltcl_session IMPLEMENTATION.
 
     DELETE FROM z2ui5_t_16 WHERE uname = @sy-uname AND created_at >= @mv_start.
     DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND mcp_client = @c_client AND timestampl >= @mv_start.
-    DELETE FROM z2ui5_t_17.
-    INSERT z2ui5_t_17 FROM TABLE @mt_setting.
     COMMIT WORK.
-    z2ui5_cl_agent_settings=>refresh( ).
+    z2ui5_cl_agent_settings=>end_test_buffer( ).
     z2ui5_cl_ui5_srv_draft=>set_instance( li_default ).
 
   ENDMETHOD.
@@ -721,6 +720,28 @@ CLASS ltcl_session IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD audit_masks_refusal.
+
+    " a refused value of a sensitive field is not repeated - the refusal's
+    " text is audited as it is
+    z2ui5_cl_agent_settings=>save( kind = z2ui5_cl_agent_settings=>cs_kind-sensitive
+                                   app  = c_app
+                                   item = `/DAYS` ).
+    DATA(ls_start) = start( ).
+    refused( is_result = mo_session->app_act( session = ls_start-session
+                                              values  = `{"DAYS":"secret-days"}` )
+             pattern   = `*holds a number - #*#*#* is none*` ).
+    COMMIT WORK.
+    SELECT SINGLE text FROM z2ui5_t_14
+      WHERE uname = @sy-uname AND session_id = @ls_start-session AND operation = 'app_act'
+      INTO @DATA(lv_text). "#EC CI_NOORDER
+    cl_abap_unit_assert=>assert_subrc( ).
+    cl_abap_unit_assert=>assert_equals( exp = -1
+                                        act = find( val = lv_text
+                                                    sub = `secret-days` ) ).
+
+  ENDMETHOD.
+
   METHOD claimed_session.
 
     " another call holds the session (its claim puts changed_at ahead):
@@ -752,6 +773,32 @@ CLASS ltcl_session IMPLEMENTATION.
     " delete that old - and no overflow
     cl_abap_unit_assert=>assert_equals( exp = 0
                                         act = z2ui5_cl_agent_audit=>cleanup( z2ui5_cl_agent_audit=>c_max_days + 1 ) ).
+
+  ENDMETHOD.
+
+  METHOD session_cleanup.
+
+    " an expired session goes with the settings app's housekeeping - not
+    " only on the next agent call - and a live one stays
+    DATA(ls_live) = start( ).
+    DATA(ls_old) = start( ).
+    DATA(lv_live) = CONV z2ui5_t_16-id( ls_live-session ).
+    DATA(lv_old) = CONV z2ui5_t_16-id( ls_old-session ).
+    DATA(lv_past) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
+                        time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
+                        seconds = 3600 * ( z2ui5_cl_agent_settings=>get_expiry_hours( ) + 1 ) ).
+    UPDATE z2ui5_t_16 SET changed_at = @lv_past WHERE id = @lv_old.
+    COMMIT WORK.
+    DATA(lv_count) = z2ui5_cl_agent_session=>cleanup( ).
+    COMMIT WORK.
+    cl_abap_unit_assert=>assert_true( xsdbool( lv_count >= 1 ) ).
+    SELECT SINGLE id FROM z2ui5_t_16 WHERE id = @lv_old INTO @DATA(lv_gone).
+    cl_abap_unit_assert=>assert_subrc( exp = 4 ).
+    cl_abap_unit_assert=>assert_initial( lv_gone ).
+    SELECT SINGLE id FROM z2ui5_t_16 WHERE id = @lv_live INTO @DATA(lv_kept).
+    cl_abap_unit_assert=>assert_subrc( ).
+    cl_abap_unit_assert=>assert_equals( exp = lv_live
+                                        act = lv_kept ).
 
   ENDMETHOD.
 
@@ -820,15 +867,17 @@ CLASS ltcl_session IMPLEMENTATION.
 
     " abap2UI5 rolls back what main( ) leaves open: a change an
     " administrator saves in the settings app - and its audit entry - is
-    " committed by the app itself
+    " committed by the app itself (the settings are in the test buffer
+    " here, so the committed audit entry is what proves it)
     z2ui5_cl_agent_settings=>admin_add( sy-uname ).
     DATA(lo_sim) = z2ui5_cl_frontend_sim=>start( `Z2UI5_CL_AGENT_APP_ADMIN` ).
     lo_sim->set_value( name  = `URL`
                        value = `/sap/bc/unit_handover` ).
     lo_sim->click( `URL_SAVE` ).
-    SELECT SINGLE value FROM z2ui5_t_17 WHERE kind = 'URL' INTO @DATA(lv_url). "#EC CI_NOORDER
+    DATA(lt_setting) = z2ui5_cl_agent_settings=>get_all( ).
+    READ TABLE lt_setting INTO DATA(ls_url) WITH KEY kind = z2ui5_cl_agent_settings=>cs_kind-url. "#EC CI_SORTSEQ
     cl_abap_unit_assert=>assert_equals( exp = `/sap/bc/unit_handover`
-                                        act = lv_url ).
+                                        act = ls_url-value ).
     SELECT COUNT(*) FROM z2ui5_t_14
       WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start INTO @lv_count.
     DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
@@ -853,7 +902,10 @@ CLASS ltcl_session IMPLEMENTATION.
     lo_sim->set_value( name  = `NEW_ITEM`
                        value = `/MS_ORDER/S_PAYMENT/T_ACCOUNT/*/INTERNATIONAL_BANK_ACCOUNT_NUMBER` ).
     lo_sim->click( `RULE_ADD` ).
-    SELECT COUNT(*) FROM z2ui5_t_17 WHERE kind = 'SENSITIVE' INTO @lv_count.
+    LOOP AT z2ui5_cl_agent_settings=>get_all( ) TRANSPORTING NO FIELDS
+         WHERE kind = z2ui5_cl_agent_settings=>cs_kind-sensitive. "#EC CI_SORTSEQ
+      lv_count = lv_count + 1.
+    ENDLOOP.
     DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND operation = 'settings' AND timestampl >= @mv_start.
     COMMIT WORK.
     cl_abap_unit_assert=>assert_equals( exp = 0

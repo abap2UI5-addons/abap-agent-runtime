@@ -160,6 +160,19 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
     "! Forget the buffered settings (they are read once per request).
     CLASS-METHODS refresh.
 
+    "! Test seam: this roll area runs on these settings instead of table
+    "! Z2UI5_T_17 - save( ), remove( ), set_enabled( ), set_llm( ) and
+    "! admin_add( ) change only them, refresh( ) keeps them, and the table
+    "! is neither read nor written nor committed until end_test_buffer( ).
+    "! Unit tests use it: they must never change, or commit, the settings of
+    "! the system they run in.
+    CLASS-METHODS set_test_buffer
+      IMPORTING
+        settings TYPE ty_t_setting OPTIONAL.
+
+    "! Back to table Z2UI5_T_17 after set_test_buffer( ).
+    CLASS-METHODS end_test_buffer.
+
     "! Whether an agent may start the class, and if not, why not.
     CLASS-METHODS check_app
       IMPORTING
@@ -276,6 +289,8 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     CLASS-DATA gt_setting  TYPE ty_t_setting.
     CLASS-DATA gv_loaded   TYPE abap_bool.
+    "! set_test_buffer( ) is active: gt_setting is the store
+    CLASS-DATA gv_test     TYPE abap_bool.
     CLASS-DATA gt_info     TYPE ty_t_info_buffer.
 
     CLASS-METHODS load.
@@ -310,9 +325,30 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
 
   METHOD refresh.
 
-    CLEAR gt_setting.
     CLEAR gt_info.
+    " under the test seam the buffer is the store - nothing to read again
+    IF gv_test = abap_true.
+      RETURN.
+    ENDIF.
+    CLEAR gt_setting.
     gv_loaded = abap_false.
+
+  ENDMETHOD.
+
+  METHOD set_test_buffer.
+
+    gt_setting = settings.
+    SORT gt_setting BY kind app item.
+    CLEAR gt_info.
+    gv_loaded = abap_true.
+    gv_test = abap_true.
+
+  ENDMETHOD.
+
+  METHOD end_test_buffer.
+
+    gv_test = abap_false.
+    refresh( ).
 
   ENDMETHOD.
 
@@ -368,7 +404,9 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     save( kind  = cs_kind-admin
           app   = to_upper( uname )
           value = `X` ).
-    COMMIT WORK.
+    IF gv_test = abap_false.
+      COMMIT WORK.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -382,7 +420,13 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     ls_row-value = value.
     ls_row-changed_by = sy-uname.
     ls_row-changed_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
-    MODIFY z2ui5_t_17 FROM @ls_row.
+    IF gv_test = abap_true.
+      DELETE gt_setting WHERE kind = ls_row-kind AND app = ls_row-app AND item = ls_row-item.
+      INSERT ls_row INTO TABLE gt_setting.
+      SORT gt_setting BY kind app item.
+    ELSE.
+      MODIFY z2ui5_t_17 FROM @ls_row.
+    ENDIF.
     refresh( ).
 
   ENDMETHOD.
@@ -414,7 +458,11 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
     lv_kind = to_upper( kind ).
     lv_app = to_upper( app ).
     lv_item = to_upper( item ).
-    DELETE FROM z2ui5_t_17 WHERE kind = @lv_kind AND app = @lv_app AND item = @lv_item.
+    IF gv_test = abap_true.
+      DELETE gt_setting WHERE kind = lv_kind AND app = lv_app AND item = lv_item.
+    ELSE.
+      DELETE FROM z2ui5_t_17 WHERE kind = @lv_kind AND app = @lv_app AND item = @lv_item.
+    ENDIF.
     refresh( ).
 
   ENDMETHOD.

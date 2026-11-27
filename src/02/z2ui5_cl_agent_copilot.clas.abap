@@ -37,6 +37,8 @@ CLASS z2ui5_cl_agent_copilot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       END OF ty_s_turn.
     TYPES ty_t_turn TYPE STANDARD TABLE OF ty_s_turn WITH EMPTY KEY.
 
+    "! The conversation as the popup shows it - a copy of mt_turn: bound
+    "! data comes back from the browser, so the model never reads it.
     DATA t_turn         TYPE ty_t_turn.
     DATA question       TYPE string.
     DATA title          TYPE string.
@@ -59,6 +61,8 @@ CLASS z2ui5_cl_agent_copilot DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA session TYPE string.
     DATA changed TYPE abap_bool.
     DATA ms_proposal TYPE z2ui5_cl_agent_assist=>ty_s_proposal.
+    "! The conversation - what the model is sent as the history.
+    DATA mt_turn TYPE ty_t_turn.
 
     METHODS popup_display.
     METHODS on_event.
@@ -124,7 +128,8 @@ CLASS z2ui5_cl_agent_copilot IMPLEMENTATION.
                                      WHEN `user` THEN `You`
                                      WHEN `assistant` THEN `Copilot`
                                      ELSE `` )
-                    text = text ) INTO TABLE t_turn.
+                    text = text ) INTO TABLE mt_turn.
+    t_turn = mt_turn.
 
   ENDMETHOD.
 
@@ -222,7 +227,9 @@ CLASS z2ui5_cl_agent_copilot IMPLEMENTATION.
     IF ready = abap_false OR question IS INITIAL.
       RETURN.
     ENDIF.
-    LOOP AT t_turn INTO DATA(ls_turn) WHERE role = `user` OR role = `assistant`. "#EC CI_SORTSEQ
+    " the history from the server's own copy - the bound t_turn could hold
+    " "assistant" turns the browser made up
+    LOOP AT mt_turn INTO DATA(ls_turn) WHERE role = `user` OR role = `assistant`. "#EC CI_SORTSEQ
       INSERT VALUE #( role = ls_turn-role
                       text = ls_turn-text ) INTO TABLE lt_turn.
     ENDLOOP.

@@ -534,8 +534,11 @@ CLASS z2ui5_cl_agent_app_admin IMPLEMENTATION.
           RETURN.
         ENDIF.
         DATA(lv_count) = z2ui5_cl_agent_audit=>cleanup( cleanup_days ).
-        audit( |audit log cleanup: { lv_count } entries older than { cleanup_days } days| ).
-        client->message_toast_display( |{ lv_count } entries deleted| ).
+        " the expired agent sessions too: their snapshots and simulator
+        " state hold the app's data and stay until the next agent call
+        DATA(lv_sessions) = z2ui5_cl_agent_session=>cleanup( ).
+        audit( |audit log cleanup: { lv_count } entries older than { cleanup_days } days, { lv_sessions } expired sessions| ).
+        client->message_toast_display( |{ lv_count } entries and { lv_sessions } expired sessions deleted| ).
 
     ENDCASE.
 

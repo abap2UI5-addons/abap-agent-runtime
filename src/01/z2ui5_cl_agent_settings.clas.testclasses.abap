@@ -113,3 +113,51 @@ CLASS ltcl_policy IMPLEMENTATION.
   ENDMETHOD.
 
 ENDCLASS.
+
+
+"! The test seam the other test classes run on: save( ), remove( ),
+"! set_enabled( ) and admin_add( ) change the buffer only - the settings
+"! of the system the tests run in stay as they are.
+CLASS ltcl_test_buffer DEFINITION FINAL FOR TESTING RISK LEVEL HARMLESS DURATION SHORT.
+
+  PRIVATE SECTION.
+
+    METHODS teardown.
+
+    METHODS table_untouched FOR TESTING.
+
+ENDCLASS.
+
+
+CLASS ltcl_test_buffer IMPLEMENTATION.
+
+  METHOD teardown.
+
+    z2ui5_cl_agent_settings=>end_test_buffer( ).
+
+  ENDMETHOD.
+
+  METHOD table_untouched.
+
+    SELECT * FROM z2ui5_t_17 INTO TABLE @DATA(lt_before) ORDER BY PRIMARY KEY.
+
+    z2ui5_cl_agent_settings=>set_test_buffer( VALUE #( ( kind  = z2ui5_cl_agent_settings=>cs_kind-admin
+                                                         app   = `UNIT_ADMIN`
+                                                         value = `X` ) ) ).
+    cl_abap_unit_assert=>assert_true( z2ui5_cl_agent_settings=>check_admin( `unit_admin` ) ).
+    z2ui5_cl_agent_settings=>set_enabled( abap_true ).
+    z2ui5_cl_agent_settings=>admin_add( `unit_other` ).
+    z2ui5_cl_agent_settings=>remove( kind = z2ui5_cl_agent_settings=>cs_kind-admin
+                                     app  = `unit_admin` ).
+    z2ui5_cl_agent_settings=>refresh( ).
+    cl_abap_unit_assert=>assert_true( z2ui5_cl_agent_settings=>check_enabled( ) ).
+    cl_abap_unit_assert=>assert_true( z2ui5_cl_agent_settings=>check_admin( `UNIT_OTHER` ) ).
+    cl_abap_unit_assert=>assert_false( z2ui5_cl_agent_settings=>check_admin( `UNIT_ADMIN` ) ).
+
+    SELECT * FROM z2ui5_t_17 INTO TABLE @DATA(lt_after) ORDER BY PRIMARY KEY.
+    cl_abap_unit_assert=>assert_equals( exp = lt_before
+                                        act = lt_after ).
+
+  ENDMETHOD.
+
+ENDCLASS.

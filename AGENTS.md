@@ -156,11 +156,16 @@ abaplint .github/abaplint/abap_702.jsonc`, on a copy in `build/702` -
 is an abaplint dependency there, resolved from its own `702` branch. Unit
 tests (the `unit` job of `ci`, `npm run unit`): transpiled runtime of abap2UI5 (README,
 "Development"), every risk level; `ltcl_session` /
-`ltcl_mcp` are `RISK LEVEL DANGEROUS` (they write the addon's tables and
-restore them in `teardown`), the parser and snapshot tests are `HARMLESS`.
-The AI tests (`ltcl_llm`, `ltcl_anthropic`, `ltcl_genui`, `ltcl_copilot`)
-are `DANGEROUS` too - they save the `LLM` settings and restore them - and
-drive the demos through the simulator with `z2ui5_cl_agent_llm_double`.
+`ltcl_mcp` are `RISK LEVEL DANGEROUS` (they write the addon's session and
+audit tables and delete their own rows in `teardown`), the parser and
+snapshot tests are `HARMLESS`. The AI tests (`ltcl_llm`, `ltcl_anthropic`,
+`ltcl_genui`, `ltcl_copilot`) are `DANGEROUS` too and drive the demos
+through the simulator with `z2ui5_cl_agent_llm_double`. **No test touches
+the settings table `Z2UI5_T_17`**: every test that needs settings runs on
+`z2ui5_cl_agent_settings=>set_test_buffer( )` (and `end_test_buffer( )` in
+`teardown`) - a test that deleted, overrode or committed the settings of
+the system it runs in switched the endpoint on and dropped the rules, the
+administrators and the API key while it ran, and for good when it aborted.
 Generated code avoids constructor expressions (`z2ui5_cl_agent_gen_vocab` is
 plain `APPEND`s): every statement the downport rewrites is one more
 iteration of `npm run downport`.

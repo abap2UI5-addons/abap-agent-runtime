@@ -93,6 +93,13 @@ and by its lint targets, not yet on a system in production use, and its API -
   too (they were logged as the agent sent them); sessions in
   `Z2UI5_T_16`, MCP sessions in `Z2UI5_T_15`, always filtered by the
   request's user.
+- A refusal no longer repeats the value of a password or sensitive field
+  (`... holds a number - *** is none`): its text lands in the audit log as it
+  is, and only the arguments were masked.
+- The audit log housekeeping of the settings app also deletes the expired
+  agent sessions (`z2ui5_cl_agent_session=>cleanup( )`): their snapshots and
+  simulator state - the app's data, password values included - stayed in
+  `Z2UI5_T_16` until the next agent call.
 - `z2ui5_cl_agent_demo`: an opted-in example app with the copilot, driven by
   the unit tests.
 
@@ -124,6 +131,9 @@ and by its lint targets, not yet on a system in production use, and its API -
   took the first enabled one in the view, a row's. The action and the
   protected fields are resolved by the snapshot for both
   (`find_action( )`, `resolve_target( )`, `is_protected( )`).
+- The copilot sends the model the conversation it keeps itself, not the
+  list bound to the popup: an "assistant" turn written into that list in the
+  browser reached the model as the copilot's own words.
 
 ### Tooling
 
@@ -131,6 +141,10 @@ and by its lint targets, not yet on a system in production use, and its API -
   7.02 downport (`.github/abaplint/`), the abap2UI5 linter on the apps, the
   generated vocabulary check (`npm run genui:check`), and the ABAP Unit tests
   on abap2UI5's transpiled runtime (`npm run unit`, every risk level).
+- The unit tests run on the test seam `z2ui5_cl_agent_settings=>set_test_buffer( )`:
+  they no longer delete, override and commit the settings of the system they
+  run in (the endpoint switched on, rules, administrators and the API key
+  gone while they ran - and for good when a run aborted).
 - `z2ui5_if_agent_app=>version` (`.abapgit.xml` `VERSION_CONSTANT`), this
   changelog, `RELEASING.md`, `npm run check:version` / `check:release` and the
   tag-only `release.yaml`.

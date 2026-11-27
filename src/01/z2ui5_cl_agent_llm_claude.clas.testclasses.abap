@@ -30,7 +30,6 @@ CLASS ltcl_anthropic DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANG
   PRIVATE SECTION.
 
     DATA mo_http TYPE REF TO ltd_http.
-    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_17 WITH EMPTY KEY.
 
     METHODS setup.
     METHODS teardown.
@@ -60,9 +59,9 @@ CLASS ltcl_anthropic IMPLEMENTATION.
 
   METHOD setup.
 
-    SELECT * FROM z2ui5_t_17 WHERE kind = 'LLM' INTO TABLE @mt_saved.
-    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
-    z2ui5_cl_agent_settings=>refresh( ).
+    " the settings live in the test buffer - the system's Z2UI5_T_17 (its
+    " API key too) is neither changed nor committed by the demos' COMMIT
+    z2ui5_cl_agent_settings=>set_test_buffer( ).
     " a placeholder, never a real key - the transport is a double
     z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-key
                                       value = `test-key` ).
@@ -78,9 +77,7 @@ CLASS ltcl_anthropic IMPLEMENTATION.
   METHOD teardown.
 
     z2ui5_cl_agent_llm=>set_http( ).
-    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
-    INSERT z2ui5_t_17 FROM TABLE @mt_saved.
-    z2ui5_cl_agent_settings=>refresh( ).
+    z2ui5_cl_agent_settings=>end_test_buffer( ).
 
   ENDMETHOD.
 

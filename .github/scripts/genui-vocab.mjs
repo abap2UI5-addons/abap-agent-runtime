@@ -42,6 +42,7 @@ const ICONS = path.join(ROOT, "node_modules", "@abap2ui5", "linter", "data", "ic
 const OUT = path.join(ROOT, "src", "01", "z2ui5_cl_agent_gen_vocab.clas.abap");
 const UPSTREAM = "https://raw.githubusercontent.com/abap2UI5/protocol/main/profiles/portable-v1.json";
 const FLOOR = "1.71";
+const UPSTREAM_TIMEOUT_MS = 30000;
 
 function fail(message) {
   console.error(`::error::genui-vocab: ${message}`);
@@ -62,9 +63,18 @@ async function upstream() {
   if (process.env.PROTOCOL_DIR) {
     return fs.readFileSync(path.join(process.env.PROTOCOL_DIR, "profiles", "portable-v1.json"), "utf8");
   }
-  const res = await fetch(UPSTREAM);
-  if (!res.ok) fail(`${UPSTREAM}: HTTP ${res.status}`);
-  return res.text();
+  // a host that never answers must not hang the drift check until the job's limit
+  let res;
+  try {
+    res = await fetch(UPSTREAM, { signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+    if (!res.ok) fail(`${UPSTREAM}: HTTP ${res.status}`);
+    return await res.text();
+  } catch (e) {
+    if (e && (e.name === "TimeoutError" || e.name === "AbortError")) {
+      fail(`${UPSTREAM}: no answer within ${UPSTREAM_TIMEOUT_MS / 1000} s - retry, or point PROTOCOL_DIR at an abap2UI5/protocol checkout`);
+    }
+    fail(`${UPSTREAM}: ${(e && e.message) || e}${e && e.cause ? ` (${e.cause.code || e.cause.message || e.cause})` : ""}`);
+  }
 }
 
 function generate(pinText, meta, icons) {

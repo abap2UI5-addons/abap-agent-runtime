@@ -338,18 +338,33 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
     " The answer first and every text cut before it is escaped: the audit
     " keeps 2000 characters, and the last message (a copilot question carries
     " the whole screen) filled them - the answer was never kept, and the
-    " args were no JSON any more.
+    " args were no JSON any more. Of the messages, each cut as well, as many
+    " as fit are kept - the last ones, the question of this call - and the
+    " rest counted: a long conversation of cut messages overran the 2000
+    " characters all the same.
     IF z2ui5_cl_agent_settings=>check_llm( z2ui5_cl_agent_settings=>cs_llm-log_prompts ) = abap_true.
-      LOOP AT is_request-t_message INTO DATA(ls_message).
-        INSERT |\{"role":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-role ) }| &&
-               |,"content":{ z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_viewxml=>cut( val = ls_message-content
-                                                                                                len = c_audit_text ) ) }\}|
-               INTO TABLE lt_message.
-      ENDLOOP.
       lv_args = |{ lv_args },"answer":{ z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_viewxml=>cut( val = is_response-text
-                                                                                                         len = c_audit_text ) ) }| &&
-                |,"messages":[{ concat_lines_of( table = lt_message
-                                                 sep   = `,` ) }]|.
+                                                                                                         len = c_audit_text ) ) }|.
+      " room for ,"messages":[...],"messages_omitted":<n>} after the answer
+      DATA(lv_room) = z2ui5_cl_agent_audit=>c_max_args - strlen( lv_args ) - 50.
+      DATA(lv_omitted) = 0.
+      DATA(lv_index) = lines( is_request-t_message ).
+      WHILE lv_index > 0.
+        READ TABLE is_request-t_message INTO DATA(ls_message) INDEX lv_index.
+        DATA(lv_message) = |\{"role":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-role ) }| &&
+                           |,"content":{ z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_viewxml=>cut( val = ls_message-content
+                                                                                                            len = c_audit_text ) ) }\}|.
+        IF lv_omitted = 0 AND strlen( lv_message ) + 1 <= lv_room.
+          INSERT lv_message INTO lt_message INDEX 1.
+          lv_room = lv_room - strlen( lv_message ) - 1.
+        ELSE.
+          lv_omitted = lv_omitted + 1.
+        ENDIF.
+        lv_index = lv_index - 1.
+      ENDWHILE.
+      lv_args = |{ lv_args },"messages":[{ concat_lines_of( table = lt_message
+                                                            sep   = `,` ) }]| &&
+                |{ COND #( WHEN lv_omitted > 0 THEN |,"messages_omitted":{ lv_omitted }| ) }|.
     ENDIF.
 
     z2ui5_cl_agent_audit=>log( VALUE #( app       = is_request-app

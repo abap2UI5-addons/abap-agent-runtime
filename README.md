@@ -243,8 +243,8 @@ as the logged-on business user).
 | --- | --- | --- |
 | `app_list` | `filter?` | `{ count, apps: [{ app, description, source }], hint }` - source `interface` or `setting` |
 | `app_start` | `app`, `values?`, `max_rows?` (0-200, default 20) | snapshot |
-| `app_describe` | `session`, `max_rows?` | snapshot from the stored session - no roundtrip |
-| `app_act` | `session`, `values?`, `event?`, `args?`, `row?`, `max_rows?` | the next snapshot |
+| `app_describe` | `session`, `max_rows?` (this answer only) | snapshot from the stored session - no roundtrip |
+| `app_act` | `session`, `values?`, `event?`, `args?`, `row?`, `max_rows?` (kept for the session) | the next snapshot |
 
 The semantics are the specification's: `values` keys address a field by id,
 model path or name, or a table cell as `"<table path or id>/<row>/<COLUMN>"`
@@ -347,7 +347,10 @@ normative schema, abap2UI5/protocol
 (the unit tests' expected snapshots were checked against it). One deliberate
 extension: an action the app or the settings classify `confirm` or
 `forbidden` carries `"policy"` - without such a classification the output is
-the reference's, key for key.
+the reference's, key for key. One deliberate deviation: a text clipped in
+the middle of a surrogate pair (an emoji at the 3 characters before the
+`...`) loses the whole pair - the reference keeps its first half, which is
+no character.
 
 ## Security
 
@@ -356,6 +359,10 @@ the reference's, key for key.
   allowed by an administrator, can be listed or started. The addon's own apps
   (`z2ui5_cl_agent_app_*`) are never agent-operable, whatever the settings say -
   every event of theirs is `forbidden`, also when an operable app navigates there.
+  The same holds for every app an agent could not start: an app without opt-in
+  that an operable app calls (`nav_app_call`), or one whose allow rule an
+  administrator removes (or denies) while a session runs - its events are
+  `forbidden`.
 - **The real SAP user, always.** Authentication is the logon of the HTTP
   request (Basic, OAuth, certificates, principal propagation) - nothing custom,
   no technical user, no user switch. The app runs as that user, with its
@@ -371,7 +378,9 @@ the reference's, key for key.
 - **Audit log** (`Z2UI5_T_14`, app `z2ui5_cl_agent_app_audit`): timestamp,
   user, session, app, operation, event, arguments (truncated; values masked for
   password inputs - and any field on the model path of one - and for fields
-  the app or the settings mark sensitive),
+  the app or the settings mark sensitive; so are event arguments that read
+  such a field or come from such an input, and every argument of an act whose
+  action is not known),
   outcome, error text, MCP client name and version. Users see their own
   entries, administrators everybody's. Settings changes are logged too.
 - **AI at runtime** is off by default (no key, no destination, copilot
@@ -521,8 +530,9 @@ and enter `ZCL_LLM_AI_CORE` as the provider class. Unit tests use
   duration in ms, outcome, the error text. **No prompt and no answer** -
   unless an administrator switches *Audit keeps prompts and answers* on
   (then both are kept - the answer first, it and every prompt cut to 400
-  characters, so the entry's 2000 never lose the answer; cache tokens are
-  kept too).
+  characters, so the entry's 2000 never lose the answer; of a long
+  conversation the last messages that fit, the others counted in
+  `messages_omitted`; cache tokens are kept too).
 - **Generative UI** sends the names, types and labels of the fields the app
   hands over - **no data**; a few sample rows (3) only with *sample rows* on.
 - **The copilot** sends the agent snapshot of the screen - the values the
@@ -571,7 +581,7 @@ the tree and builds the XML itself with `z2ui5_cl_ui5_view_builder`:
 | controls | anything outside the **portable view profile v1** of the abap2UI5 protocol (65 controls, `z2ui5_cl_agent_gen_vocab`); also `sap.ui.core.HTML`, `Shell`, `Dialog`, `Popover`, `CustomData` and layout data |
 | tree | no or two roots, a missing parent, a cycle, a duplicate id, more than 200 nodes |
 | aggregations | an aggregation the parent does not have, a child of the wrong type, two children in a single aggregation, a `sap.m.ToolbarSpacer` in a `sap.m.Bar` or a page's `headerContent` (no flex container before UI5 1.76: it hides what follows it) |
-| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); `visible` on an element that has none (`sap.ui.core.Item`); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers with a digit before the point, CSS sizes, icons only as `sap-icon://...` with a name the SAP icon font has at UI5 1.71 and no later release removed, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids); `icon`, `src` and `href` only as icon URIs, whatever the profile types them; a line break or a brace in any literal but a text |
+| properties | a property the control does not have at the UI5 1.71 floor (members introduced later are not in the vocabulary); `visible` on an element that has none (`sap.ui.core.Item`); a literal of the wrong type - enum values as listed, `true`/`false`, integers, numbers with a digit before the point, CSS sizes, icons only as `sap-icon://...` with a name the SAP icon font has at UI5 1.71 and no later release removed, CSS classes only the `sapUi*Margin/Padding` helpers; a binding on a property that takes none (URIs, ids); `icon`, `src` and `href` only as icon URIs, whatever the profile types them; `enableFormattedText` (texts show as plain text - formatted text renders links and markup); a line break or a brace in any literal but a text |
 | bindings | a field that is not in the data handed over; relative bindings only inside the row template of a list bound to a table, absolute ones only to a structure; formats `integer` and `decimal` (typed bindings) and nothing else - no expressions, no formatters; a field the property cannot take (UI5 throws on it): a boolean property takes a boolean field, an integer or number property a number field, a CSS size or enum property a string field, a format only a number field |
 | lists | a list bound to a structure or an unknown dataset, sorting or grouping by an unknown field, not exactly one row template, a list inside a template |
 | events | an event the control does not have, an app event not in the app's list, an argument the app did not allow for it, arguments out of the app's order (an app reads them by position: leave out only from the end) |

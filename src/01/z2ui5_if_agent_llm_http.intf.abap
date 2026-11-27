@@ -36,8 +36,10 @@ INTERFACE z2ui5_if_agent_llm_http PUBLIC.
       body   TYPE string,
     END OF ty_s_response.
 
-  "! One POST. Raises z2ui5_cx_agent_llm (kind http, http_status 0,
-  "! retryable) when no answer came; an answer with any status is returned.
+  "! One POST. Raises z2ui5_cx_agent_llm when no answer came: kind http,
+  "! http_status 0, retryable only for a failed send or receive; kind config
+  "! for a destination or a client that cannot be created - it never
+  "! succeeds on the next try. An answer with any status is returned.
   METHODS post
     IMPORTING
       is_request    TYPE ty_s_request

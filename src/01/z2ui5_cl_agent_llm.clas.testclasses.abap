@@ -44,6 +44,7 @@ CLASS ltcl_llm DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROUS.
     METHODS not_the_json FOR TESTING RAISING cx_static_check.
     METHODS audit_without_prompt FOR TESTING RAISING cx_static_check.
     METHODS audit_with_prompt FOR TESTING RAISING cx_static_check.
+    METHODS audit_long_conversation FOR TESTING RAISING cx_static_check.
     METHODS not_configured FOR TESTING RAISING cx_static_check.
     METHODS custom_provider FOR TESTING RAISING cx_static_check.
     METHODS key_never_shown FOR TESTING RAISING cx_static_check.
@@ -249,6 +250,31 @@ CLASS ltcl_llm IMPLEMENTATION.
     cl_abap_unit_assert=>assert_char_cp( act = lv_args
                                          exp = `*the secret answer*the secret question*` ).
     z2ui5_cl_ajson=>parse( lv_args ).
+
+  ENDMETHOD.
+
+  METHOD audit_long_conversation.
+
+    z2ui5_cl_agent_settings=>set_llm( item  = z2ui5_cl_agent_settings=>cs_llm-log_prompts
+                                      value = `on` ).
+    mo_double->add_answer( `{"a":"the secret answer"}` ).
+    " a conversation of ten long turns: each is cut, but not their number
+    DATA(ls_request) = request( ).
+    DO 10 TIMES.
+      INSERT VALUE #( role    = COND #( WHEN sy-index MOD 2 = 1 THEN `assistant` ELSE `user` )
+                      content = |turn { sy-index } { repeat( val = `0123456789`
+                                                             occ = 100 ) }| ) INTO TABLE ls_request-t_message.
+    ENDDO.
+    z2ui5_cl_agent_llm=>create( )->chat( ls_request ).
+
+    " still JSON, the last turn kept, the dropped ones counted
+    DATA(lv_args) = last_log( )-args.
+    DATA(lo_args) = z2ui5_cl_ajson=>parse( lv_args ).
+    cl_abap_unit_assert=>assert_char_cp( act = lv_args
+                                         exp = `*the secret answer*turn 10 *` ).
+    cl_abap_unit_assert=>assert_true( xsdbool( lo_args->get_integer( `/messages_omitted` ) > 0 ) ).
+    cl_abap_unit_assert=>assert_equals( act = lo_args->get_integer( `/messages_omitted` ) + lines( lo_args->members( `/messages` ) )
+                                        exp = 11 ).
 
   ENDMETHOD.
 

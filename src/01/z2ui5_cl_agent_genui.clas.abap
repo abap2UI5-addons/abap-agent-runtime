@@ -176,6 +176,7 @@ CLASS z2ui5_cl_agent_genui DEFINITION PUBLIC FINAL CREATE PRIVATE.
         VALUE(result) TYPE string.
 
     "! The datasets handed over so far.
+    "! Deprecated - nothing calls it; it is removed before 1.0.
     METHODS get_datasets
       RETURNING
         VALUE(result) TYPE ty_t_dataset.
@@ -295,6 +296,32 @@ CLASS z2ui5_cl_agent_genui DEFINITION PUBLIC FINAL CREATE PRIVATE.
         name          TYPE string
       RETURNING
         VALUE(result) TYPE z2ui5_cl_agent_gen_vocab=>ty_s_entry.
+
+    "! The default aggregation of a control (vocabulary kind D), empty
+    "! when it has none.
+    METHODS default_agg
+      IMPORTING
+        control       TYPE string
+      RETURNING
+        VALUE(result) TYPE string.
+
+    "! The aggregation a node's list binds: the one it names, else the
+    "! control's default.
+    METHODS list_agg
+      IMPORTING
+        node          TYPE ty_s_node
+      RETURNING
+        VALUE(result) TYPE string.
+
+    "! The binding path of a field of a structure dataset - the first that
+    "! has it; found is false when none has.
+    METHODS struct_path
+      IMPORTING
+        field         TYPE string
+      EXPORTING
+        found         TYPE abap_bool
+      RETURNING
+        VALUE(result) TYPE string.
 
     METHODS check_excluded
       IMPORTING
@@ -893,6 +920,35 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD default_agg.
+
+    READ TABLE mt_vocab INTO DATA(ls_default) WITH KEY control = control kind = `D`. "#EC CI_SORTSEQ
+    IF sy-subrc = 0.
+      result = ls_default-name.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD list_agg.
+
+    result = COND #( WHEN node-list_agg IS NOT INITIAL THEN node-list_agg
+                     ELSE default_agg( node-control ) ).
+
+  ENDMETHOD.
+
+  METHOD struct_path.
+
+    found = abap_false.
+    LOOP AT mt_dataset INTO DATA(ls_dataset) WHERE is_table = abap_false. "#EC CI_SORTSEQ
+      IF line_exists( ls_dataset-t_field[ name = field ] ). "#EC CI_SORTSEQ
+        found = abap_true.
+        result = ls_dataset-path.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+  ENDMETHOD.
+
   METHOD check_excluded.
 
     " raw HTML, the app shell, the popup slots' own roots, custom data and
@@ -976,23 +1032,11 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
       LOOP AT mt_node REFERENCE INTO DATA(lr_child) WHERE parent = lv_id AND reached = abap_false. "#EC CI_SORTSEQ
         lr_child->agg = lr_child->aggregation.
         IF lr_child->agg IS INITIAL.
-          READ TABLE mt_vocab INTO DATA(ls_default) WITH KEY control = lr_parent->control kind = `D`. "#EC CI_SORTSEQ
-          IF sy-subrc = 0.
-            lr_child->agg = ls_default-name.
-          ENDIF.
+          lr_child->agg = default_agg( lr_parent->control ).
         ENDIF.
         lr_child->scope = lr_parent->scope.
-        IF lr_parent->list_data IS NOT INITIAL.
-          DATA(lv_list_agg) = COND string( WHEN lr_parent->list_agg IS NOT INITIAL THEN lr_parent->list_agg ).
-          IF lv_list_agg IS INITIAL.
-            READ TABLE mt_vocab INTO ls_default WITH KEY control = lr_parent->control kind = `D`. "#EC CI_SORTSEQ
-            IF sy-subrc = 0.
-              lv_list_agg = ls_default-name.
-            ENDIF.
-          ENDIF.
-          IF lr_child->agg = lv_list_agg.
-            lr_child->scope = lr_parent->list_data.
-          ENDIF.
+        IF lr_parent->list_data IS NOT INITIAL AND lr_child->agg = list_agg( lr_parent->* ).
+          lr_child->scope = lr_parent->list_data.
         ENDIF.
         INSERT lr_child->id INTO TABLE lt_queue.
       ENDLOOP.
@@ -1085,13 +1129,7 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
     " the list binding
     IF node-list_data IS NOT INITIAL.
       READ TABLE mt_dataset INTO DATA(ls_dataset) WITH KEY name = node-list_data. "#EC CI_SORTSEQ
-      DATA(lv_list_agg) = COND string( WHEN node-list_agg IS NOT INITIAL THEN node-list_agg ).
-      IF lv_list_agg IS INITIAL.
-        READ TABLE mt_vocab INTO DATA(ls_default) WITH KEY control = node-control kind = `D`. "#EC CI_SORTSEQ
-        IF sy-subrc = 0.
-          lv_list_agg = ls_default-name.
-        ENDIF.
-      ENDIF.
+      DATA(lv_list_agg) = list_agg( node ).
       DATA(ls_list_agg) = vocab( control = node-control
                                  kind    = `A`
                                  name    = lv_list_agg ).
@@ -1152,6 +1190,14 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
         IF ls_entry IS INITIAL.
           issue( node = node
                  text = |unknown property "{ prop-name }" - not one of { node-control } in the portable profile at UI5 { z2ui5_cl_agent_gen_vocab=>c_floor }| ).
+          RETURN.
+        ENDIF.
+        " formatted text renders the texts as HTML: links (a href) and
+        " markup from a prompt, from the model or from the data - a generated
+        " view shows its texts as plain text only
+        IF prop-name = `enableFormattedText`.
+          issue( node = node
+                 text = |{ prop-name } is not part of a generated view - texts show as plain text| ).
           RETURN.
         ENDIF.
         lv_type = ls_entry-type.
@@ -1364,11 +1410,8 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
           ENDIF.
         ELSE.
           DATA(lv_found) = abap_false.
-          LOOP AT mt_dataset INTO DATA(ls_dataset) WHERE is_table = abap_false. "#EC CI_SORTSEQ
-            IF line_exists( ls_dataset-t_field[ name = lv_arg ] ). "#EC CI_SORTSEQ
-              lv_found = abap_true.
-            ENDIF.
-          ENDLOOP.
+          struct_path( EXPORTING field = lv_arg
+                       IMPORTING found = lv_found ).
           IF lv_found = abap_false.
             issue( node = node
                    text = |the argument "{ lv_arg }" is outside a row template and no field of a structure dataset| ).
@@ -1495,11 +1538,7 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
     IF node-list_data IS NOT INITIAL.
       READ TABLE mt_dataset INTO DATA(ls_dataset) WITH KEY name = node-list_data. "#EC CI_SORTSEQ
-      DATA(lv_list_agg) = node-list_agg.
-      IF lv_list_agg IS INITIAL.
-        READ TABLE mt_vocab INTO DATA(ls_default) WITH KEY control = node-control kind = `D`. "#EC CI_SORTSEQ
-        lv_list_agg = ls_default-name.
-      ENDIF.
+      DATA(lv_list_agg) = list_agg( node ).
       DATA(lv_sort) = COND string( WHEN node-group_by IS NOT INITIAL THEN node-group_by ELSE node-sort_by ).
       element->a( n = lv_list_agg
                   v = COND #( WHEN lv_sort IS INITIAL
@@ -1515,12 +1554,11 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
         IF node-scope IS NOT INITIAL.
           INSERT |$\{{ lv_arg }\}| INTO TABLE lt_arg.
         ELSE.
-          LOOP AT mt_dataset INTO DATA(ls_struct) WHERE is_table = abap_false. "#EC CI_SORTSEQ
-            IF line_exists( ls_struct-t_field[ name = lv_arg ] ). "#EC CI_SORTSEQ
-              INSERT |$\{{ ls_struct-path }/{ lv_arg }\}| INTO TABLE lt_arg.
-              EXIT.
-            ENDIF.
-          ENDLOOP.
+          DATA(lv_struct_path) = struct_path( EXPORTING field = lv_arg
+                                              IMPORTING found = DATA(lv_struct_found) ).
+          IF lv_struct_found = abap_true.
+            INSERT |$\{{ lv_struct_path }/{ lv_arg }\}| INTO TABLE lt_arg.
+          ENDIF.
         ENDIF.
       ENDLOOP.
       element->a( n = ls_evt-name
@@ -1535,8 +1573,7 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
         INSERT ls_child-agg INTO TABLE lt_agg.
       ENDIF.
     ENDLOOP.
-    READ TABLE mt_vocab INTO ls_default WITH KEY control = node-control kind = `D`. "#EC CI_SORTSEQ
-    DATA(lv_default) = COND string( WHEN sy-subrc = 0 THEN ls_default-name ).
+    DATA(lv_default) = default_agg( node-control ).
     LOOP AT lt_agg INTO DATA(lv_agg).
       IF lv_agg = lv_default.
         target = element.

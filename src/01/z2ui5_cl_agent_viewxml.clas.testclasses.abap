@@ -290,6 +290,13 @@ CLASS ltcl_viewxml IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = `ab`
                                         act = z2ui5_cl_agent_viewxml=>cut( val = `ab`
                                                                            len = 3 ) ).
+    " a clipped text of the snapshot the same way
+    cl_abap_unit_assert=>assert_equals( exp = `ab...`
+                                        act = z2ui5_cl_agent_viewxml=>clip( val = |ab{ lv_emoji }cdefgh|
+                                                                            len = 6 ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `abcd...`
+                                        act = z2ui5_cl_agent_viewxml=>clip( val = `abcdefgh`
+                                                                            len = 7 ) ).
 
   ENDMETHOD.
 

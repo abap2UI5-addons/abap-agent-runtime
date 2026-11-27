@@ -37,7 +37,11 @@ jobs:
             remove: src/03
             config: .github/abaplint/abap_cloud.jsonc
     steps:
+    # npm ci and abaplint run third-party code - no write token in
+    # .git/config for them; the push step takes it in its own env
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
         node-version: '22'
@@ -49,8 +53,15 @@ jobs:
     - name: Remove the other entry package
       run: git rm -r -q ${{ matrix.remove }}
     - name: Commit and push
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         git commit -q -m "generate ${{ matrix.branch }} from ${GITHUB_SHA}"
-        git push --force origin HEAD:${{ matrix.branch }}
+        # the header actions/checkout would have persisted, for this push only
+        # (through the environment, not the command line)
+        GIT_CONFIG_COUNT=1 \
+        GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
+        GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" \
+          git push --force origin HEAD:${{ matrix.branch }}

@@ -61,6 +61,11 @@ jobs:
         # the branch tags are placed on the generated branches, which have
         # to be fetched
         fetch-depth: 0
+        # npm ci and the checks below run third-party code - no write token
+        # in .git/config for them to find. The repository is public, so the
+        # fetches need none; the two steps that publish take the token in
+        # their own env and create the tags through the API
+        persist-credentials: false
     # what npm run unit builds in (the unit job of ci.yaml clones the same)
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -171,8 +176,10 @@ jobs:
         VERSION: ${{ steps.notes.outputs.version }}
       run: |
         for BRANCH in standard cloud; do
-          git tag "$VERSION-$BRANCH" "$BRANCH"
-          git push origin "$VERSION-$BRANCH"
+          # a lightweight tag, as `git tag` + `git push` made it
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f "ref=refs/tags/$VERSION-$BRANCH" \
+            -f "sha=$(git rev-parse "$BRANCH")" > /dev/null
           gh release create "$VERSION-$BRANCH" \
             --title "$VERSION-$BRANCH" \
             --notes "[$VERSION](../../releases/tag/$VERSION) as abapGit installs it on ABAP ${BRANCH/standard/Standard}: the \`$BRANCH\` branch generated from the release commit by publish-branches (main without the other platform's entry package). Pull this tag instead of the moving branch to pin the installed version." \

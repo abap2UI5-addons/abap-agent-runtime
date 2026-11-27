@@ -243,8 +243,8 @@ as the logged-on business user).
 | --- | --- | --- |
 | `app_list` | `filter?` | `{ count, apps: [{ app, description, source }], hint }` - source `interface` or `setting` |
 | `app_start` | `app`, `values?`, `max_rows?` (0-200, default 20) | snapshot |
-| `app_describe` | `session`, `max_rows?` | snapshot from the stored session - no roundtrip |
-| `app_act` | `session`, `values?`, `event?`, `args?`, `row?`, `max_rows?` | the next snapshot |
+| `app_describe` | `session`, `max_rows?` (this answer only) | snapshot from the stored session - no roundtrip |
+| `app_act` | `session`, `values?`, `event?`, `args?`, `row?`, `max_rows?` (kept for the session) | the next snapshot |
 
 The semantics are the specification's: `values` keys address a field by id,
 model path or name, or a table cell as `"<table path or id>/<row>/<COLUMN>"`

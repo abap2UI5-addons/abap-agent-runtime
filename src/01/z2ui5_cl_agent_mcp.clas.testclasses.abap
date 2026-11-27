@@ -107,6 +107,7 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS tool_call_session   FOR TESTING RAISING cx_static_check.
     METHODS batch               FOR TESTING.
     METHODS batch_audit         FOR TESTING.
+    METHODS session_expires     FOR TESTING.
 
     METHODS post
       IMPORTING
@@ -362,6 +363,34 @@ CLASS ltcl_mcp IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD session_expires.
+
+    DATA(ls_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",` &&
+                          `"capabilities":{},"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
+    DATA(lv_session) = ls_init-t_header[ name = `Mcp-Session-Id` ]-value. "#EC CI_SORTSEQ
+    DATA(lv_id) = CONV z2ui5_t_15-id( lv_session ).
+
+    " unused for longer than a session lives - and no initialize since
+    " that would have deleted it
+    DATA(lv_old) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
+                       time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
+                       seconds = z2ui5_cl_agent_mcp=>c_session_seconds + 60 ).
+    UPDATE z2ui5_t_15 SET changed_at = @lv_old WHERE id = @lv_id.
+    COMMIT WORK.
+
+    cl_abap_unit_assert=>assert_equals(
+        exp = 404
+        act = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                          content_type = `application/json`
+                                                          session_id   = lv_session
+                                                          body         = `{"jsonrpc":"2.0","id":9,"method":"ping"}` ) )-status ).
+    " ended for good: the row is gone, not refreshed
+    SELECT SINGLE mcp_client FROM z2ui5_t_15 WHERE id = @lv_id INTO @DATA(lv_client).
+    cl_abap_unit_assert=>assert_subrc( exp = 4 ).
+    cl_abap_unit_assert=>assert_initial( lv_client ).
+
+  ENDMETHOD.
+
   METHOD version_negotiation.
 
     " an unknown revision is answered with the newest this endpoint speaks
@@ -567,6 +596,26 @@ CLASS ltcl_fit IMPLEMENTATION.
                                         act = lo_json->get_string( `/messages/1/text` ) ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*f1 are cut*table t1: cells of NOTE*table t1 shows its first*`
                                          act = lv_note ).
+    " the later rows are reached by their path - max_rows has no offset
+    cl_abap_unit_assert=>assert_char_cp( exp = `*rowCount counts them all, and app_act still reaches a cell of a later row*`
+                                         act = lv_note ).
+    cl_abap_unit_assert=>assert_false( xsdbool( lv_note CS `pages` ) ).
+    cl_abap_unit_assert=>assert_false( xsdbool( lv_note CS `still larger` ) ).
+
+    " nothing to cut: no long value, no table of two rows - it stays too
+    " large, and the note says that instead of listing nothing
+    CLEAR lt_row.
+    DO 40 TIMES.
+      INSERT |\{"id":"f{ sy-index }","value":"{ repeat( val = `v`
+                                                          occ = 1900 ) }","editable":true\}| INTO TABLE lt_row.
+    ENDDO.
+    z2ui5_cl_agent_mcp=>fit_snapshot( EXPORTING json   = |\{"snapshotVersion":1,"fields":[{ concat_lines_of( table = lt_row
+                                                                                                       sep   = `,` ) }]\}|
+                                      IMPORTING result = lv_fitted
+                                                note   = lv_note ).
+    cl_abap_unit_assert=>assert_true( xsdbool( strlen( lv_fitted ) > z2ui5_cl_agent_mcp=>c_answer_budget ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `cut to fit one answer: the snapshot is still larger than one answer should be`
+                                        act = lv_note ).
 
     " a snapshot that fits is the same
     z2ui5_cl_agent_mcp=>fit_snapshot( EXPORTING json   = `{"fields":[]}`

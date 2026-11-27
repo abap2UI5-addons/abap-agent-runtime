@@ -51,6 +51,14 @@ and by its lint targets, not yet on a system in production use, and its API -
 - Every call runs as the SAP user of the HTTP request through the app's own
   `main( )` on the headless-frontend simulator; no technical user, no second
   API. Stateful apps are refused.
+- An MCP session unused for a day is ended at its next request - the client
+  gets the 404 of the Streamable HTTP contract and starts a new one. Until
+  now the session was refreshed instead unless an initialize had deleted it.
+- A snapshot cut to fit one answer no longer says that `app_describe`
+  `max_rows` pages a table (it has no offset): as the reference, the note
+  says that `rowCount` counts all rows and `app_act` reaches a cell of a later
+  row by its path, and that a snapshot with nothing left to cut is still too
+  large, instead of an empty list.
 
 ### The agent snapshot v1
 

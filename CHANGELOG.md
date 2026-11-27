@@ -107,6 +107,9 @@ and by its lint targets, not yet on a system in production use, and its API -
   the generated vocabulary `z2ui5_cl_agent_gen_vocab` (abap2UI5/protocol
   `profiles/portable-v1.json`, UI5 1.71 floor) and built with the view
   builder - the model never writes XML.
+- A generated view never sets `enableFormattedText`: a `MessageStrip` with
+  formatted text rendered the model's or the data's text as HTML, links
+  included.
 - The in-app copilot (`z2ui5_cl_agent_copilot`, `z2ui5_cl_agent_assist`): a
   popup grounded in the agent snapshot of the user's screen; its proposals
   go through `app_check` / `app_act` of the session - the same policy as an

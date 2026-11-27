@@ -1154,6 +1154,14 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
                  text = |unknown property "{ prop-name }" - not one of { node-control } in the portable profile at UI5 { z2ui5_cl_agent_gen_vocab=>c_floor }| ).
           RETURN.
         ENDIF.
+        " formatted text renders the texts as HTML: links (a href) and
+        " markup from a prompt, from the model or from the data - a generated
+        " view shows its texts as plain text only
+        IF prop-name = `enableFormattedText`.
+          issue( node = node
+                 text = |{ prop-name } is not part of a generated view - texts show as plain text| ).
+          RETURN.
+        ENDIF.
         lv_type = ls_entry-type.
         lv_info = ls_entry-info.
         " a URL property is an icon URI, whatever the profile types it

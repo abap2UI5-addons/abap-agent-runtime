@@ -405,6 +405,16 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE ty_s_pnode.
 
+    "! The element of an array node (kind a) at a 0-based index segment:
+    "! an item or context of its rows; undefined when the segment is no
+    "! index of it.
+    CLASS-METHODS pnode_elem
+      IMPORTING
+        is_node       TYPE ty_s_pnode
+        seg           TYPE string
+      RETURNING
+        VALUE(result) TYPE ty_s_pnode.
+
     CLASS-METHODS pnode_truthy
       IMPORTING
         is_node       TYPE ty_s_pnode
@@ -2002,23 +2012,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           IF lv_seg = `length`.
             ls_node = pnode_value( z2ui5_cl_agent_viewxml=>val_number( |{ lines( ls_node-t_row ) }| ) ).
           ELSE.
-            DATA(lv_line) = 0.
-            IF lv_seg CO `0123456789` AND strlen( lv_seg ) <= 9.
-              lv_line = lv_seg.
-              lv_line = lv_line + 1.
-            ENDIF.
-            DATA(lv_elem_row) = 0.
-            IF lv_line > 0.
-              READ TABLE ls_node-t_row INTO lv_elem_row INDEX lv_line.
-            ENDIF.
-            IF lv_line > 0 AND sy-subrc = 0.
-              " not VALUE #( kind = ls_node-elem ) - the target is cleared first
-              DATA(lv_elem) = ls_node-elem.
-              ls_node = VALUE #( kind = lv_elem
-                                 row  = lv_elem_row ).
-            ELSE.
-              ls_node = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) ).
-            ENDIF.
+            ls_node = pnode_elem( is_node = ls_node
+                                  seg     = lv_seg ).
           ENDIF.
         WHEN 'o'.
           READ TABLE is_params-t_param INTO DATA(ls_param) WITH KEY name = lv_seg. "#EC CI_SORTSEQ
@@ -2073,23 +2068,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           ENDIF.
           result = ls_param-node.
         WHEN 'a'.
-          DATA(lv_line) = 0.
-          IF lv_seg CO `0123456789` AND strlen( lv_seg ) <= 9.
-            lv_line = lv_seg.
-            lv_line = lv_line + 1.
-          ENDIF.
-          DATA(lv_elem_row) = 0.
-          IF lv_line > 0.
-            READ TABLE result-t_row INTO lv_elem_row INDEX lv_line.
-          ENDIF.
-          IF lv_line > 0 AND sy-subrc = 0.
-            " not VALUE #( kind = result-elem ) - the target is cleared first
-            DATA(lv_elem) = result-elem.
-            result = VALUE #( kind = lv_elem
-                              row  = lv_elem_row ).
-          ELSE.
-            result = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) ).
-          ENDIF.
+          result = pnode_elem( is_node = result
+                               seg     = lv_seg ).
         WHEN OTHERS.
           result = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) ).
       ENDCASE.
@@ -2451,6 +2431,26 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       WHEN OTHERS.
         result = abap_true.
     ENDCASE.
+
+  ENDMETHOD.
+
+  METHOD pnode_elem.
+
+    DATA(lv_line) = 0.
+    IF seg CO `0123456789` AND strlen( seg ) <= 9.
+      lv_line = seg.
+      lv_line = lv_line + 1.
+    ENDIF.
+    DATA(lv_elem_row) = 0.
+    IF lv_line > 0.
+      READ TABLE is_node-t_row INTO lv_elem_row INDEX lv_line.
+    ENDIF.
+    IF lv_line > 0 AND sy-subrc = 0.
+      result = VALUE #( kind = is_node-elem
+                        row  = lv_elem_row ).
+    ELSE.
+      result = pnode_value( VALUE #( kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined ) ).
+    ENDIF.
 
   ENDMETHOD.
 

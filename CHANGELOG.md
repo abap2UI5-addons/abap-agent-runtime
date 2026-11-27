@@ -131,6 +131,10 @@ and by its lint targets, not yet on a system in production use, and its API -
   7.02 downport (`.github/abaplint/`), the abap2UI5 linter on the apps, the
   generated vocabulary check (`npm run genui:check`), and the ABAP Unit tests
   on abap2UI5's transpiled runtime (`npm run unit`, every risk level).
+- The unit tests run on the test seam `z2ui5_cl_agent_settings=>set_test_buffer( )`:
+  they no longer delete, override and commit the settings of the system they
+  run in (the endpoint switched on, rules, administrators and the API key
+  gone while they ran - and for good when a run aborted).
 - `z2ui5_if_agent_app=>version` (`.abapgit.xml` `VERSION_CONSTANT`), this
   changelog, `RELEASING.md`, `npm run check:version` / `check:release` and the
   tag-only `release.yaml`.

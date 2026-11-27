@@ -29,7 +29,6 @@ CLASS ltcl_llm DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROUS.
   PRIVATE SECTION.
 
     DATA mo_double TYPE REF TO z2ui5_cl_agent_llm_double.
-    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_17 WITH EMPTY KEY.
     "! an app name of this test only - its audit entries are its own
     DATA mv_app TYPE string.
 
@@ -65,9 +64,9 @@ CLASS ltcl_llm IMPLEMENTATION.
 
   METHOD setup.
 
-    SELECT * FROM z2ui5_t_17 WHERE kind = 'LLM' INTO TABLE @mt_saved.
-    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
-    z2ui5_cl_agent_settings=>refresh( ).
+    " the settings live in the test buffer - the system's Z2UI5_T_17 (its
+    " API key too) is neither changed nor committed by the demos' COMMIT
+    z2ui5_cl_agent_settings=>set_test_buffer( ).
     mo_double = NEW #( ).
     z2ui5_cl_agent_llm=>set_double( mo_double ).
     mv_app = |ZT{ substring( val = z2ui5_cl_ui5_util_context=>uuid_get_c32( )
@@ -80,9 +79,7 @@ CLASS ltcl_llm IMPLEMENTATION.
     z2ui5_cl_agent_llm=>set_double( ).
     z2ui5_cl_agent_llm=>set_http( ).
     DELETE FROM z2ui5_t_14 WHERE app = @mv_app.
-    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
-    INSERT z2ui5_t_17 FROM TABLE @mt_saved.
-    z2ui5_cl_agent_settings=>refresh( ).
+    z2ui5_cl_agent_settings=>end_test_buffer( ).
 
   ENDMETHOD.
 

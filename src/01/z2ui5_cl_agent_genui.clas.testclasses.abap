@@ -10,7 +10,6 @@ CLASS ltcl_genui DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROU
     CONSTANTS c_no_list TYPE string VALUE `{"dataset":"","aggregation":"","sort_by":"","descending":false,"group_by":""}`.
 
     DATA mo_double TYPE REF TO z2ui5_cl_agent_llm_double.
-    DATA mt_saved TYPE STANDARD TABLE OF z2ui5_t_17 WITH EMPTY KEY.
 
     METHODS setup.
     METHODS teardown.
@@ -90,9 +89,9 @@ CLASS ltcl_genui IMPLEMENTATION.
 
   METHOD setup.
 
-    SELECT * FROM z2ui5_t_17 WHERE kind = 'LLM' INTO TABLE @mt_saved.
-    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
-    z2ui5_cl_agent_settings=>refresh( ).
+    " the settings live in the test buffer - the system's Z2UI5_T_17 (its
+    " API key too) is neither changed nor committed by the demos' COMMIT
+    z2ui5_cl_agent_settings=>set_test_buffer( ).
     mo_double = NEW #( ).
     z2ui5_cl_agent_llm=>set_double( mo_double ).
     repair( abap_false ).
@@ -102,9 +101,7 @@ CLASS ltcl_genui IMPLEMENTATION.
   METHOD teardown.
 
     z2ui5_cl_agent_llm=>set_double( ).
-    DELETE FROM z2ui5_t_17 WHERE kind = 'LLM'.
-    INSERT z2ui5_t_17 FROM TABLE @mt_saved.
-    z2ui5_cl_agent_settings=>refresh( ).
+    z2ui5_cl_agent_settings=>end_test_buffer( ).
 
   ENDMETHOD.
 

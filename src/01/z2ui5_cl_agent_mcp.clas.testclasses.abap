@@ -82,7 +82,6 @@ CLASS ltcl_mcp DEFINITION FINAL
 
   PRIVATE SECTION.
     DATA mo_store   TYPE REF TO ltd_draft_store.
-    DATA mt_setting TYPE z2ui5_cl_agent_settings=>ty_t_setting.
     DATA mv_start   TYPE timestampl.
 
     METHODS setup.
@@ -131,10 +130,10 @@ CLASS ltcl_mcp IMPLEMENTATION.
     mo_store = NEW #( ).
     z2ui5_cl_ui5_srv_draft=>set_instance( mo_store ).
     mv_start = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
-    SELECT * FROM z2ui5_t_17 INTO TABLE @mt_setting.
-    DELETE FROM z2ui5_t_17.
+    " the settings live in the test buffer - the system's Z2UI5_T_17 is
+    " neither changed nor committed
+    z2ui5_cl_agent_settings=>set_test_buffer( ).
     z2ui5_cl_agent_settings=>set_enabled( abap_true ).
-    COMMIT WORK.
 
   ENDMETHOD.
 
@@ -145,10 +144,8 @@ CLASS ltcl_mcp IMPLEMENTATION.
     DELETE FROM z2ui5_t_15 WHERE uname = @sy-uname AND created_at >= @mv_start.
     DELETE FROM z2ui5_t_16 WHERE uname = @sy-uname AND created_at >= @mv_start.
     DELETE FROM z2ui5_t_14 WHERE uname = @sy-uname AND timestampl >= @mv_start AND mcp_client = 'unit-test 1.0'.
-    DELETE FROM z2ui5_t_17.
-    INSERT z2ui5_t_17 FROM TABLE @mt_setting.
     COMMIT WORK.
-    z2ui5_cl_agent_settings=>refresh( ).
+    z2ui5_cl_agent_settings=>end_test_buffer( ).
     z2ui5_cl_ui5_srv_draft=>set_instance( li_default ).
 
   ENDMETHOD.

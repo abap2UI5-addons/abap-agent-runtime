@@ -155,16 +155,6 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       END OF ty_s_input.
     TYPES ty_t_input TYPE STANDARD TABLE OF ty_s_input WITH EMPTY KEY.
 
-    TYPES:
-      "! Where a value goes: a field, or a table cell.
-      BEGIN OF ty_s_target,
-        is_cell  TYPE abap_bool,
-        field    TYPE i,
-        table    TYPE i,
-        row      TYPE i,
-        column   TYPE string,
-      END OF ty_s_target.
-
     TYPES ty_t_int TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
 
     TYPES:
@@ -296,14 +286,6 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
         VALUE(result) TYPE string_table
       RAISING
         z2ui5_cx_ui5_util_error.
-
-    METHODS resolve_target
-      IMPORTING
-        key           TYPE string
-      EXPORTING
-        found         TYPE abap_bool
-      RETURNING
-        VALUE(result) TYPE ty_s_target.
 
     METHODS coerce
       IMPORTING
@@ -1423,57 +1405,6 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD resolve_target.
-
-    found = abap_false.
-    LOOP AT mo_snap->mt_field INTO DATA(ls_field) WHERE id = key. "#EC CI_SORTSEQ
-      found = abap_true.
-      result-field = sy-tabix.
-      RETURN.
-    ENDLOOP.
-    LOOP AT mo_snap->mt_field INTO ls_field WHERE path = key. "#EC CI_SORTSEQ
-      found = abap_true.
-      result-field = sy-tabix.
-      RETURN.
-    ENDLOOP.
-    DATA(lv_upper) = to_upper( key ).
-    LOOP AT mo_snap->mt_field INTO ls_field.
-      IF to_upper( ls_field-name ) = lv_upper.
-        found = abap_true.
-        result-field = sy-tabix.
-        RETURN.
-      ENDIF.
-    ENDLOOP.
-
-    " a table cell: /T_TAB/3/QTY or t1/3/QTY
-    SPLIT key AT `/` INTO TABLE DATA(lt_seg).
-    DATA(lv_count) = lines( lt_seg ).
-    IF lv_count < 3.
-      RETURN.
-    ENDIF.
-    DATA(lv_column) = lt_seg[ lv_count ].
-    DATA(lv_row) = lt_seg[ lv_count - 1 ].
-    " at most 9 digits - a longer row does not fit the integer it becomes
-    IF lv_row IS INITIAL OR lv_row CN `0123456789` OR strlen( lv_row ) > 9 OR lv_column IS INITIAL
-        OR lv_column(1) CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`
-        OR lv_column CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-`.
-      RETURN.
-    ENDIF.
-    DATA(lv_table) = substring( val = key
-                                len = strlen( key ) - strlen( lv_row ) - strlen( lv_column ) - 2 ).
-    LOOP AT mo_snap->mt_table INTO DATA(ls_table).
-      IF ls_table-path = lv_table OR ls_table-id = lv_table.
-        found = abap_true.
-        result = VALUE #( is_cell = abap_true
-                          table   = sy-tabix
-                          row     = CONV i( lv_row )
-                          column  = lv_column ).
-        RETURN.
-      ENDIF.
-    ENDLOOP.
-
-  ENDMETHOD.
-
   METHOD coerce.
 
     " the value in the type the model holds there (a Number input bound to a
@@ -1554,8 +1485,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DATA lt_plan TYPE z2ui5_cl_agent_snapshot=>ty_t_pending.
 
     LOOP AT t_value INTO DATA(ls_value).
-      DATA(ls_target) = resolve_target( EXPORTING key   = ls_value-key
-                                        IMPORTING found = lv_found ).
+      DATA(ls_target) = mo_snap->resolve_target( EXPORTING key   = ls_value-key
+                                                 IMPORTING found = lv_found ).
       IF lv_found = abap_false.
         fail( |no field '{ z2ui5_cl_agent_viewxml=>echo( ls_value-key ) }' on this screen - { field_help( ) }| ).
       ENDIF.
@@ -1650,37 +1581,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   METHOD find_action.
 
-    DATA lt_named TYPE z2ui5_cl_agent_snapshot=>ty_t_action.
-    DATA lt_enabled TYPE z2ui5_cl_agent_snapshot=>ty_t_action.
-
-    READ TABLE mo_snap->mt_action INTO result WITH KEY id = event. "#EC CI_SORTSEQ
-    IF sy-subrc = 0.
-      RETURN.
-    ENDIF.
-    LOOP AT mo_snap->mt_action INTO DATA(ls_action) WHERE event = event. "#EC CI_SORTSEQ
-      INSERT ls_action INTO TABLE lt_named.
-      IF ls_action-enabled = abap_true.
-        INSERT ls_action INTO TABLE lt_enabled.
-      ENDIF.
-    ENDLOOP.
-    IF lt_named IS INITIAL.
+    result = mo_snap->find_action( event   = event
+                                   has_row = has_row ).
+    IF result IS INITIAL.
       fail( |no action '{ z2ui5_cl_agent_viewxml=>echo( event ) }' on this screen - { action_help( ) }| ).
     ENDIF.
-    DATA(lt_pool) = COND z2ui5_cl_agent_snapshot=>ty_t_action( WHEN lt_enabled IS NOT INITIAL THEN lt_enabled ELSE lt_named ).
-    IF has_row = abap_true.
-      READ TABLE lt_pool INTO result WITH KEY scope = `row`. "#EC CI_SORTSEQ
-      IF sy-subrc = 0.
-        RETURN.
-      ENDIF.
-    ELSE.
-      " without a row, a screen action of that name before a row action -
-      " a "delete selected" button after a table with a DELETE per row was
-      " reachable by its id only (mcp-server lib/appclient.mjs findAction)
-      LOOP AT lt_pool INTO result WHERE scope <> `row`. "#EC CI_SORTSEQ
-        RETURN.
-      ENDLOOP.
-    ENDIF.
-    result = lt_pool[ 1 ].
 
   ENDMETHOD.
 
@@ -2668,49 +2573,17 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
   METHOD mask_values.
 
     DATA lt_part TYPE string_table.
-    DATA lv_found TYPE abap_bool.
+    DATA lv_masked TYPE abap_bool.
 
     " the arguments as JSON, a value masked when the app or the settings
     " mark its field sensitive, or when it is typed into a password input
     LOOP AT t_value INTO DATA(ls_value).
-      DATA(lv_masked) = abap_false.
-      DATA(lv_app) = COND string( WHEN mo_sim IS BOUND THEN mo_sim->get_app( ) ELSE app ).
-      IF mo_snap IS NOT BOUND.
-        " no screen to resolve the key against: judged by the key alone
-        lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                              path = ls_value-key
-                                                              name = ls_value-key ).
-        IF lv_masked = abap_false.
-          lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                path = |/{ ls_value-key }|
-                                                                name = ls_value-key ).
-        ENDIF.
+      IF mo_snap IS BOUND.
+        lv_masked = mo_snap->is_protected( ls_value-key ).
       ELSE.
-        DATA(ls_target) = resolve_target( EXPORTING key   = ls_value-key
-                                          IMPORTING found = lv_found ).
-        IF lv_found = abap_true AND ls_target-is_cell = abap_false.
-          DATA(ls_field) = mo_snap->mt_field[ ls_target-field ].
-          lv_masked = xsdbool( mo_snap->is_secret( ls_field-id ) = abap_true
-                            OR z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                         path = ls_field-path
-                                                                         name = ls_field-name ) = abap_true ).
-        ELSEIF lv_found = abap_true.
-          DATA(ls_table) = mo_snap->mt_table[ ls_target-table ].
-          lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                path = |{ ls_table-path }/{ ls_target-row }/{ ls_target-column }|
-                                                                name = ls_target-column ).
-        ELSE.
-          " a key the screen does not know: a name like IBAN is checked as
-          " the path /IBAN as well, the shape the sensitive rules are written in
-          lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                path = ls_value-key
-                                                                name = ls_value-key ).
-          IF lv_masked = abap_false.
-            lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = lv_app
-                                                                  path = |/{ ls_value-key }|
-                                                                  name = ls_value-key ).
-          ENDIF.
-        ENDIF.
+        " no screen to resolve the key against: judged by the key alone
+        lv_masked = z2ui5_cl_agent_snapshot=>key_sensitive( app = COND string( WHEN mo_sim IS BOUND THEN mo_sim->get_app( ) ELSE app )
+                                                            key = ls_value-key ).
       ENDIF.
       INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_value-key ) }:| &&
              |{ COND #( WHEN lv_masked = abap_true

@@ -1244,6 +1244,12 @@ CLASS ltcl_args IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = `["a1"]`
                                         act = act( event = `DELETE`
                                                    row   = `1` ) ).
+    " the copilot's proposal names no row: the same action as an agent's
+    " app_act without row - the button, not the first row's
+    cl_abap_unit_assert=>assert_equals( exp = `Delete selected`
+                                        act = mo_cut->mo_snap->find_action( event        = `DELETE`
+                                                                            has_row      = abap_false
+                                                                            backend_only = abap_true )-label ).
 
   ENDMETHOD.
 

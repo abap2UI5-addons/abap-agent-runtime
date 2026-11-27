@@ -115,6 +115,11 @@ and by its lint targets, not yet on a system in production use, and its API -
   go through `app_check` / `app_act` of the session - the same policy as an
   MCP agent, nothing runs without the user's click. Off by default, like the
   prompt in the audit and the sample rows.
+- A copilot proposal names the action an agent's `app_act` without a row
+  fires - a screen action before a row action of the same event; the copilot
+  took the first enabled one in the view, a row's. The action and the
+  protected fields are resolved by the snapshot for both
+  (`find_action( )`, `resolve_target( )`, `is_protected( )`).
 
 ### Tooling
 

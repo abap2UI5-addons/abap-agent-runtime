@@ -431,68 +431,26 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
   METHOD check_protected.
 
-    DATA lv_index TYPE i.
+    DATA lv_found TYPE abap_bool.
 
     CLEAR: label, path, kind.
-    " the field app_check( ) resolves the key to: by id, by path, by name in
-    " any case - in that order, as the session resolves it
-    LOOP AT io_snap->mt_field INTO DATA(ls_field) WHERE id = field. "#EC CI_SORTSEQ
-      lv_index = sy-tabix.
-      EXIT.
-    ENDLOOP.
-    IF lv_index = 0.
-      LOOP AT io_snap->mt_field INTO ls_field WHERE path = field. "#EC CI_SORTSEQ
-        lv_index = sy-tabix.
-        EXIT.
-      ENDLOOP.
-    ENDIF.
-    IF lv_index = 0.
-      DATA(lv_upper) = to_upper( field ).
-      LOOP AT io_snap->mt_field INTO ls_field.
-        IF to_upper( ls_field-name ) = lv_upper.
-          lv_index = sy-tabix.
-          EXIT.
-        ENDIF.
-      ENDLOOP.
-    ENDIF.
-    IF lv_index > 0.
+    " the field or cell app_check( ) resolves the key to, judged as the
+    " audit log of the session judges it
+    DATA(ls_target) = io_snap->resolve_target( EXPORTING key   = field
+                                               IMPORTING found = lv_found ).
+    IF lv_found = abap_true AND ls_target-is_cell = abap_false.
+      DATA(ls_field) = io_snap->mt_field[ ls_target-field ].
       label = ls_field-label.
       path = ls_field-path.
       kind = ls_field-kind.
-      IF io_snap->is_secret( ls_field-id ) = abap_true
-          OR z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
-                                                       path = ls_field-path
-                                                       name = ls_field-name ) = abap_true.
-        result = abap_true.
-      ENDIF.
-      RETURN.
-    ENDIF.
-
-    " a table cell "<table path or id>/<row>/<COLUMN>": sensitive by its
-    " column or by its model path, as the audit log judges it
-    DATA(lt_part) = VALUE string_table( ).
-    SPLIT field AT `/` INTO TABLE lt_part.
-    DATA(lv_count) = lines( lt_part ).
-    DATA(lv_column) = VALUE string( lt_part[ lv_count ] OPTIONAL ).
-    DATA(lv_path) = field.
-    IF lv_count >= 3.
-      DATA(lv_row) = VALUE string( lt_part[ lv_count - 1 ] OPTIONAL ).
-      DATA(lv_table) = substring( val = field
-                                  len = strlen( field ) - strlen( lv_row ) - strlen( lv_column ) - 2 ).
-      LOOP AT io_snap->mt_table INTO DATA(ls_table) WHERE id = lv_table OR path = lv_table. "#EC CI_SORTSEQ
-        lv_path = |{ ls_table-path }/{ lv_row }/{ lv_column }|.
-        LOOP AT ls_table-t_cellspec INTO DATA(ls_spec) WHERE name = lv_column AND has_field_spec = abap_true. "#EC CI_SORTSEQ
-          kind = ls_spec-field_kind.
-          EXIT.
-        ENDLOOP.
+    ELSEIF lv_found = abap_true.
+      DATA(ls_table) = io_snap->mt_table[ ls_target-table ].
+      LOOP AT ls_table-t_cellspec INTO DATA(ls_spec) WHERE name = ls_target-column AND has_field_spec = abap_true. "#EC CI_SORTSEQ
+        kind = ls_spec-field_kind.
         EXIT.
       ENDLOOP.
     ENDIF.
-    IF lv_count > 1 AND z2ui5_cl_agent_settings=>check_sensitive( app  = io_snap->mv_app
-                                                                  path = lv_path
-                                                                  name = lv_column ) = abap_true.
-      result = abap_true.
-    ENDIF.
+    result = io_snap->is_protected( field ).
 
   ENDMETHOD.
 
@@ -612,9 +570,6 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
   METHOD validate.
 
-    DATA ls_action TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
-    DATA lv_found TYPE abap_bool.
-
     " the fields: on the screen and not protected
     LOOP AT cs_proposal-t_value REFERENCE INTO DATA(lr_value).
       IF check_protected( EXPORTING io_snap = io_snap
@@ -629,30 +584,13 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
 
     " the action and its policy - a forbidden one is never offered
     IF cs_proposal-event IS NOT INITIAL.
-      " an action id first, then the first ENABLED action of the event - as
-      " the session resolves it (find_action), so the label the user
-      " confirms and the action that runs are the same control
-      lv_found = abap_false.
-      LOOP AT io_snap->mt_action INTO ls_action
-           WHERE id = cs_proposal-event AND frontend IS INITIAL. "#EC CI_SORTSEQ
-        lv_found = abap_true.
-        EXIT.
-      ENDLOOP.
-      IF lv_found = abap_false.
-        LOOP AT io_snap->mt_action INTO ls_action
-             WHERE event = cs_proposal-event AND enabled = abap_true AND frontend IS INITIAL. "#EC CI_SORTSEQ
-          lv_found = abap_true.
-          EXIT.
-        ENDLOOP.
-      ENDIF.
-      IF lv_found = abap_false.
-        LOOP AT io_snap->mt_action INTO ls_action
-             WHERE event = cs_proposal-event AND frontend IS INITIAL. "#EC CI_SORTSEQ
-          lv_found = abap_true.
-          EXIT.
-        ENDLOOP.
-      ENDIF.
-      IF lv_found = abap_false.
+      " resolved as the session resolves it (find_action), so the label the
+      " user confirms and the action that runs are the same control - a
+      " proposal names no row, the copilot never closes a layer
+      DATA(ls_action) = io_snap->find_action( event        = cs_proposal-event
+                                              has_row      = abap_false
+                                              backend_only = abap_true ).
+      IF ls_action IS INITIAL.
         cs_proposal-reason = |there is no action { cs_proposal-event } on this screen|.
         RETURN.
       ENDIF.

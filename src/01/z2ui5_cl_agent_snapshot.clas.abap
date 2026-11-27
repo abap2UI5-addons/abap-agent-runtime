@@ -212,6 +212,18 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       END OF ty_s_text_source.
     TYPES ty_t_text_source TYPE STANDARD TABLE OF ty_s_text_source WITH EMPTY KEY.
 
+    TYPES:
+      "! What a value key of app_act names (resolve_target): a field (its
+      "! index in mt_field) or a table cell (the table's index in mt_table,
+      "! the 0-based row, the column).
+      BEGIN OF ty_s_target,
+        is_cell TYPE abap_bool,
+        field   TYPE i,
+        table   TYPE i,
+        row     TYPE i,
+        column  TYPE string,
+      END OF ty_s_target.
+
     DATA mt_field       TYPE ty_t_field READ-ONLY.
     DATA mt_action      TYPE ty_t_action READ-ONLY.
     DATA mt_table       TYPE ty_t_table READ-ONLY.
@@ -267,6 +279,52 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         field_id      TYPE clike
       RETURNING
         VALUE(result) TYPE abap_bool.
+
+    "! What a value key names: a field by id, by model path, by name in any
+    "! case - in that order -, or a table cell "&lt;table path or
+    "! id&gt;/&lt;row&gt;/&lt;COLUMN&gt;"; found is false when it names nothing.
+    METHODS resolve_target
+      IMPORTING
+        key           TYPE clike
+      EXPORTING
+        found         TYPE abap_bool
+      RETURNING
+        VALUE(result) TYPE ty_s_target.
+
+    "! Whether the value a key names is protected - never shown to a
+    "! language model, masked in the audit log: a password field
+    "! (is_secret( )), or a field or cell the app or the settings mark
+    "! sensitive; a key the screen does not know by the key alone
+    "! (key_sensitive( )).
+    METHODS is_protected
+      IMPORTING
+        key           TYPE clike
+      RETURNING
+        VALUE(result) TYPE abap_bool.
+
+    "! Whether a key marks a value sensitive by itself, with no screen to
+    "! resolve it against: as a path and as a name, and a name like IBAN as
+    "! the path /IBAN too - the shape the sensitive rules are written in.
+    CLASS-METHODS key_sensitive
+      IMPORTING
+        app           TYPE clike
+        key           TYPE clike
+      RETURNING
+        VALUE(result) TYPE abap_bool.
+
+    "! The action an event names: an action id first; else, of the actions
+    "! of that event, the enabled ones (all when none is) - with a row the
+    "! first row action, without one the first screen action, else the
+    "! first (mcp-server lib/appclient.mjs findAction). backend_only:
+    "! never a frontend action (the two client-side closes). Initial when
+    "! nothing matches.
+    METHODS find_action
+      IMPORTING
+        event         TYPE clike
+        has_row       TYPE abap_bool
+        backend_only  TYPE abap_bool DEFAULT abap_false
+      RETURNING
+        VALUE(result) TYPE ty_s_action.
 
     "! The number of rows of a table of this snapshot.
     METHODS table_rows
@@ -992,6 +1050,136 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       result = abap_true.
       RETURN.
     ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD resolve_target.
+
+    found = abap_false.
+    LOOP AT mt_field TRANSPORTING NO FIELDS WHERE id = key. "#EC CI_SORTSEQ
+      found = abap_true.
+      result-field = sy-tabix.
+      RETURN.
+    ENDLOOP.
+    LOOP AT mt_field TRANSPORTING NO FIELDS WHERE path = key. "#EC CI_SORTSEQ
+      found = abap_true.
+      result-field = sy-tabix.
+      RETURN.
+    ENDLOOP.
+    DATA(lv_upper) = to_upper( key ).
+    LOOP AT mt_field INTO DATA(ls_field).
+      IF to_upper( ls_field-name ) = lv_upper.
+        found = abap_true.
+        result-field = sy-tabix.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    " a table cell: /T_TAB/3/QTY or t1/3/QTY
+    DATA(lv_key) = CONV string( key ).
+    SPLIT lv_key AT `/` INTO TABLE DATA(lt_seg).
+    DATA(lv_count) = lines( lt_seg ).
+    IF lv_count < 3.
+      RETURN.
+    ENDIF.
+    DATA(lv_column) = lt_seg[ lv_count ].
+    DATA(lv_row) = lt_seg[ lv_count - 1 ].
+    " at most 9 digits - a longer row does not fit the integer it becomes
+    IF lv_row IS INITIAL OR lv_row CN `0123456789` OR strlen( lv_row ) > 9 OR lv_column IS INITIAL
+        OR lv_column(1) CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`
+        OR lv_column CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-`.
+      RETURN.
+    ENDIF.
+    DATA(lv_table) = substring( val = lv_key
+                                len = strlen( lv_key ) - strlen( lv_row ) - strlen( lv_column ) - 2 ).
+    LOOP AT mt_table INTO DATA(ls_table).
+      IF ls_table-path = lv_table OR ls_table-id = lv_table.
+        found = abap_true.
+        result = VALUE #( is_cell = abap_true
+                          table   = sy-tabix
+                          row     = CONV i( lv_row )
+                          column  = lv_column ).
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD is_protected.
+
+    DATA lv_found TYPE abap_bool.
+
+    DATA(ls_target) = resolve_target( EXPORTING key   = key
+                                      IMPORTING found = lv_found ).
+    IF lv_found = abap_false.
+      result = key_sensitive( app = mv_app
+                              key = key ).
+    ELSEIF ls_target-is_cell = abap_false.
+      DATA(ls_field) = mt_field[ ls_target-field ].
+      result = xsdbool( is_secret( ls_field-id ) = abap_true
+                     OR z2ui5_cl_agent_settings=>check_sensitive( app  = mv_app
+                                                                  path = ls_field-path
+                                                                  name = ls_field-name ) = abap_true ).
+    ELSE.
+      DATA(ls_table) = mt_table[ ls_target-table ].
+      result = z2ui5_cl_agent_settings=>check_sensitive( app  = mv_app
+                                                         path = |{ ls_table-path }/{ ls_target-row }/{ ls_target-column }|
+                                                         name = ls_target-column ).
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD key_sensitive.
+
+    result = z2ui5_cl_agent_settings=>check_sensitive( app  = app
+                                                       path = key
+                                                       name = key ).
+    IF result = abap_false.
+      result = z2ui5_cl_agent_settings=>check_sensitive( app  = app
+                                                         path = |/{ key }|
+                                                         name = key ).
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD find_action.
+
+    DATA lt_named TYPE ty_t_action.
+    DATA lt_enabled TYPE ty_t_action.
+
+    LOOP AT mt_action INTO DATA(ls_action) WHERE id = event. "#EC CI_SORTSEQ
+      IF backend_only = abap_false OR ls_action-frontend IS INITIAL.
+        result = ls_action.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+    LOOP AT mt_action INTO ls_action WHERE event = event. "#EC CI_SORTSEQ
+      IF backend_only = abap_true AND ls_action-frontend IS NOT INITIAL.
+        CONTINUE.
+      ENDIF.
+      INSERT ls_action INTO TABLE lt_named.
+      IF ls_action-enabled = abap_true.
+        INSERT ls_action INTO TABLE lt_enabled.
+      ENDIF.
+    ENDLOOP.
+    IF lt_named IS INITIAL.
+      RETURN.
+    ENDIF.
+    DATA(lt_pool) = COND ty_t_action( WHEN lt_enabled IS NOT INITIAL THEN lt_enabled ELSE lt_named ).
+    IF has_row = abap_true.
+      READ TABLE lt_pool INTO result WITH KEY scope = `row`. "#EC CI_SORTSEQ
+      IF sy-subrc = 0.
+        RETURN.
+      ENDIF.
+    ELSE.
+      " without a row, a screen action of that name before a row action -
+      " a "delete selected" button after a table with a DELETE per row was
+      " reachable by its id only
+      LOOP AT lt_pool INTO result WHERE scope <> `row`. "#EC CI_SORTSEQ
+        RETURN.
+      ENDLOOP.
+    ENDIF.
+    result = lt_pool[ 1 ].
 
   ENDMETHOD.
 

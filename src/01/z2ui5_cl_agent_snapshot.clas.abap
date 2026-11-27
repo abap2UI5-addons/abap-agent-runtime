@@ -495,11 +495,15 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     METHODS model_init.
 
+    "! The value at a model path. An object or array also comes as JSON
+    "! (slice and stringify - a walk over the whole model tree) unless
+    "! check_json is false: then only its kind and number of members.
     METHODS model_get
       IMPORTING
         model_key     TYPE string
         path          TYPE string
         base          TYPE string OPTIONAL
+        check_json    TYPE abap_bool DEFAULT abap_true
       RETURNING
         VALUE(result) TYPE ty_s_val.
 
@@ -998,11 +1002,13 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         result-kind = COND #( WHEN lo_json->get_node_type( lv_tree ) = z2ui5_if_ajson_types=>node_type-array
                               THEN z2ui5_cl_agent_viewxml=>cs_kind-array
                               ELSE z2ui5_cl_agent_viewxml=>cs_kind-object ).
-        TRY.
-            result-json = lo_json->slice( lv_tree )->stringify( ).
-          CATCH cx_root.
-            result-json = COND #( WHEN result-kind = z2ui5_cl_agent_viewxml=>cs_kind-array THEN `[]` ELSE `{}` ).
-        ENDTRY.
+        IF check_json = abap_true.
+          TRY.
+              result-json = lo_json->slice( lv_tree )->stringify( ).
+            CATCH cx_root.
+              result-json = COND #( WHEN result-kind = z2ui5_cl_agent_viewxml=>cs_kind-array THEN `[]` ELSE `{}` ).
+          ENDTRY.
+        ENDIF.
         result-num = lines( lo_json->members( lv_tree ) ).
     ENDCASE.
 
@@ -2242,8 +2248,9 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDIF.
 
     IF lv_bpath IS NOT INITIAL.
-      DATA(ls_rows) = model_get( model_key = ctx-model_key
-                                 path      = lv_bpath ).
+      DATA(ls_rows) = model_get( model_key  = ctx-model_key
+                                 path       = lv_bpath
+                                 check_json = abap_false ).
       IF ls_rows-kind <> z2ui5_cl_agent_viewxml=>cs_kind-array OR lt_items IS INITIAL.
         RETURN.
       ENDIF.
@@ -2483,8 +2490,9 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     IF ls_b-kind <> z2ui5_cl_agent_viewxml=>cs_binding-path OR ls_b-model IS NOT INITIAL OR ls_b-relative = abap_true.
       RETURN.
     ENDIF.
-    DATA(ls_rows) = model_get( model_key = ctx-model_key
-                               path      = ls_b-path ).
+    DATA(ls_rows) = model_get( model_key  = ctx-model_key
+                               path       = ls_b-path
+                               check_json = abap_false ).
     IF ls_rows-kind <> z2ui5_cl_agent_viewxml=>cs_kind-array.
       RETURN.
     ENDIF.
@@ -2586,8 +2594,9 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                                 THEN |the named model '{ lv_bmodel }'|
                                                 ELSE `something other than a model table` ) } ({ ctx-layer }) - messages not described| ).
       ELSE.
-        DATA(ls_rows) = model_get( model_key = ctx-model_key
-                                   path      = lv_bpath ).
+        DATA(ls_rows) = model_get( model_key  = ctx-model_key
+                                   path       = lv_bpath
+                                   check_json = abap_false ).
         DATA(lv_template) = VALUE i( lt_items[ 1 ] OPTIONAL ).
         IF ls_rows-kind = z2ui5_cl_agent_viewxml=>cs_kind-array AND lv_template > 0.
           DATA(lv_count) = CONV i( ls_rows-num ).
@@ -2737,8 +2746,9 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     IF lv_label IS INITIAL.
       lv_label = name_of_path( lv_bpath ).
     ENDIF.
-    DATA(ls_rows) = model_get( model_key = ctx-model_key
-                               path      = lv_bpath ).
+    DATA(ls_rows) = model_get( model_key  = ctx-model_key
+                               path       = lv_bpath
+                               check_json = abap_false ).
     DATA(lv_row_count) = COND i( WHEN ls_rows-kind = z2ui5_cl_agent_viewxml=>cs_kind-array THEN CONV i( ls_rows-num ) ).
 
     " the template: the one control of the bound aggregation

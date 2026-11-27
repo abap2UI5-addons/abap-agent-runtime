@@ -418,12 +418,6 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE i.
 
-    CLASS-METHODS str_trim
-      IMPORTING
-        val           TYPE string
-      RETURNING
-        VALUE(result) TYPE string.
-
     "! A JavaScript literal of the ternary shape at off: '...', "...",
     "! null or a number, with nothing but blanks after it.
     CLASS-METHODS tail_literal
@@ -2121,7 +2115,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DATA lv_found TYPE abap_bool.
 
     result-kind = '?'.
-    DATA(lv_src) = str_trim( raw ).
+    DATA(lv_src) = z2ui5_cl_agent_viewxml=>trim( raw ).
     DATA(lv_len) = strlen( lv_src ).
     IF lv_len < 15 OR substring( val = lv_src
                                  len = 14 ) <> lc_head.
@@ -2195,7 +2189,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     DATA(lv_rest) = substring( val = lv_src
                                off = lv_pos ).
-    IF str_trim( lv_rest ) IS INITIAL.
+    IF z2ui5_cl_agent_viewxml=>trim( lv_rest ) IS INITIAL.
       result = walk_params( is_params = is_params
                             path      = lv_path
                             is_table  = is_table ).
@@ -2206,7 +2200,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     IF ls_cur-kind = '?'.
       RETURN.
     ENDIF.
-    WHILE str_trim( lv_rest ) IS NOT INITIAL.
+    WHILE z2ui5_cl_agent_viewxml=>trim( lv_rest ) IS NOT INITIAL.
       IF ls_cur-kind <> 'i' AND ls_cur-kind <> 'c' AND ls_cur-kind <> 'l'.
         RETURN.
       ENDIF.
@@ -2462,33 +2456,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   METHOD skip_ws.
 
-    DATA(lv_ws) = ` ` && cl_abap_char_utilities=>horizontal_tab && cl_abap_char_utilities=>cr_lf
-               && cl_abap_char_utilities=>form_feed && cl_abap_char_utilities=>vertical_tab.
+    DATA(lv_ws) = z2ui5_cl_agent_viewxml=>ws( ).
     result = pos.
     DATA(lv_len) = strlen( val ).
     WHILE result < lv_len AND val+result(1) CA lv_ws.
       result = result + 1.
     ENDWHILE.
-
-  ENDMETHOD.
-
-  METHOD str_trim.
-
-    DATA(lv_ws) = ` ` && cl_abap_char_utilities=>horizontal_tab && cl_abap_char_utilities=>cr_lf
-               && cl_abap_char_utilities=>form_feed && cl_abap_char_utilities=>vertical_tab.
-    DATA(lv_from) = skip_ws( val = val
-                             pos = 0 ).
-    DATA(lv_to) = strlen( val ).
-    WHILE lv_to > lv_from.
-      DATA(lv_last) = lv_to - 1.
-      IF val+lv_last(1) NA lv_ws.
-        EXIT.
-      ENDIF.
-      lv_to = lv_last.
-    ENDWHILE.
-    result = substring( val = val
-                        off = lv_from
-                        len = lv_to - lv_from ).
 
   ENDMETHOD.
 

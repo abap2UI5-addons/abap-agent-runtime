@@ -1019,6 +1019,7 @@ CLASS ltcl_args DEFINITION FINAL
     METHODS screen_before_row FOR TESTING.
     METHODS action_hidden  FOR TESTING.
     METHODS action_disabled FOR TESTING.
+    METHODS args_masked    FOR TESTING.
 
     METHODS screen
       IMPORTING
@@ -1282,6 +1283,34 @@ CLASS ltcl_args IMPLEMENTATION.
                                                    row   = `0` ) ).
     " a table row event selects nothing by itself
     cl_abap_unit_assert=>assert_initial( pending( ) ).
+
+  ENDMETHOD.
+
+  METHOD args_masked.
+
+    " the audit of an act's args: what a password reads stays out - the
+    " model value of the password field, and what the browser reads from a
+    " password input (the value of its submit); the rest as given
+    screen( xml   = `<Input type="Password" value="{/PW}" submit=".eB(['LOGIN'], ${$parameters>/value})"/>` &&
+                    `<Input value="{/NAME}"/><Button text="Go" press=".eB(['GO'], ${/PW}, ${/NAME}, 'x')"/>`
+            model = `{"PW":"","NAME":""}` ).
+    cl_abap_unit_assert=>assert_equals(
+        exp = `["***"]`
+        act = mo_cut->mask_args( t_arg     = VALUE #( ( val = z2ui5_cl_agent_viewxml=>val_string( `s3cret` ) ) )
+                                 is_action = mo_cut->find_action( event   = `LOGIN`
+                                                                  has_row = abap_false ) ) ).
+    cl_abap_unit_assert=>assert_equals(
+        exp = `["***","Bob","x"]`
+        act = mo_cut->mask_args( t_arg     = VALUE #( ( val = z2ui5_cl_agent_viewxml=>val_string( `s3cret` ) )
+                                                      ( val = z2ui5_cl_agent_viewxml=>val_string( `Bob` ) )
+                                                      ( val = z2ui5_cl_agent_viewxml=>val_string( `x` ) ) )
+                                 is_action = mo_cut->find_action( event   = `GO`
+                                                                  has_row = abap_false ) ) ).
+    " no action to judge them by: all masked
+    cl_abap_unit_assert=>assert_equals(
+        exp = `["***"]`
+        act = mo_cut->mask_args( t_arg     = VALUE #( ( val = z2ui5_cl_agent_viewxml=>val_string( `Bob` ) ) )
+                                 is_action = VALUE #( ) ) ).
 
   ENDMETHOD.
 

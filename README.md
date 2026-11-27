@@ -375,7 +375,9 @@ the reference's, key for key.
 - **Audit log** (`Z2UI5_T_14`, app `z2ui5_cl_agent_app_audit`): timestamp,
   user, session, app, operation, event, arguments (truncated; values masked for
   password inputs - and any field on the model path of one - and for fields
-  the app or the settings mark sensitive),
+  the app or the settings mark sensitive; so are event arguments that read
+  such a field or come from such an input, and every argument of an act whose
+  action is not known),
   outcome, error text, MCP client name and version. Users see their own
   entries, administrators everybody's. Settings changes are logged too.
 - **AI at runtime** is off by default (no key, no destination, copilot

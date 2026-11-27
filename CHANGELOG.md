@@ -86,7 +86,9 @@ and by its lint targets, not yet on a system in production use, and its API -
   checked at `app_start` / `app_attach` only, and such an app's events were
   `allowed` by default.
 - Every call is logged (`z2ui5_cl_agent_audit`, `Z2UI5_T_14`, the audit
-  app `z2ui5_cl_agent_app_audit`), sensitive values masked; sessions in
+  app `z2ui5_cl_agent_app_audit`), sensitive values masked - event arguments
+  that read a password or sensitive field, or come from a password input,
+  too (they were logged as the agent sent them); sessions in
   `Z2UI5_T_16`, MCP sessions in `Z2UI5_T_15`, always filtered by the
   request's user.
 - `z2ui5_cl_agent_demo`: an opted-in example app with the copilot, driven by

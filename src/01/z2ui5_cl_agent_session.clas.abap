@@ -473,6 +473,16 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE string.
 
+    "! The event arguments of an act as JSON for the audit, an argument
+    "! masked when what it stands for is protected; every one when the
+    "! action is not known (is_action initial).
+    METHODS mask_args
+      IMPORTING
+        t_arg         TYPE ty_t_input
+        is_action     TYPE z2ui5_cl_agent_snapshot=>ty_s_action
+      RETURNING
+        VALUE(result) TYPE string.
+
     METHODS audit
       IMPORTING
         operation TYPE string
@@ -722,6 +732,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DATA lv_event TYPE string.
     DATA lv_row TYPE string.
     DATA lv_values_audit TYPE string.
+    DATA lv_args_audit TYPE string.
 
     lv_event = event.
     lv_row = row.
@@ -756,6 +767,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         IF lv_event IS NOT INITIAL.
           ls_action = find_action( event   = lv_event
                                    has_row = xsdbool( lv_row IS NOT INITIAL ) ).
+          " masked against THIS screen, as the values
+          IF args IS NOT INITIAL.
+            lv_args_audit = mask_args( t_arg     = lt_arg
+                                       is_action = ls_action ).
+          ENDIF.
           IF ls_action-enabled = abap_false.
             fail( |action { ls_action-id } ({ ls_action-label }) is disabled - { action_help( ) }| ).
           ENDIF.
@@ -884,7 +900,13 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       lv_args = |{ lv_args },"values":{ lv_values_audit }|.
     ENDIF.
     IF args IS NOT INITIAL.
-      lv_args = |{ lv_args },"args":{ args }|.
+      IF lv_args_audit IS INITIAL.
+        " no action to judge them by (refused before, or no event): every
+        " argument masked - as given they could hold a password
+        lv_args_audit = mask_args( t_arg     = lt_arg
+                                   is_action = VALUE #( ) ).
+      ENDIF.
+      lv_args = |{ lv_args },"args":{ lv_args_audit }|.
     ENDIF.
     IF lv_row IS NOT INITIAL.
       lv_args = |{ lv_args },"row":{ lv_row }|.
@@ -2567,6 +2589,78 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     DELETE mt_pending WHERE model_key = slot. "#EC CI_SORTSEQ
     CLEAR mt_custom.
     analyze( ).
+
+  ENDMETHOD.
+
+  METHOD mask_args.
+
+    DATA lt_part TYPE string_table.
+    DATA lv_masked TYPE abap_bool.
+
+    IF t_arg IS INITIAL.
+      " args that were no array of values
+      result = z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_audit=>c_mask ).
+      RETURN.
+    ENDIF.
+
+    " what the browser reads from the control the action sits on - its
+    " value, an event parameter such as the value of a submit - is the
+    " control's: protected when the control is a password or sensitive field
+    DATA(lv_control) = abap_false.
+    IF is_action IS NOT INITIAL.
+      LOOP AT mo_snap->mt_field INTO DATA(ls_field)
+           WHERE doc = is_action-doc AND node = is_action-node. "#EC CI_SORTSEQ
+        IF mo_snap->is_protected( ls_field-id ) = abap_true.
+          lv_control = abap_true.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+
+    LOOP AT t_arg INTO DATA(ls_arg).
+      DATA(lv_index) = sy-tabix.
+      DATA(ls_desc) = VALUE z2ui5_cl_agent_viewxml=>ty_s_arg( is_action-t_wire_arg[ lv_index ] OPTIONAL ).
+      IF is_action IS INITIAL OR ls_desc IS INITIAL.
+        lv_masked = abap_true.
+      ELSE.
+        CASE ls_desc-kind.
+          WHEN `model`.
+            " the model value of a field: as that field, else by its path
+            DATA(lv_field_found) = abap_false.
+            LOOP AT mo_snap->mt_field INTO ls_field
+                 WHERE model_key = is_action-model_key AND path = ls_desc-path. "#EC CI_SORTSEQ
+              lv_field_found = abap_true.
+              lv_masked = mo_snap->is_protected( ls_field-id ).
+              EXIT.
+            ENDLOOP.
+            IF lv_field_found = abap_false.
+              lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = mo_snap->mv_app
+                                                                    path = ls_desc-path
+                                                                    name = z2ui5_cl_agent_snapshot=>name_of_path( ls_desc-path ) ).
+            ENDIF.
+          WHEN `row`.
+            " a field of the row: by the column, as a cell of the table
+            DATA(ls_table) = VALUE z2ui5_cl_agent_snapshot=>ty_s_table( ).
+            READ TABLE mo_snap->mt_table INTO ls_table WITH KEY id = is_action-table. "#EC CI_SORTSEQ
+            lv_masked = z2ui5_cl_agent_settings=>check_sensitive( app  = mo_snap->mv_app
+                                                                  path = |{ ls_table-path }/0/{ ls_desc-path }|
+                                                                  name = z2ui5_cl_agent_snapshot=>name_of_path( ls_desc-path ) ).
+          WHEN `action`.
+            " a choice of a message box
+            lv_masked = abap_false.
+          WHEN OTHERS.
+            lv_masked = lv_control.
+        ENDCASE.
+        " a constant of the view - an agent can only repeat it
+        IF ls_desc-static = abap_true.
+          lv_masked = abap_false.
+        ENDIF.
+      ENDIF.
+      INSERT COND #( WHEN lv_masked = abap_true
+                     THEN z2ui5_cl_agent_viewxml=>json_string( z2ui5_cl_agent_audit=>c_mask )
+                     ELSE z2ui5_cl_agent_viewxml=>val_to_json( ls_arg-val ) ) INTO TABLE lt_part.
+    ENDLOOP.
+    result = |[{ concat_lines_of( table = lt_part
+                                  sep   = `,` ) }]|.
 
   ENDMETHOD.
 

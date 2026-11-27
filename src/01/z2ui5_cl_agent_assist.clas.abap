@@ -29,7 +29,8 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
   PUBLIC SECTION.
 
     CONSTANTS c_client TYPE string VALUE `copilot`.
-    CONSTANTS c_mask TYPE string VALUE `***`.
+    "! What a protected value shows as - the audit log's mask.
+    CONSTANTS c_mask TYPE string VALUE z2ui5_cl_agent_audit=>c_mask.
 
     TYPES:
       "! role: user or assistant.
@@ -136,6 +137,8 @@ CLASS z2ui5_cl_agent_assist DEFINITION PUBLIC FINAL CREATE PUBLIC.
         VALUE(result) TYPE string_table.
 
     "! What the model sees of the screen: the snapshot JSON, masked.
+    "! Deprecated - nothing calls it, ask( ) builds the context itself; it
+    "! is removed before 1.0.
     CLASS-METHODS get_context
       IMPORTING
         session       TYPE clike

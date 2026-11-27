@@ -176,6 +176,7 @@ CLASS z2ui5_cl_agent_genui DEFINITION PUBLIC FINAL CREATE PRIVATE.
         VALUE(result) TYPE string.
 
     "! The datasets handed over so far.
+    "! Deprecated - nothing calls it; it is removed before 1.0.
     METHODS get_datasets
       RETURNING
         VALUE(result) TYPE ty_t_dataset.

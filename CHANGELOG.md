@@ -51,6 +51,9 @@ and by its lint targets, not yet on a system in production use, and its API -
 - Every call runs as the SAP user of the HTTP request through the app's own
   `main( )` on the headless-frontend simulator; no technical user, no second
   API. Stateful apps are refused.
+- An MCP session unused for a day is ended at its next request - the client
+  gets the 404 of the Streamable HTTP contract and starts a new one. Until
+  now the session was refreshed instead unless an initialize had deleted it.
 
 ### The agent snapshot v1
 

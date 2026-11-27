@@ -107,6 +107,7 @@ CLASS ltcl_mcp DEFINITION FINAL
     METHODS tool_call_session   FOR TESTING RAISING cx_static_check.
     METHODS batch               FOR TESTING.
     METHODS batch_audit         FOR TESTING.
+    METHODS session_expires     FOR TESTING.
 
     METHODS post
       IMPORTING
@@ -359,6 +360,34 @@ CLASS ltcl_mcp IMPLEMENTATION.
                                                           content_type = `application/json`
                                                           session_id   = lv_session
                                                           body         = `{"jsonrpc":"2.0","id":9,"method":"ping"}` ) )-status ).
+
+  ENDMETHOD.
+
+  METHOD session_expires.
+
+    DATA(ls_init) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",` &&
+                          `"capabilities":{},"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
+    DATA(lv_session) = ls_init-t_header[ name = `Mcp-Session-Id` ]-value. "#EC CI_SORTSEQ
+    DATA(lv_id) = CONV z2ui5_t_15-id( lv_session ).
+
+    " unused for longer than a session lives - and no initialize since
+    " that would have deleted it
+    DATA(lv_old) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
+                       time    = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
+                       seconds = z2ui5_cl_agent_mcp=>c_session_seconds + 60 ).
+    UPDATE z2ui5_t_15 SET changed_at = @lv_old WHERE id = @lv_id.
+    COMMIT WORK.
+
+    cl_abap_unit_assert=>assert_equals(
+        exp = 404
+        act = NEW z2ui5_cl_agent_mcp( )->handle( VALUE #( method       = `POST`
+                                                          content_type = `application/json`
+                                                          session_id   = lv_session
+                                                          body         = `{"jsonrpc":"2.0","id":9,"method":"ping"}` ) )-status ).
+    " ended for good: the row is gone, not refreshed
+    SELECT SINGLE mcp_client FROM z2ui5_t_15 WHERE id = @lv_id INTO @DATA(lv_client).
+    cl_abap_unit_assert=>assert_subrc( exp = 4 ).
+    cl_abap_unit_assert=>assert_initial( lv_client ).
 
   ENDMETHOD.
 

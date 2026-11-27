@@ -48,7 +48,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         path      TYPE string,
         val       TYPE ty_s_val,
       END OF ty_s_pending.
-    TYPES ty_t_pending TYPE STANDARD TABLE OF ty_s_pending WITH EMPTY KEY.
+    TYPES ty_t_pending TYPE STANDARD TABLE OF ty_s_pending WITH DEFAULT KEY.
 
     TYPES:
       "! session/app: what the snapshot names; t_layer: the open layers
@@ -68,7 +68,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         key  TYPE ty_s_val,
         text TYPE string,
       END OF ty_s_choice.
-    TYPES ty_t_choice TYPE STANDARD TABLE OF ty_s_choice WITH EMPTY KEY.
+    TYPES ty_t_choice TYPE STANDARD TABLE OF ty_s_choice WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_field,
@@ -89,7 +89,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         node       TYPE i,
         secret     TYPE abap_bool,
       END OF ty_s_field.
-    TYPES ty_t_field TYPE STANDARD TABLE OF ty_s_field WITH EMPTY KEY.
+    TYPES ty_t_field TYPE STANDARD TABLE OF ty_s_field WITH DEFAULT KEY.
 
     TYPES:
       "! An action. t_arg_json: the args of the snapshot as JSON literals;
@@ -121,26 +121,26 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         pick         TYPE abap_bool,
         row_template TYPE string,
       END OF ty_s_action.
-    TYPES ty_t_action TYPE STANDARD TABLE OF ty_s_action WITH EMPTY KEY.
+    TYPES ty_t_action TYPE STANDARD TABLE OF ty_s_action WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_column,
         name  TYPE string,
         label TYPE string,
       END OF ty_s_column.
-    TYPES ty_t_column TYPE STANDARD TABLE OF ty_s_column WITH EMPTY KEY.
+    TYPES ty_t_column TYPE STANDARD TABLE OF ty_s_column WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_cell,
         name TYPE string,
         val  TYPE ty_s_val,
       END OF ty_s_cell.
-    TYPES ty_t_cell TYPE STANDARD TABLE OF ty_s_cell WITH EMPTY KEY.
+    TYPES ty_t_cell TYPE STANDARD TABLE OF ty_s_cell WITH DEFAULT KEY.
     TYPES:
       BEGIN OF ty_s_row,
         t_cell TYPE ty_t_cell,
       END OF ty_s_row.
-    TYPES ty_t_row TYPE STANDARD TABLE OF ty_s_row WITH EMPTY KEY.
+    TYPES ty_t_row TYPE STANDARD TABLE OF ty_s_row WITH DEFAULT KEY.
 
     TYPES:
       "! How one column is read: the cell control, its main property and
@@ -155,7 +155,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         field_kind     TYPE string,
         check_editable TYPE abap_bool,
       END OF ty_s_cellspec.
-    TYPES ty_t_cellspec TYPE STANDARD TABLE OF ty_s_cellspec WITH EMPTY KEY.
+    TYPES ty_t_cellspec TYPE STANDARD TABLE OF ty_s_cellspec WITH DEFAULT KEY.
 
     TYPES:
       "! A table. The index for a row event's $parameters: node (the table
@@ -186,7 +186,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         template        TYPE i,
         t_cellnode      TYPE z2ui5_cl_agent_viewxml=>ty_t_int,
       END OF ty_s_table.
-    TYPES ty_t_table TYPE STANDARD TABLE OF ty_s_table WITH EMPTY KEY.
+    TYPES ty_t_table TYPE STANDARD TABLE OF ty_s_table WITH DEFAULT KEY.
 
     TYPES:
       "! A message - subtitle and description only for the items of a
@@ -199,7 +199,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         subtitle    TYPE string,
         description TYPE string,
       END OF ty_s_message.
-    TYPES ty_t_message TYPE STANDARD TABLE OF ty_s_message WITH EMPTY KEY.
+    TYPES ty_t_message TYPE STANDARD TABLE OF ty_s_message WITH DEFAULT KEY.
 
     TYPES:
       "! The model paths a text of /texts was read from (absolute, or
@@ -210,7 +210,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         text   TYPE string,
         t_path TYPE string_table,
       END OF ty_s_text_source.
-    TYPES ty_t_text_source TYPE STANDARD TABLE OF ty_s_text_source WITH EMPTY KEY.
+    TYPES ty_t_text_source TYPE STANDARD TABLE OF ty_s_text_source WITH DEFAULT KEY.
 
     TYPES:
       "! What a value key of app_act names (resolve_target): a field (its
@@ -416,14 +416,14 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         t_lblfor  TYPE z2ui5_cl_agent_viewxml=>ty_t_attr,
         t_lblreq  TYPE string_table,
       END OF ty_s_doc.
-    TYPES ty_t_doc TYPE STANDARD TABLE OF ty_s_doc WITH EMPTY KEY.
+    TYPES ty_t_doc TYPE STANDARD TABLE OF ty_s_doc WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_model,
         key  TYPE string,
         json TYPE REF TO z2ui5_if_ajson,
       END OF ty_s_model.
-    TYPES ty_t_model TYPE STANDARD TABLE OF ty_s_model WITH EMPTY KEY.
+    TYPES ty_t_model TYPE STANDARD TABLE OF ty_s_model WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_label,
@@ -431,7 +431,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         required TYPE abap_bool,
         uses     TYPE i,
       END OF ty_s_label.
-    TYPES ty_t_label TYPE STANDARD TABLE OF ty_s_label WITH EMPTY KEY.
+    TYPES ty_t_label TYPE STANDARD TABLE OF ty_s_label WITH DEFAULT KEY.
 
     TYPES:
       "! The walk context. row_table: the table id inside a row template
@@ -464,14 +464,14 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         text   TYPE string,
         target TYPE string,
       END OF ty_s_mgr_msg.
-    TYPES ty_t_mgr_msg TYPE STANDARD TABLE OF ty_s_mgr_msg WITH EMPTY KEY.
+    TYPES ty_t_mgr_msg TYPE STANDARD TABLE OF ty_s_mgr_msg WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_title,
         layer TYPE string,
         title TYPE string,
       END OF ty_s_title.
-    TYPES ty_t_title TYPE STANDARD TABLE OF ty_s_title WITH EMPTY KEY.
+    TYPES ty_t_title TYPE STANDARD TABLE OF ty_s_title WITH DEFAULT KEY.
 
     TYPES:
       BEGIN OF ty_s_cellsrc,
@@ -480,7 +480,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
         header  TYPE string,
         visible TYPE abap_bool,
       END OF ty_s_cellsrc.
-    TYPES ty_t_cellsrc TYPE STANDARD TABLE OF ty_s_cellsrc WITH EMPTY KEY.
+    TYPES ty_t_cellsrc TYPE STANDARD TABLE OF ty_s_cellsrc WITH DEFAULT KEY.
 
     DATA ms_input   TYPE ty_s_input.
     DATA mv_rows    TYPE i.
@@ -834,7 +834,7 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD create.
 
-    result = NEW #( ).
+    CREATE OBJECT result.
     result->ms_input = is_input.
     result->mv_rows = is_input-max_rows.
     IF result->mv_rows < 0.
@@ -850,11 +850,28 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD name_of_path.
 
-    SPLIT CONV string( path ) AT `/` INTO TABLE DATA(lt_seg).
+    DATA temp66 TYPE string.
+    TYPES temp1 TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+DATA lt_seg TYPE temp1.
+    DATA temp67 TYPE string.
+    DATA temp68 TYPE string.
+    DATA lv_first LIKE temp67.
+    temp66 = path.
+
+
+    SPLIT temp66 AT `/` INTO TABLE lt_seg.
     DELETE lt_seg WHERE table_line IS INITIAL.
     " read ahead: the 7.02 downport hoists a table expression out of the
     " condition, and "/" has no first segment
-    DATA(lv_first) = VALUE string( lt_seg[ 1 ] OPTIONAL ).
+
+    CLEAR temp67.
+
+    READ TABLE lt_seg INTO temp68 INDEX 1.
+    IF sy-subrc = 0.
+      temp67 = temp68.
+    ENDIF.
+
+    lv_first = temp67.
     IF lines( lt_seg ) > 1 AND lv_first = `XX`.
       DELETE lt_seg INDEX 1.
     ENDIF.
@@ -865,45 +882,84 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD layer_of_slot.
 
-    result = SWITCH #( slot
-                       WHEN z2ui5_if_client=>cs_view-popup   THEN `popup`
-                       WHEN z2ui5_if_client=>cs_view-popover THEN `popover`
-                       ELSE `main` ).
+    DATA temp69 TYPE string.
+    CASE slot.
+      WHEN z2ui5_if_client=>cs_view-popup.
+        temp69 = `popup`.
+      WHEN z2ui5_if_client=>cs_view-popover.
+        temp69 = `popover`.
+      WHEN OTHERS.
+        temp69 = `main`.
+    ENDCASE.
+    result = temp69.
 
   ENDMETHOD.
 
   METHOD model_init.
 
     " MAIN and the nested views share one model; popup and popover own a copy
-    LOOP AT ms_input-t_layer INTO DATA(ls_layer).
-      DATA(lv_key) = SWITCH string( ls_layer-layer
-                                    WHEN z2ui5_if_client=>cs_view-popup   THEN cs_model-popup
-                                    WHEN z2ui5_if_client=>cs_view-popover THEN cs_model-popover
-                                    ELSE cs_model-main ).
-      IF line_exists( mt_model[ key = lv_key ] ). "#EC CI_SORTSEQ
+    DATA ls_layer LIKE LINE OF ms_input-t_layer.
+      DATA temp70 TYPE string.
+      DATA lv_key LIKE temp70.
+      DATA temp71 LIKE sy-subrc.
+      DATA lv_model LIKE ls_layer-model.
+          DATA temp72 TYPE REF TO z2ui5_if_ajson.
+          DATA lo_json LIKE temp72.
+          DATA temp73 TYPE REF TO z2ui5_if_ajson.
+      DATA temp74 TYPE z2ui5_cl_agent_snapshot=>ty_s_model.
+    DATA ls_pending LIKE LINE OF ms_input-t_pending.
+      DATA lo_model TYPE REF TO z2ui5_if_ajson.
+      DATA lv_tree TYPE string.
+    LOOP AT ms_input-t_layer INTO ls_layer.
+
+      CASE ls_layer-layer.
+        WHEN z2ui5_if_client=>cs_view-popup.
+          temp70 = cs_model-popup.
+        WHEN z2ui5_if_client=>cs_view-popover.
+          temp70 = cs_model-popover.
+        WHEN OTHERS.
+          temp70 = cs_model-main.
+      ENDCASE.
+
+      lv_key = temp70.
+
+      READ TABLE mt_model WITH KEY key = lv_key TRANSPORTING NO FIELDS.
+      temp71 = sy-subrc.
+      IF temp71 = 0. "#EC CI_SORTSEQ
         CONTINUE.
       ENDIF.
-      DATA(lv_model) = ls_layer-model.
+
+      lv_model = ls_layer-model.
       IF lv_model IS INITIAL.
         lv_model = `{}`.
       ENDIF.
       TRY.
-          DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = lv_model
-                                                                      iv_keep_item_order = abap_true ) ).
+
+          temp72 ?= z2ui5_cl_ajson=>parse( iv_json = lv_model iv_keep_item_order = abap_true ).
+
+          lo_json = temp72.
         CATCH cx_root.
-          lo_json = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>create_empty( iv_keep_item_order = abap_true ) ).
+
+          temp73 ?= z2ui5_cl_ajson=>create_empty( iv_keep_item_order = abap_true ).
+          lo_json = temp73.
       ENDTRY.
-      INSERT VALUE #( key  = lv_key
-                      json = lo_json ) INTO TABLE mt_model.
+
+      CLEAR temp74.
+      temp74-key = lv_key.
+      temp74-json = lo_json.
+      INSERT temp74 INTO TABLE mt_model.
     ENDLOOP.
 
     " the pending edits are what the client shows - applied before reading
-    LOOP AT ms_input-t_pending INTO DATA(ls_pending).
-      DATA(lo_model) = model_json( ls_pending-model_key ).
+
+    LOOP AT ms_input-t_pending INTO ls_pending.
+
+      lo_model = model_json( ls_pending-model_key ).
       IF lo_model IS NOT BOUND.
         CONTINUE.
       ENDIF.
-      DATA(lv_tree) = tree_path( model_key = ls_pending-model_key
+
+      lv_tree = tree_path( model_key = ls_pending-model_key
                                  path      = ls_pending-path ).
       IF lv_tree IS INITIAL.
         CONTINUE.
@@ -940,7 +996,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD model_json.
 
-    READ TABLE mt_model INTO DATA(ls_model) WITH KEY key = model_key. "#EC CI_SORTSEQ
+    DATA ls_model TYPE z2ui5_cl_agent_snapshot=>ty_s_model.
+    READ TABLE mt_model INTO ls_model WITH KEY key = model_key. "#EC CI_SORTSEQ
     IF sy-subrc = 0.
       result = ls_model-json.
     ENDIF.
@@ -950,40 +1007,81 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   METHOD tree_path.
 
     DATA lv_model_key TYPE string.
+    DATA lo_json TYPE REF TO z2ui5_if_ajson.
+    DATA temp75 TYPE string.
+    TYPES temp2 TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+DATA lt_seg TYPE temp2.
+    DATA temp76 TYPE string.
+    DATA lv_cur LIKE temp76.
+    DATA lv_seg LIKE LINE OF lt_seg.
+      DATA temp77 TYPE string.
+      DATA lv_type TYPE z2ui5_if_ajson_types=>ty_node_type.
+        DATA temp78 TYPE i.
+    DATA temp79 TYPE string.
 
     lv_model_key = model_key.
-    DATA(lo_json) = model_json( lv_model_key ).
+
+    lo_json = model_json( lv_model_key ).
     IF lo_json IS NOT BOUND.
       RETURN.
     ENDIF.
 
-    SPLIT CONV string( path ) AT `/` INTO TABLE DATA(lt_seg).
+
+    temp75 = path.
+
+
+    SPLIT temp75 AT `/` INTO TABLE lt_seg.
     DELETE lt_seg WHERE table_line IS INITIAL.
-    DATA(lv_cur) = CONV string( base ).
-    LOOP AT lt_seg INTO DATA(lv_seg).
-      DATA(lv_type) = lo_json->get_node_type( COND #( WHEN lv_cur IS INITIAL THEN `/` ELSE lv_cur ) ).
+
+    temp76 = base.
+
+    lv_cur = temp76.
+
+    LOOP AT lt_seg INTO lv_seg.
+
+      IF lv_cur IS INITIAL.
+        temp77 = `/`.
+      ELSE.
+        temp77 = lv_cur.
+      ENDIF.
+
+      lv_type = lo_json->get_node_type( temp77 ).
       IF lv_type = z2ui5_if_ajson_types=>node_type-array.
         IF lv_seg CN `0123456789`.
           RETURN.
         ENDIF.
-        lv_seg = |{ CONV i( lv_seg ) + 1 }|.
+
+        temp78 = lv_seg.
+        lv_seg = |{ temp78 + 1 }|.
       ELSEIF lv_type <> z2ui5_if_ajson_types=>node_type-object.
         RETURN.
       ENDIF.
       lv_cur = |{ lv_cur }/{ lv_seg }|.
     ENDLOOP.
-    result = COND #( WHEN lv_cur IS INITIAL THEN `/` ELSE lv_cur ).
+
+    IF lv_cur IS INITIAL.
+      temp79 = `/`.
+    ELSE.
+      temp79 = lv_cur.
+    ENDIF.
+    result = temp79.
 
   ENDMETHOD.
 
   METHOD model_get.
+    DATA lo_json TYPE REF TO z2ui5_if_ajson.
+    DATA lv_tree TYPE string.
+        DATA temp80 TYPE z2ui5_cl_agent_viewxml=>ty_s_val-kind.
+              DATA temp81 TYPE z2ui5_cl_agent_viewxml=>ty_s_val-json.
 
     result-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined.
-    DATA(lo_json) = model_json( model_key ).
+
+    lo_json = model_json( model_key ).
     IF lo_json IS NOT BOUND.
       RETURN.
     ENDIF.
-    DATA(lv_tree) = tree_path( model_key = model_key
+
+    lv_tree = tree_path( model_key = model_key
                                path      = path
                                base      = base ).
     IF lv_tree IS INITIAL.
@@ -999,14 +1097,24 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       WHEN z2ui5_if_ajson_types=>node_type-null.
         result-kind = z2ui5_cl_agent_viewxml=>cs_kind-null.
       WHEN z2ui5_if_ajson_types=>node_type-object OR z2ui5_if_ajson_types=>node_type-array.
-        result-kind = COND #( WHEN lo_json->get_node_type( lv_tree ) = z2ui5_if_ajson_types=>node_type-array
-                              THEN z2ui5_cl_agent_viewxml=>cs_kind-array
-                              ELSE z2ui5_cl_agent_viewxml=>cs_kind-object ).
+
+        IF lo_json->get_node_type( lv_tree ) = z2ui5_if_ajson_types=>node_type-array.
+          temp80 = z2ui5_cl_agent_viewxml=>cs_kind-array.
+        ELSE.
+          temp80 = z2ui5_cl_agent_viewxml=>cs_kind-object.
+        ENDIF.
+        result-kind = temp80.
         IF check_json = abap_true.
           TRY.
               result-json = lo_json->slice( lv_tree )->stringify( ).
             CATCH cx_root.
-              result-json = COND #( WHEN result-kind = z2ui5_cl_agent_viewxml=>cs_kind-array THEN `[]` ELSE `{}` ).
+
+              IF result-kind = z2ui5_cl_agent_viewxml=>cs_kind-array.
+                temp81 = `[]`.
+              ELSE.
+                temp81 = `{}`.
+              ENDIF.
+              result-json = temp81.
           ENDTRY.
         ENDIF.
         result-num = lines( lo_json->members( lv_tree ) ).
@@ -1024,10 +1132,13 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lv_model_key TYPE string.
     DATA lv_base TYPE string.
+      DATA ls_table TYPE z2ui5_cl_agent_snapshot=>ty_s_table.
+    DATA temp82 TYPE string.
 
     lv_model_key = model_key.
     IF table_id IS NOT INITIAL AND row >= 0.
-      READ TABLE mt_table INTO DATA(ls_table) WITH KEY id = table_id. "#EC CI_SORTSEQ
+
+      READ TABLE mt_table INTO ls_table WITH KEY id = table_id. "#EC CI_SORTSEQ
       IF sy-subrc = 0.
         lv_base = tree_path( model_key = ls_table-model_key
                              path      = |{ ls_table-path }/{ row }| ).
@@ -1038,15 +1149,18 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         ENDIF.
       ENDIF.
     ENDIF.
+
+    temp82 = path.
     result = model_get( model_key = lv_model_key
-                        path      = CONV #( path )
+                        path      = temp82
                         base      = lv_base ).
 
   ENDMETHOD.
 
   METHOD is_secret.
 
-    READ TABLE mt_field INTO DATA(ls_field) WITH KEY id = field_id. "#EC CI_SORTSEQ
+    DATA ls_field TYPE z2ui5_cl_agent_snapshot=>ty_s_field.
+    READ TABLE mt_field INTO ls_field WITH KEY id = field_id. "#EC CI_SORTSEQ
     IF sy-subrc <> 0.
       RETURN.
     ENDIF.
@@ -1060,6 +1174,22 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD resolve_target.
+    DATA lv_upper TYPE string.
+    DATA ls_field LIKE LINE OF mt_field.
+    DATA temp83 TYPE string.
+    DATA lv_key LIKE temp83.
+    TYPES temp3 TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+DATA lt_seg TYPE temp3.
+    DATA lv_count TYPE i.
+    DATA lv_column LIKE LINE OF lt_seg.
+    FIELD-SYMBOLS <temp17> LIKE LINE OF lt_seg.
+    DATA temp18 LIKE sy-tabix.
+    DATA lv_row LIKE LINE OF lt_seg.
+    FIELD-SYMBOLS <temp19> LIKE LINE OF lt_seg.
+    DATA temp20 LIKE sy-tabix.
+    DATA lv_table TYPE string.
+    DATA ls_table LIKE LINE OF mt_table.
+        DATA temp21 TYPE i.
 
     found = abap_false.
     LOOP AT mt_field TRANSPORTING NO FIELDS WHERE id = key. "#EC CI_SORTSEQ
@@ -1072,8 +1202,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       result-field = sy-tabix.
       RETURN.
     ENDLOOP.
-    DATA(lv_upper) = to_upper( key ).
-    LOOP AT mt_field INTO DATA(ls_field).
+
+    lv_upper = to_upper( key ).
+
+    LOOP AT mt_field INTO ls_field.
       IF to_upper( ls_field-name ) = lv_upper.
         found = abap_true.
         result-field = sy-tabix.
@@ -1082,29 +1214,58 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDLOOP.
 
     " a table cell: /T_TAB/3/QTY or t1/3/QTY
-    DATA(lv_key) = CONV string( key ).
-    SPLIT lv_key AT `/` INTO TABLE DATA(lt_seg).
-    DATA(lv_count) = lines( lt_seg ).
+
+    temp83 = key.
+
+    lv_key = temp83.
+
+
+    SPLIT lv_key AT `/` INTO TABLE lt_seg.
+
+    lv_count = lines( lt_seg ).
     IF lv_count < 3.
       RETURN.
     ENDIF.
-    DATA(lv_column) = lt_seg[ lv_count ].
-    DATA(lv_row) = lt_seg[ lv_count - 1 ].
+
+
+
+    temp18 = sy-tabix.
+    READ TABLE lt_seg INDEX lv_count ASSIGNING <temp17>.
+    sy-tabix = temp18.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    lv_column = <temp17>.
+
+
+
+    temp20 = sy-tabix.
+    READ TABLE lt_seg INDEX lv_count - 1 ASSIGNING <temp19>.
+    sy-tabix = temp20.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    lv_row = <temp19>.
     " at most 9 digits - a longer row does not fit the integer it becomes
     IF lv_row IS INITIAL OR lv_row CN `0123456789` OR strlen( lv_row ) > 9 OR lv_column IS INITIAL
         OR lv_column(1) CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`
         OR lv_column CN `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-`.
       RETURN.
     ENDIF.
-    DATA(lv_table) = substring( val = lv_key
+
+    lv_table = substring( val = lv_key
                                 len = strlen( lv_key ) - strlen( lv_row ) - strlen( lv_column ) - 2 ).
-    LOOP AT mt_table INTO DATA(ls_table).
+
+    LOOP AT mt_table INTO ls_table.
       IF ls_table-path = lv_table OR ls_table-id = lv_table.
         found = abap_true.
-        result = VALUE #( is_cell = abap_true
-                          table   = sy-tabix
-                          row     = CONV i( lv_row )
-                          column  = lv_column ).
+        CLEAR result.
+        result-is_cell = abap_true.
+        result-table = sy-tabix.
+
+        temp21 = lv_row.
+        result-row = temp21.
+        result-column = lv_column.
         RETURN.
       ENDIF.
     ENDLOOP.
@@ -1115,19 +1276,44 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(ls_target) = resolve_target( EXPORTING key   = key
+    DATA ls_target TYPE z2ui5_cl_agent_snapshot=>ty_s_target.
+      DATA ls_field LIKE LINE OF mt_field.
+      FIELD-SYMBOLS <temp22> LIKE LINE OF mt_field.
+      DATA temp23 LIKE sy-tabix.
+      DATA temp1 TYPE xsdboolean.
+      DATA ls_table LIKE LINE OF mt_table.
+      FIELD-SYMBOLS <temp24> LIKE LINE OF mt_table.
+      DATA temp25 LIKE sy-tabix.
+    ls_target = resolve_target( EXPORTING key   = key
                                       IMPORTING found = lv_found ).
     IF lv_found = abap_false.
       result = key_sensitive( app = mv_app
                               key = key ).
     ELSEIF ls_target-is_cell = abap_false.
-      DATA(ls_field) = mt_field[ ls_target-field ].
-      result = xsdbool( is_secret( ls_field-id ) = abap_true
-                     OR z2ui5_cl_agent_settings=>check_sensitive( app  = mv_app
-                                                                  path = ls_field-path
-                                                                  name = ls_field-name ) = abap_true ).
+
+
+
+      temp23 = sy-tabix.
+      READ TABLE mt_field INDEX ls_target-field ASSIGNING <temp22>.
+      sy-tabix = temp23.
+      IF sy-subrc <> 0.
+        ASSERT 1 = 0.
+      ENDIF.
+      ls_field = <temp22>.
+
+      temp1 = boolc( is_secret( ls_field-id ) = abap_true OR z2ui5_cl_agent_settings=>check_sensitive( app = mv_app path = ls_field-path name = ls_field-name ) = abap_true ).
+      result = temp1.
     ELSE.
-      DATA(ls_table) = mt_table[ ls_target-table ].
+
+
+
+      temp25 = sy-tabix.
+      READ TABLE mt_table INDEX ls_target-table ASSIGNING <temp24>.
+      sy-tabix = temp25.
+      IF sy-subrc <> 0.
+        ASSERT 1 = 0.
+      ENDIF.
+      ls_table = <temp24>.
       result = z2ui5_cl_agent_settings=>check_sensitive( app  = mv_app
                                                          path = |{ ls_table-path }/{ ls_target-row }/{ ls_target-column }|
                                                          name = ls_target-column ).
@@ -1153,7 +1339,12 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     DATA lt_named TYPE ty_t_action.
     DATA lt_enabled TYPE ty_t_action.
 
-    LOOP AT mt_action INTO DATA(ls_action) WHERE id = event. "#EC CI_SORTSEQ
+    DATA ls_action LIKE LINE OF mt_action.
+    DATA temp84 TYPE ty_t_action.
+    DATA lt_pool LIKE temp84.
+    FIELD-SYMBOLS <temp85> LIKE LINE OF lt_pool.
+    DATA temp86 LIKE sy-tabix.
+    LOOP AT mt_action INTO ls_action WHERE id = event. "#EC CI_SORTSEQ
       IF backend_only = abap_false OR ls_action-frontend IS INITIAL.
         result = ls_action.
         RETURN.
@@ -1171,7 +1362,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     IF lt_named IS INITIAL.
       RETURN.
     ENDIF.
-    DATA(lt_pool) = COND ty_t_action( WHEN lt_enabled IS NOT INITIAL THEN lt_enabled ELSE lt_named ).
+
+    IF lt_enabled IS NOT INITIAL.
+      temp84 = lt_enabled.
+    ELSE.
+      temp84 = lt_named.
+    ENDIF.
+
+    lt_pool = temp84.
     IF has_row = abap_true.
       READ TABLE lt_pool INTO result WITH KEY scope = `row`. "#EC CI_SORTSEQ
       IF sy-subrc = 0.
@@ -1185,13 +1383,22 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         RETURN.
       ENDLOOP.
     ENDIF.
-    result = lt_pool[ 1 ].
+
+
+    temp86 = sy-tabix.
+    READ TABLE lt_pool INDEX 1 ASSIGNING <temp85>.
+    sy-tabix = temp86.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    result = <temp85>.
 
   ENDMETHOD.
 
   METHOD table_rows.
 
-    READ TABLE mt_table INTO DATA(ls_table) WITH KEY id = table_id. "#EC CI_SORTSEQ
+    DATA ls_table TYPE z2ui5_cl_agent_snapshot=>ty_s_table.
+    READ TABLE mt_table INTO ls_table WITH KEY id = table_id. "#EC CI_SORTSEQ
     IF sy-subrc = 0.
       result = ls_table-row_count.
     ENDIF.
@@ -1200,7 +1407,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD node.
 
-    READ TABLE mt_doc INDEX doc INTO DATA(ls_doc).
+    DATA ls_doc TYPE z2ui5_cl_agent_snapshot=>ty_s_doc.
+    READ TABLE mt_doc INDEX doc INTO ls_doc.
     IF sy-subrc <> 0.
       RETURN.
     ENDIF.
@@ -1210,7 +1418,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD note.
 
-    IF line_exists( mt_unsupported[ table_line = val ] ) OR lines( mt_unsupported ) >= c_max_unsupported. "#EC CI_SORTSEQ
+    DATA temp87 LIKE sy-subrc.
+    READ TABLE mt_unsupported WITH KEY table_line = val TRANSPORTING NO FIELDS.
+    temp87 = sy-subrc.
+    IF temp87 = 0 OR lines( mt_unsupported ) >= c_max_unsupported. "#EC CI_SORTSEQ
       RETURN.
     ENDIF.
     INSERT val INTO TABLE mt_unsupported.
@@ -1225,7 +1436,9 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD binding_paths.
 
-    DATA(ls_binding) = binding.
+    DATA ls_binding LIKE binding.
+        DATA ls_part LIKE LINE OF ls_binding-t_part.
+    ls_binding = binding.
     CASE ls_binding-kind.
       WHEN z2ui5_cl_agent_viewxml=>cs_binding-literal.
         RETURN.
@@ -1234,7 +1447,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       WHEN z2ui5_cl_agent_viewxml=>cs_binding-expression.
         result = z2ui5_cl_agent_viewxml=>expression_refs( ls_binding-expression ).
       WHEN OTHERS.
-        LOOP AT ls_binding-t_part INTO DATA(ls_part) WHERE is_path = abap_true. "#EC CI_SORTSEQ
+
+        LOOP AT ls_binding-t_part INTO ls_part WHERE is_path = abap_true. "#EC CI_SORTSEQ
           INSERT ls_part-path INTO TABLE result.
         ENDLOOP.
     ENDCASE.
@@ -1243,22 +1457,34 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD add_text.
 
-    DATA(lv_text) = z2ui5_cl_agent_viewxml=>clip( val ).
-    IF lv_text IS INITIAL OR line_exists( mt_text[ table_line = lv_text ] ) OR lines( mt_text ) >= c_max_texts. "#EC CI_SORTSEQ
+    DATA lv_text TYPE string.
+    DATA temp88 LIKE sy-subrc.
+      DATA temp89 TYPE z2ui5_cl_agent_snapshot=>ty_s_text_source.
+    lv_text = z2ui5_cl_agent_viewxml=>clip( val ).
+
+    READ TABLE mt_text WITH KEY table_line = lv_text TRANSPORTING NO FIELDS.
+    temp88 = sy-subrc.
+    IF lv_text IS INITIAL OR temp88 = 0 OR lines( mt_text ) >= c_max_texts. "#EC CI_SORTSEQ
       RETURN.
     ENDIF.
     INSERT lv_text INTO TABLE mt_text.
     IF t_path IS NOT INITIAL.
-      INSERT VALUE #( text   = lv_text
-                      t_path = t_path ) INTO TABLE mt_text_source.
+
+      CLEAR temp89.
+      temp89-text = lv_text.
+      temp89-t_path = t_path.
+      INSERT temp89 INTO TABLE mt_text_source.
     ENDIF.
 
   ENDMETHOD.
 
   METHOD label_new.
 
-    INSERT VALUE #( text     = text
-                    required = required ) INTO TABLE mt_label.
+    DATA temp90 TYPE z2ui5_cl_agent_snapshot=>ty_s_label.
+    CLEAR temp90.
+    temp90-text = text.
+    temp90-required = required.
+    INSERT temp90 INTO TABLE mt_label.
     result = lines( mt_label ).
 
   ENDMETHOD.
@@ -1267,11 +1493,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lt_last TYPE string_table.
 
-    DATA(lv_from) = lines( ctx-t_where ) - 2.
+    DATA lv_from TYPE i.
+    DATA lv_where LIKE LINE OF ctx-t_where.
+    lv_from = lines( ctx-t_where ) - 2.
     IF lv_from < 1.
       lv_from = 1.
     ENDIF.
-    LOOP AT ctx-t_where INTO DATA(lv_where) FROM lv_from.
+
+    LOOP AT ctx-t_where INTO lv_where FROM lv_from.
       INSERT lv_where INTO TABLE lt_last.
     ENDLOOP.
     result = concat_lines_of( table = lt_last
@@ -1283,14 +1512,68 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lt_slot TYPE string_table.
     DATA lt_text TYPE string_table.
+    DATA lv_popup TYPE abap_bool.
+    DATA temp26 LIKE sy-subrc.
+    DATA temp27 LIKE sy-subrc.
+    DATA temp28 LIKE sy-tabix.
+    DATA temp2 TYPE xsdboolean.
+    DATA lv_popover TYPE abap_bool.
+    DATA temp29 LIKE sy-subrc.
+    DATA temp30 LIKE sy-subrc.
+    DATA temp31 LIKE sy-tabix.
+    DATA temp3 TYPE xsdboolean.
+    DATA temp91 TYPE string.
+    DATA lv_slot LIKE LINE OF lt_slot.
+      DATA ls_layer TYPE z2ui5_cl_frontend_sim=>ty_s_layer.
+      DATA temp92 TYPE ty_s_doc.
+      DATA temp32 TYPE z2ui5_cl_agent_snapshot=>ty_s_doc-model_key.
+      DATA ls_doc LIKE temp92.
+      DATA lv_doc TYPE i.
+      DATA temp93 TYPE ty_s_ctx.
+      DATA ls_ctx LIKE temp93.
+      FIELD-SYMBOLS <temp94> LIKE LINE OF ls_doc-t_node.
+      DATA temp95 LIKE sy-tabix.
+    DATA ls_mgr LIKE LINE OF mt_mgr_msg.
+      DATA temp96 TYPE ty_s_message.
+      DATA temp33 TYPE z2ui5_cl_agent_snapshot=>ty_s_message-source.
+      DATA ls_msg LIKE temp96.
+        DATA ls_field TYPE z2ui5_cl_agent_snapshot=>ty_s_field.
+        DATA temp97 TYPE z2ui5_cl_agent_snapshot=>ty_s_message-field.
+    DATA ls_title TYPE z2ui5_cl_agent_snapshot=>ty_s_title.
+    DATA lv_text LIKE LINE OF mt_text.
+      DATA temp98 LIKE sy-subrc.
 
     model_init( ).
 
     " which layers are described: a popup (Dialog) is modal - while one is
     " open only the popup and a popover on top of it are; a popover is not
     " modal, the page stays described beside it
-    DATA(lv_popup) = xsdbool( line_exists( ms_input-t_layer[ layer = z2ui5_if_client=>cs_view-popup ] ) ). "#EC CI_SORTSEQ
-    DATA(lv_popover) = xsdbool( line_exists( ms_input-t_layer[ layer = z2ui5_if_client=>cs_view-popover ] ) ). "#EC CI_SORTSEQ
+
+
+
+
+    temp27 = sy-subrc.
+    temp28 = sy-tabix.
+    READ TABLE ms_input-t_layer WITH KEY layer = z2ui5_if_client=>cs_view-popup TRANSPORTING NO FIELDS.
+    temp26 = sy-subrc.
+    sy-subrc = temp27.
+    sy-tabix = temp28.
+
+    temp2 = boolc( temp26 = 0 ).
+    lv_popup = temp2. "#EC CI_SORTSEQ
+
+
+
+
+    temp30 = sy-subrc.
+    temp31 = sy-tabix.
+    READ TABLE ms_input-t_layer WITH KEY layer = z2ui5_if_client=>cs_view-popover TRANSPORTING NO FIELDS.
+    temp29 = sy-subrc.
+    sy-subrc = temp30.
+    sy-tabix = temp31.
+
+    temp3 = boolc( temp29 = 0 ).
+    lv_popover = temp3. "#EC CI_SORTSEQ
     IF lv_popup = abap_true.
       INSERT z2ui5_if_client=>cs_view-popup INTO TABLE lt_slot.
     ELSE.
@@ -1301,48 +1584,98 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     IF lv_popover = abap_true.
       INSERT z2ui5_if_client=>cs_view-popover INTO TABLE lt_slot.
     ENDIF.
-    mv_layer = COND #( WHEN lv_popover = abap_true THEN `popover`
-                       WHEN lv_popup = abap_true THEN `popup`
-                       ELSE `main` ).
 
-    LOOP AT lt_slot INTO DATA(lv_slot).
-      READ TABLE ms_input-t_layer INTO DATA(ls_layer) WITH KEY layer = lv_slot. "#EC CI_SORTSEQ
+    IF lv_popover = abap_true.
+      temp91 = `popover`.
+    ELSEIF lv_popup = abap_true.
+      temp91 = `popup`.
+    ELSE.
+      temp91 = `main`.
+    ENDIF.
+    mv_layer = temp91.
+
+
+    LOOP AT lt_slot INTO lv_slot.
+
+      READ TABLE ms_input-t_layer INTO ls_layer WITH KEY layer = lv_slot. "#EC CI_SORTSEQ
       IF sy-subrc <> 0.
         CONTINUE.
       ENDIF.
-      DATA(ls_doc) = VALUE ty_s_doc( layer     = layer_of_slot( lv_slot )
-                                     slot      = lv_slot
-                                     model_key = SWITCH #( lv_slot
-                                                           WHEN z2ui5_if_client=>cs_view-popup   THEN cs_model-popup
-                                                           WHEN z2ui5_if_client=>cs_view-popover THEN cs_model-popover
-                                                           ELSE cs_model-main )
-                                     t_node    = z2ui5_cl_agent_viewxml=>parse_xml( ls_layer-xml ) ).
+
+      CLEAR temp92.
+      temp92-layer = layer_of_slot( lv_slot ).
+      temp92-slot = lv_slot.
+
+      CASE lv_slot.
+        WHEN z2ui5_if_client=>cs_view-popup.
+          temp32 = cs_model-popup.
+        WHEN z2ui5_if_client=>cs_view-popover.
+          temp32 = cs_model-popover.
+        WHEN OTHERS.
+          temp32 = cs_model-main.
+      ENDCASE.
+      temp92-model_key = temp32.
+      temp92-t_node = z2ui5_cl_agent_viewxml=>parse_xml( ls_layer-xml ).
+
+      ls_doc = temp92.
       INSERT ls_doc INTO TABLE mt_doc.
-      DATA(lv_doc) = lines( mt_doc ).
+
+      lv_doc = lines( mt_doc ).
       collect_label_for( lv_doc ).
-      DATA(ls_ctx) = VALUE ty_s_ctx( doc       = lv_doc
-                                     layer     = ls_doc-layer
-                                     model_key = ls_doc-model_key ).
-      walk_children( t_child = ls_doc-t_node[ 1 ]-t_child
+
+      CLEAR temp93.
+      temp93-doc = lv_doc.
+      temp93-layer = ls_doc-layer.
+      temp93-model_key = ls_doc-model_key.
+
+      ls_ctx = temp93.
+
+
+      temp95 = sy-tabix.
+      READ TABLE ls_doc-t_node INDEX 1 ASSIGNING <temp94>.
+      sy-tabix = temp95.
+      IF sy-subrc <> 0.
+        ASSERT 1 = 0.
+      ENDIF.
+      walk_children( t_child = <temp94>-t_child
                      ctx     = ls_ctx ).
     ENDLOOP.
 
     " the app's message table (z2ui5.cc.MessageManager): a TARGET that is a
     " field's path points at that field - resolved once every field is known
-    LOOP AT mt_mgr_msg INTO DATA(ls_mgr).
-      DATA(ls_msg) = VALUE ty_s_message( type   = ls_mgr-type
-                                         text   = ls_mgr-text
-                                         source = COND #( WHEN ls_mgr-target IS NOT INITIAL THEN `field` ELSE `model` ) ).
+
+    LOOP AT mt_mgr_msg INTO ls_mgr.
+
+      CLEAR temp96.
+      temp96-type = ls_mgr-type.
+      temp96-text = ls_mgr-text.
+
       IF ls_mgr-target IS NOT INITIAL.
-        READ TABLE mt_field INTO DATA(ls_field) WITH KEY path = ls_mgr-target. "#EC CI_SORTSEQ
-        ls_msg-field = COND #( WHEN sy-subrc = 0 THEN ls_field-id ELSE ls_mgr-target ).
+        temp33 = `field`.
+      ELSE.
+        temp33 = `model`.
+      ENDIF.
+      temp96-source = temp33.
+
+      ls_msg = temp96.
+      IF ls_mgr-target IS NOT INITIAL.
+
+        READ TABLE mt_field INTO ls_field WITH KEY path = ls_mgr-target. "#EC CI_SORTSEQ
+
+        IF sy-subrc = 0.
+          temp97 = ls_field-id.
+        ELSE.
+          temp97 = ls_mgr-target.
+        ENDIF.
+        ls_msg-field = temp97.
       ENDIF.
       INSERT ls_msg INTO TABLE mt_message.
     ENDLOOP.
 
     custom_work( ).
 
-    READ TABLE mt_title INTO DATA(ls_title) WITH KEY layer = mv_layer. "#EC CI_SORTSEQ
+
+    READ TABLE mt_title INTO ls_title WITH KEY layer = mv_layer. "#EC CI_SORTSEQ
     IF sy-subrc = 0.
       mv_title = ls_title-title.
     ELSE.
@@ -1353,8 +1686,12 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDIF.
 
     " the title and the table labels are not repeated as texts
-    LOOP AT mt_text INTO DATA(lv_text).
-      IF lv_text = mv_title OR line_exists( mt_table[ label = lv_text ] ). "#EC CI_SORTSEQ
+
+    LOOP AT mt_text INTO lv_text.
+
+      READ TABLE mt_table WITH KEY label = lv_text TRANSPORTING NO FIELDS.
+      temp98 = sy-subrc.
+      IF lv_text = mv_title OR temp98 = 0. "#EC CI_SORTSEQ
         CONTINUE.
       ENDIF.
       INSERT lv_text INTO TABLE lt_text.
@@ -1369,40 +1706,94 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     DATA lv_benign TYPE abap_bool.
 
     " what the last response asked the client to do besides the views
-    LOOP AT ms_input-t_custom INTO DATA(lv_raw).
+    DATA lv_raw LIKE LINE OF ms_input-t_custom.
+          DATA temp99 TYPE REF TO z2ui5_if_ajson.
+          DATA lo_json LIKE temp99.
+      DATA lv_base TYPE i.
+      DATA lv_count TYPE i.
+      DATA lv_target TYPE string.
+      DATA lv_method TYPE string.
+      DATA lv_method_type TYPE z2ui5_if_ajson_types=>ty_node_type.
+      DATA lv_text_path TYPE string.
+      DATA lv_text_type TYPE z2ui5_if_ajson_types=>ty_node_type.
+      DATA lv_text TYPE string.
+          DATA temp100 TYPE string.
+      DATA lv_opt TYPE string.
+      DATA lv_has_opt TYPE abap_bool.
+      DATA temp4 TYPE xsdboolean.
+          DATA temp101 TYPE z2ui5_cl_agent_snapshot=>ty_s_message.
+            DATA temp102 TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+          DATA temp103 TYPE z2ui5_cl_agent_snapshot=>ty_s_message.
+          DATA temp34 TYPE z2ui5_cl_agent_snapshot=>ty_s_message-type.
+            DATA temp104 TYPE string_table.
+            DATA lt_choice LIKE temp104.
+              DATA lv_n TYPE i.
+              DATA temp105 TYPE string_table.
+              DATA temp35 TYPE string_table.
+              DATA temp3 TYPE string_table.
+            DATA temp107 TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+            DATA temp37 TYPE string_table.
+            DATA temp39 TYPE z2ui5_cl_agent_viewxml=>ty_t_arg.
+            DATA temp40 LIKE LINE OF temp39.
+            DATA ls_ms TYPE z2ui5_cl_agent_viewxml=>ty_s_arg.
+            DATA temp108 TYPE string.
+            DATA lv_ms LIKE temp108.
+            DATA temp109 TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+      DATA temp110 TYPE string_table.
+      DATA lt_part LIKE temp110.
+      DATA lv_index TYPE i.
+        DATA lv_type TYPE z2ui5_if_ajson_types=>ty_node_type.
+                DATA temp111 TYPE string.
+    LOOP AT ms_input-t_custom INTO lv_raw.
       TRY.
-          DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = lv_raw
-                                                                      iv_keep_item_order = abap_true ) ).
+
+          temp99 ?= z2ui5_cl_ajson=>parse( iv_json = lv_raw iv_keep_item_order = abap_true ).
+
+          lo_json = temp99.
         CATCH cx_root.
           CONTINUE.
       ENDTRY.
       IF lo_json->get_node_type( `/` ) <> z2ui5_if_ajson_types=>node_type-array.
         CONTINUE.
       ENDIF.
-      DATA(lv_base) = 0.
+
+      lv_base = 0.
       IF lo_json->get_string( `/1` ) = z2ui5_if_client=>cs_event-control_global.
         lv_base = 1.
       ENDIF.
-      DATA(lv_count) = lines( lo_json->members( `/` ) ).
-      DATA(lv_target) = lo_json->get_string( |/{ lv_base + 1 }| ).
-      DATA(lv_method) = lo_json->get_string( |/{ lv_base + 2 }| ).
-      DATA(lv_method_type) = lo_json->get_node_type( |/{ lv_base + 2 }| ).
-      DATA(lv_text_path) = |/{ lv_base + 3 }|.
-      DATA(lv_text_type) = lo_json->get_node_type( lv_text_path ).
-      DATA(lv_text) = ``.
+
+      lv_count = lines( lo_json->members( `/` ) ).
+
+      lv_target = lo_json->get_string( |/{ lv_base + 1 }| ).
+
+      lv_method = lo_json->get_string( |/{ lv_base + 2 }| ).
+
+      lv_method_type = lo_json->get_node_type( |/{ lv_base + 2 }| ).
+
+      lv_text_path = |/{ lv_base + 3 }|.
+
+      lv_text_type = lo_json->get_node_type( lv_text_path ).
+
+      lv_text = ``.
       TRY.
-          lv_text = COND string( WHEN lv_text_type = z2ui5_if_ajson_types=>node_type-object
-                                   OR lv_text_type = z2ui5_if_ajson_types=>node_type-array
-                                 THEN lo_json->slice( lv_text_path )->stringify( )
-                                 WHEN lv_text_type = z2ui5_if_ajson_types=>node_type-null
-                                   OR lv_text_type IS INITIAL
-                                 THEN ``
-                                 ELSE lo_json->get( lv_text_path ) ).
+
+          IF lv_text_type = z2ui5_if_ajson_types=>node_type-object OR lv_text_type = z2ui5_if_ajson_types=>node_type-array.
+            temp100 = lo_json->slice( lv_text_path )->stringify( ).
+          ELSEIF lv_text_type = z2ui5_if_ajson_types=>node_type-null OR lv_text_type IS INITIAL.
+            temp100 = ``.
+          ELSE.
+            temp100 = lo_json->get( lv_text_path ).
+          ENDIF.
+          lv_text = temp100.
         CATCH z2ui5_cx_ajson_error.
           CLEAR lv_text.
       ENDTRY.
-      DATA(lv_opt) = |/{ lv_base + 4 }|.
-      DATA(lv_has_opt) = xsdbool( lo_json->get_node_type( lv_opt ) = z2ui5_if_ajson_types=>node_type-object ).
+
+      lv_opt = |/{ lv_base + 4 }|.
+
+
+      temp4 = boolc( lo_json->get_node_type( lv_opt ) = z2ui5_if_ajson_types=>node_type-object ).
+      lv_has_opt = temp4.
       CLEAR lv_onclose.
       lv_benign = abap_false.
       IF lv_has_opt = abap_true AND lo_json->get_node_type( |{ lv_opt }/onClose| ) = z2ui5_if_ajson_types=>node_type-string.
@@ -1412,70 +1803,118 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       CASE lv_target.
 
         WHEN `MESSAGE_TOAST`.
-          INSERT VALUE #( type   = `info`
-                          text   = z2ui5_cl_agent_viewxml=>clip( val = lv_text
-                                                                 len = 1000 )
-                          source = `toast` ) INTO TABLE mt_message.
+
+          CLEAR temp101.
+          temp101-type = `info`.
+          temp101-text = z2ui5_cl_agent_viewxml=>clip( val = lv_text len = 1000 ).
+          temp101-source = `toast`.
+          INSERT temp101 INTO TABLE mt_message.
           IF lv_onclose IS NOT INITIAL.
-            push_action( VALUE #( event   = lv_onclose
-                                  label   = `toast closed`
-                                  control = `sap.m.MessageToast`
-                                  trigger = `close`
-                                  enabled = abap_true
-                                  scope   = `screen`
-                                  layer   = mv_layer ) ).
+
+            CLEAR temp102.
+            temp102-event = lv_onclose.
+            temp102-label = `toast closed`.
+            temp102-control = `sap.m.MessageToast`.
+            temp102-trigger = `close`.
+            temp102-enabled = abap_true.
+            temp102-scope = `screen`.
+            temp102-layer = mv_layer.
+            push_action( temp102 ).
           ENDIF.
 
         WHEN `MESSAGE_BOX`.
-          INSERT VALUE #( type   = SWITCH #( lv_method
-                                             WHEN `error`       THEN `error`
-                                             WHEN `warning`     THEN `warning`
-                                             WHEN `success`     THEN `success`
-                                             ELSE `info` )
-                          text   = z2ui5_cl_agent_viewxml=>clip( val = lv_text
-                                                                 len = 1000 )
-                          source = `box` ) INTO TABLE mt_message.
+
+          CLEAR temp103.
+
+          CASE lv_method.
+            WHEN `error`.
+              temp34 = `error`.
+            WHEN `warning`.
+              temp34 = `warning`.
+            WHEN `success`.
+              temp34 = `success`.
+            WHEN OTHERS.
+              temp34 = `info`.
+          ENDCASE.
+          temp103-type = temp34.
+          temp103-text = z2ui5_cl_agent_viewxml=>clip( val = lv_text len = 1000 ).
+          temp103-source = `box`.
+          INSERT temp103 INTO TABLE mt_message.
           IF lv_onclose IS NOT INITIAL.
-            DATA(lt_choice) = VALUE string_table( ).
+
+            CLEAR temp104.
+
+            lt_choice = temp104.
             IF lo_json->get_node_type( |{ lv_opt }/actions| ) = z2ui5_if_ajson_types=>node_type-array.
-              DATA(lv_n) = lines( lo_json->members( |{ lv_opt }/actions| ) ).
+
+              lv_n = lines( lo_json->members( |{ lv_opt }/actions| ) ).
               DO lv_n TIMES.
                 INSERT lo_json->get( |{ lv_opt }/actions/{ sy-index }| ) INTO TABLE lt_choice.
               ENDDO.
             ENDIF.
             IF lt_choice IS INITIAL.
-              lt_choice = COND #( WHEN lv_method = `confirm`
-                                  THEN VALUE #( ( `OK` ) ( `CANCEL` ) )
-                                  ELSE VALUE #( ( `OK` ) ) ).
+
+              CLEAR temp105.
+              INSERT `OK` INTO TABLE temp105.
+              INSERT `CANCEL` INTO TABLE temp105.
+
+              CLEAR temp35.
+              INSERT `OK` INTO TABLE temp35.
+
+              IF lv_method = `confirm`.
+                temp3 = temp105.
+              ELSE.
+                temp3 = temp35.
+              ENDIF.
+              lt_choice = temp3.
             ENDIF.
-            push_action( VALUE #( event       = lv_onclose
-                                  t_arg_json  = VALUE #( ( `"$action"` ) )
-                                  label       = |close message box ({ concat_lines_of( table = lt_choice
-                                                                                       sep   = ` | ` ) })|
-                                  control     = `sap.m.MessageBox`
-                                  trigger     = `close`
-                                  enabled     = abap_true
-                                  scope       = `screen`
-                                  layer       = mv_layer
-                                  t_wire_arg  = VALUE #( ( kind = `action` describe = `$action` ) )
-                                  has_choices = abap_true
-                                  t_choice    = lt_choice ) ).
+
+            CLEAR temp107.
+            temp107-event = lv_onclose.
+
+            CLEAR temp37.
+            INSERT `"$action"` INTO TABLE temp37.
+            temp107-t_arg_json = temp37.
+            temp107-label = |close message box ({ concat_lines_of( table = lt_choice sep = ` | ` ) })|.
+            temp107-control = `sap.m.MessageBox`.
+            temp107-trigger = `close`.
+            temp107-enabled = abap_true.
+            temp107-scope = `screen`.
+            temp107-layer = mv_layer.
+
+            CLEAR temp39.
+
+            temp40-kind = `action`.
+            temp40-describe = `$action`.
+            INSERT temp40 INTO TABLE temp39.
+            temp107-t_wire_arg = temp39.
+            temp107-has_choices = abap_true.
+            temp107-t_choice = lt_choice.
+            push_action( temp107 ).
           ENDIF.
 
         WHEN `START_TIMER`.
           IF lv_method_type = z2ui5_if_ajson_types=>node_type-string AND lv_method IS NOT INITIAL.
-            DATA(ls_ms) = z2ui5_cl_agent_viewxml=>describe_arg( lv_text ).
-            DATA(lv_ms) = COND string( WHEN ls_ms-static = abap_true AND ls_ms-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-number
-                                         AND ls_ms-val-num <> 0
-                                       THEN ls_ms-val-str
-                                       ELSE `0` ).
-            push_action( VALUE #( event   = lv_method
-                                  label   = |timer ({ lv_ms } ms)|
-                                  control = `timer`
-                                  trigger = `timer`
-                                  enabled = abap_true
-                                  scope   = `screen`
-                                  layer   = mv_layer ) ).
+
+            ls_ms = z2ui5_cl_agent_viewxml=>describe_arg( lv_text ).
+
+            IF ls_ms-static = abap_true AND ls_ms-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-number AND ls_ms-val-num <> 0.
+              temp108 = ls_ms-val-str.
+            ELSE.
+              temp108 = `0`.
+            ENDIF.
+
+            lv_ms = temp108.
+
+            CLEAR temp109.
+            temp109-event = lv_method.
+            temp109-label = |timer ({ lv_ms } ms)|.
+            temp109-control = `timer`.
+            temp109-trigger = `timer`.
+            temp109-enabled = abap_true.
+            temp109-scope = `screen`.
+            temp109-layer = mv_layer.
+            push_action( temp109 ).
             CONTINUE.
           ENDIF.
 
@@ -1490,16 +1929,27 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       ENDIF.
 
       " anything else runs in the browser only - listed, not performed
-      DATA(lt_part) = VALUE string_table( ).
-      DATA(lv_index) = lv_base + 1.
+
+      CLEAR temp110.
+
+      lt_part = temp110.
+
+      lv_index = lv_base + 1.
       WHILE lv_index <= lv_count.
-        DATA(lv_type) = lo_json->get_node_type( |/{ lv_index }| ).
+
+        lv_type = lo_json->get_node_type( |/{ lv_index }| ).
         CASE lv_type.
           WHEN z2ui5_if_ajson_types=>node_type-object OR z2ui5_if_ajson_types=>node_type-array.
             TRY.
                 INSERT lo_json->slice( |/{ lv_index }| )->stringify( ) INTO TABLE lt_part.
               CATCH z2ui5_cx_ajson_error.
-                INSERT COND #( WHEN lv_type = z2ui5_if_ajson_types=>node_type-array THEN `[]` ELSE `{}` ) INTO TABLE lt_part.
+
+                IF lv_type = z2ui5_if_ajson_types=>node_type-array.
+                  temp111 = `[]`.
+                ELSE.
+                  temp111 = `{}`.
+                ENDIF.
+                INSERT temp111 INTO TABLE lt_part.
             ENDTRY.
           WHEN z2ui5_if_ajson_types=>node_type-null.
             INSERT `null` INTO TABLE lt_part.
@@ -1518,24 +1968,36 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   METHOD collect_label_for.
 
     " a Label with labelFor names the control of that id, wherever it is
-    READ TABLE mt_doc INDEX doc REFERENCE INTO DATA(lr_doc).
-    LOOP AT lr_doc->t_node INTO DATA(ls_node).
+    DATA lr_doc TYPE REF TO z2ui5_cl_agent_snapshot=>ty_s_doc.
+    DATA ls_node LIKE LINE OF lr_doc->t_node.
+      DATA lv_for TYPE string.
+      DATA ls_b TYPE z2ui5_cl_agent_viewxml=>ty_s_binding.
+      DATA lv_text TYPE string.
+        DATA ls_val TYPE z2ui5_cl_agent_snapshot=>ty_s_val.
+      DATA temp112 TYPE z2ui5_cl_agent_viewxml=>ty_s_attr.
+    READ TABLE mt_doc INDEX doc REFERENCE INTO lr_doc.
+
+    LOOP AT lr_doc->t_node INTO ls_node.
       IF z2ui5_cl_agent_viewxml=>is_aggregation( ls_node ) = abap_true
           OR z2ui5_cl_agent_viewxml=>control_name( ls_node ) <> `sap.m.Label`.
         CONTINUE.
       ENDIF.
-      DATA(lv_for) = z2ui5_cl_agent_viewxml=>attr( node = ls_node
+
+      lv_for = z2ui5_cl_agent_viewxml=>attr( node = ls_node
                                                   name = `labelFor` ).
       IF lv_for IS INITIAL.
         CONTINUE.
       ENDIF.
-      DATA(ls_b) = z2ui5_cl_agent_viewxml=>parse_binding( z2ui5_cl_agent_viewxml=>attr( node = ls_node
+
+      ls_b = z2ui5_cl_agent_viewxml=>parse_binding( z2ui5_cl_agent_viewxml=>attr( node = ls_node
                                                                                          name = `text` ) ).
-      DATA(lv_text) = ``.
+
+      lv_text = ``.
       IF ls_b-kind = z2ui5_cl_agent_viewxml=>cs_binding-literal.
         lv_text = ls_b-value.
       ELSEIF ls_b-kind = z2ui5_cl_agent_viewxml=>cs_binding-path AND ls_b-relative = abap_false AND ls_b-model IS INITIAL.
-        DATA(ls_val) = model_get( model_key = lr_doc->model_key
+
+        ls_val = model_get( model_key = lr_doc->model_key
                                   path      = ls_b-path ).
         IF ls_val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-undefined AND ls_val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-null.
           lv_text = z2ui5_cl_agent_viewxml=>val_to_string( ls_val ).
@@ -1543,8 +2005,11 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       ENDIF.
       DELETE lr_doc->t_lblfor WHERE name = lv_for.        "#EC CI_SORTSEQ
       DELETE lr_doc->t_lblreq WHERE table_line = lv_for.  "#EC CI_SORTSEQ
-      INSERT VALUE #( name  = lv_for
-                      value = lv_text ) INTO TABLE lr_doc->t_lblfor.
+
+      CLEAR temp112.
+      temp112-name = lv_for.
+      temp112-value = lv_text.
+      INSERT temp112 INTO TABLE lr_doc->t_lblfor.
       IF z2ui5_cl_agent_viewxml=>attr( node = ls_node
                                        name = `required` ) = `true`.
         INSERT lv_for INTO TABLE lr_doc->t_lblreq.
@@ -1554,31 +2019,47 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD label_for.
+    DATA ls_doc TYPE z2ui5_cl_agent_snapshot=>ty_s_doc.
+    DATA ls_for TYPE z2ui5_cl_agent_viewxml=>ty_s_attr.
+    DATA temp113 LIKE sy-subrc.
+    DATA temp5 TYPE xsdboolean.
 
     found = abap_false.
-    READ TABLE mt_doc INDEX ctx-doc INTO DATA(ls_doc).
+
+    READ TABLE mt_doc INDEX ctx-doc INTO ls_doc.
     IF sy-subrc <> 0 OR id IS INITIAL.
       RETURN.
     ENDIF.
-    READ TABLE ls_doc-t_lblfor INTO DATA(ls_for) WITH KEY name = id. "#EC CI_SORTSEQ
+
+    READ TABLE ls_doc-t_lblfor INTO ls_for WITH KEY name = id. "#EC CI_SORTSEQ
     IF sy-subrc <> 0.
       RETURN.
     ENDIF.
     found = abap_true.
     result = ls_for-value.
-    required = xsdbool( line_exists( ls_doc-t_lblreq[ table_line = id ] ) ). "#EC CI_SORTSEQ
+
+    READ TABLE ls_doc-t_lblreq WITH KEY table_line = id TRANSPORTING NO FIELDS.
+    temp113 = sy-subrc.
+
+    temp5 = boolc( temp113 = 0 ).
+    required = temp5. "#EC CI_SORTSEQ
 
   ENDMETHOD.
 
   METHOD resolve_ref.
 
-    DATA(lv_ref) = condense( ref ).
+    DATA lv_ref TYPE string.
+    DATA lv_gt TYPE i.
+      DATA lv_name TYPE string.
+    lv_ref = condense( ref ).
     result-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined.
     " a named model
-    DATA(lv_gt) = find( val = lv_ref
+
+    lv_gt = find( val = lv_ref
                         sub = `>` ).
     IF lv_gt > 0.
-      DATA(lv_name) = substring( val = lv_ref
+
+      lv_name = substring( val = lv_ref
                                  len = lv_gt ).
       IF lv_name(1) CA `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`
           AND lv_name CO `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-`.
@@ -1602,6 +2083,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lt_ref TYPE z2ui5_cl_agent_viewxml=>ty_t_ref_val.
     DATA lv_text TYPE string.
+        DATA temp114 TYPE string_table.
+        DATA lv_ref LIKE LINE OF temp114.
+          DATA temp115 TYPE z2ui5_cl_agent_viewxml=>ty_s_ref_val.
+        DATA lv_known LIKE abap_false.
+        DATA lv_all_text LIKE abap_true.
+        DATA ls_part LIKE LINE OF binding-t_part.
+            DATA temp116 TYPE ty_s_val.
+            DATA ls_val LIKE temp116.
 
     binding = z2ui5_cl_agent_viewxml=>parse_binding( raw ).
     result-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined.
@@ -1625,31 +2114,40 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         ENDIF.
 
       WHEN z2ui5_cl_agent_viewxml=>cs_binding-expression.
-        LOOP AT z2ui5_cl_agent_viewxml=>expression_refs( binding-expression ) INTO DATA(lv_ref).
-          INSERT VALUE #( ref = lv_ref
-                          val = resolve_ref( ref = lv_ref
-                                             ctx = ctx
-                                             row = row ) ) INTO TABLE lt_ref.
+
+        temp114 = z2ui5_cl_agent_viewxml=>expression_refs( binding-expression ).
+
+        LOOP AT temp114 INTO lv_ref.
+
+          CLEAR temp115.
+          temp115-ref = lv_ref.
+          temp115-val = resolve_ref( ref = lv_ref ctx = ctx row = row ).
+          INSERT temp115 INTO TABLE lt_ref.
         ENDLOOP.
         result = z2ui5_cl_agent_viewxml=>eval_expression( val   = binding-expression
                                                           t_ref = lt_ref ).
 
       WHEN OTHERS.
-        DATA(lv_known) = abap_false.
-        DATA(lv_all_text) = abap_true.
-        LOOP AT binding-t_part INTO DATA(ls_part).
+
+        lv_known = abap_false.
+
+        lv_all_text = abap_true.
+
+        LOOP AT binding-t_part INTO ls_part.
           IF ls_part-is_text = abap_true.
             lv_text = lv_text && ls_part-text.
             CONTINUE.
           ENDIF.
           lv_all_text = abap_false.
           IF ls_part-is_path = abap_true AND ls_part-model IS INITIAL AND ls_part-formatter = abap_false.
-            DATA(ls_val) = COND ty_s_val( WHEN ls_part-relative = abap_true
-                                          THEN resolve_ref( ref = ls_part-path
-                                                            ctx = ctx
-                                                            row = row )
-                                          ELSE model_get( model_key = ctx-model_key
-                                                          path      = ls_part-path ) ).
+
+            IF ls_part-relative = abap_true.
+              temp116 = resolve_ref( ref = ls_part-path ctx = ctx row = row ).
+            ELSE.
+              temp116 = model_get( model_key = ctx-model_key path = ls_part-path ).
+            ENDIF.
+
+            ls_val = temp116.
             IF ls_val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-undefined AND ls_val-kind <> z2ui5_cl_agent_viewxml=>cs_kind-null.
               lv_known = abap_true.
               lv_text = lv_text && z2ui5_cl_agent_viewxml=>val_to_string( ls_val ).
@@ -1668,14 +2166,17 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(lv_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
+    DATA lv_raw TYPE string.
+    DATA ls_val TYPE z2ui5_cl_agent_snapshot=>ty_s_val.
+    lv_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                                            name  = name
                                                  IMPORTING found = lv_found ).
     IF lv_found = abap_false.
       result = default_value.
       RETURN.
     ENDIF.
-    DATA(ls_val) = resolve( raw = lv_raw
+
+    ls_val = resolve( raw = lv_raw
                             ctx = ctx
                             row = row ).
     CASE ls_val-kind.
@@ -1697,7 +2198,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD text_of_raw.
 
-    DATA(ls_val) = resolve( raw = raw
+    DATA ls_val TYPE z2ui5_cl_agent_snapshot=>ty_s_val.
+    ls_val = resolve( raw = raw
                             ctx = ctx
                             row = row ).
     IF ls_val-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined OR ls_val-kind = z2ui5_cl_agent_viewxml=>cs_kind-null.
@@ -1711,7 +2213,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(lv_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
+    DATA lv_raw TYPE string.
+    lv_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                                            name  = name
                                                  IMPORTING found = lv_found ).
     IF lv_found = abap_false.
@@ -1727,13 +2230,23 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(lv_label) = ctx-label.
-    LOOP AT t_child INTO DATA(lv_child).
-      DATA(ls_child) = node( doc = ctx-doc
+    DATA lv_label LIKE ctx-label.
+    DATA lv_child LIKE LINE OF t_child.
+      DATA ls_child TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+        DATA lv_name TYPE string.
+        DATA lv_for TYPE string.
+      DATA ls_ctx LIKE ctx.
+    lv_label = ctx-label.
+
+    LOOP AT t_child INTO lv_child.
+
+      ls_child = node( doc = ctx-doc
                              id  = lv_child ).
       IF z2ui5_cl_agent_viewxml=>is_aggregation( ls_child ) = abap_false.
-        DATA(lv_name) = z2ui5_cl_agent_viewxml=>control_name( ls_child ).
-        DATA(lv_for) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_child
+
+        lv_name = z2ui5_cl_agent_viewxml=>control_name( ls_child ).
+
+        lv_for = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_child
                                                                name  = `labelFor`
                                                      IMPORTING found = lv_found ).
         IF lv_name = `sap.m.Label` AND lv_for IS INITIAL.
@@ -1757,7 +2270,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
           lv_label = 0.
         ENDIF.
       ENDIF.
-      DATA(ls_ctx) = ctx.
+
+      ls_ctx = ctx.
       ls_ctx-label = lv_label.
       walk( id  = lv_child
             ctx = ls_ctx ).
@@ -1772,14 +2286,49 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     DATA lv_kind TYPE string.
     DATA lv_dialog TYPE abap_bool.
 
-    DATA(ls_node) = node( doc = ctx-doc
+    DATA ls_node TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+    DATA lv_name TYPE string.
+    DATA ls_c LIKE ctx.
+    DATA temp117 LIKE sy-subrc.
+    DATA temp118 LIKE sy-subrc.
+          DATA lv_title TYPE string.
+            DATA temp119 TYPE z2ui5_cl_agent_snapshot=>ty_s_title.
+        DATA lv_heading TYPE i.
+            DATA temp120 TYPE z2ui5_cl_agent_snapshot=>ty_s_title.
+      DATA lv_label TYPE i.
+      DATA lv_label_attr TYPE string.
+      DATA lv_label_agg TYPE i.
+        DATA lt_label_ctl TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+          DATA ls_label_ctl TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+          FIELD-SYMBOLS <temp41> LIKE LINE OF lt_label_ctl.
+          DATA temp42 LIKE sy-tabix.
+      DATA lv_agg_id LIKE LINE OF ls_node-t_child.
+        DATA ls_fe_ctx LIKE ls_c.
+      DATA lv_strip TYPE string.
+        DATA lv_strip_type TYPE string.
+        DATA lv_mtype TYPE string.
+        DATA temp121 TYPE z2ui5_cl_agent_snapshot=>ty_s_message.
+        DATA temp43 TYPE z2ui5_cl_agent_snapshot=>ty_s_message-type.
+    DATA ls_spec TYPE z2ui5_cl_agent_snapshot=>ty_s_spec.
+    DATA lv_field TYPE i.
+      DATA lt_props TYPE string_table.
+        DATA temp122 TYPE string_table.
+        DATA lt_parts LIKE temp122.
+        DATA temp123 TYPE string_table.
+        DATA lt_source LIKE temp123.
+        DATA lv_prop LIKE LINE OF lt_props.
+          DATA lv_part TYPE string.
+        DATA lv_text TYPE string.
+          DATA ls_label TYPE z2ui5_cl_agent_snapshot=>ty_s_label.
+    ls_node = node( doc = ctx-doc
                           id  = id ).
     IF z2ui5_cl_agent_viewxml=>is_aggregation( ls_node ) = abap_true.
       walk_children( t_child = ls_node-t_child
                      ctx     = ctx ).
       RETURN.
     ENDIF.
-    DATA(lv_name) = z2ui5_cl_agent_viewxml=>control_name( ls_node ).
+
+    lv_name = z2ui5_cl_agent_viewxml=>control_name( ls_node ).
     IF lv_name = `sap.ui.core.mvc.View` OR lv_name = `sap.ui.core.FragmentDefinition`.
       walk_children( t_child = ls_node-t_child
                      ctx     = ctx ).
@@ -1791,12 +2340,19 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
              default_value = abap_true ) = abap_false.
       RETURN.
     ENDIF.
-    DATA(ls_c) = ctx.
+
+    ls_c = ctx.
     INSERT ls_node-local INTO TABLE ls_c-t_where.
 
     " the title of the layer: Dialog / selection dialog / Popover / Page, or
     " a DynamicPageTitle
-    IF NOT line_exists( mt_title[ layer = ctx-layer ] ). "#EC CI_SORTSEQ
+
+
+    temp118 = sy-subrc.
+    READ TABLE mt_title WITH KEY layer = ctx-layer TRANSPORTING NO FIELDS.
+    temp117 = sy-subrc.
+    sy-subrc = temp118.
+    IF NOT temp117 = 0. "#EC CI_SORTSEQ
       IF lv_name = `sap.m.Dialog` OR lv_name = `sap.m.SelectDialog` OR lv_name = `sap.m.TableSelectDialog`
           OR lv_name = `sap.m.Popover` OR lv_name = `sap.m.ResponsivePopover`
           OR lv_name = `sap.m.Page` OR lv_name = `sap.m.semantic.FullscreenPage` OR lv_name = `sap.m.Shell`.
@@ -1804,17 +2360,22 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                                 name  = `title`
                                       IMPORTING found = lv_found ).
         IF lv_found = abap_true.
-          DATA(lv_title) = text_of( node = ls_node
+
+          lv_title = text_of( node = ls_node
                                     name = `title`
                                     ctx  = ctx ).
           IF lv_title IS NOT INITIAL.
-            INSERT VALUE #( layer = ctx-layer
-                            title = z2ui5_cl_agent_viewxml=>clip( lv_title ) ) INTO TABLE mt_title.
+
+            CLEAR temp119.
+            temp119-layer = ctx-layer.
+            temp119-title = z2ui5_cl_agent_viewxml=>clip( lv_title ).
+            INSERT temp119 INTO TABLE mt_title.
           ENDIF.
         ENDIF.
       ENDIF.
       IF lv_name = `sap.f.DynamicPageTitle`.
-        DATA(lv_heading) = find_first( doc     = ctx-doc
+
+        lv_heading = find_first( doc     = ctx-doc
                                        id      = id
                                        control = `sap.m.Title` ).
         IF lv_heading > 0.
@@ -1823,8 +2384,11 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                               name = `text`
                               ctx  = ctx ).
           IF lv_title IS NOT INITIAL.
-            INSERT VALUE #( layer = ctx-layer
-                            title = z2ui5_cl_agent_viewxml=>clip( lv_title ) ) INTO TABLE mt_title.
+
+            CLEAR temp120.
+            temp120-layer = ctx-layer.
+            temp120-title = z2ui5_cl_agent_viewxml=>clip( lv_title ).
+            INSERT temp120 INTO TABLE mt_title.
           ENDIF.
         ENDIF.
       ENDIF.
@@ -1870,8 +2434,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDIF.
 
     IF lv_name = `sap.ui.layout.form.FormElement`.
-      DATA(lv_label) = 0.
-      DATA(lv_label_attr) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_node
+
+      lv_label = 0.
+
+      lv_label_attr = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_node
                                                                     name  = `label`
                                                           IMPORTING found = lv_found ).
       IF lv_found = abap_true.
@@ -1879,16 +2445,27 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                                       ctx = ctx )
                               required = abap_false ).
       ENDIF.
-      DATA(lv_label_agg) = child_agg( doc   = ctx-doc
+
+      lv_label_agg = child_agg( doc   = ctx-doc
                                       node  = ls_node
                                       local = `label` ).
       IF lv_label_agg > 0.
-        DATA(lt_label_ctl) = controls_of( doc     = ctx-doc
+
+        lt_label_ctl = controls_of( doc     = ctx-doc
                                           t_child = node( doc = ctx-doc
                                                           id  = lv_label_agg )-t_child ).
         IF lt_label_ctl IS NOT INITIAL.
-          DATA(ls_label_ctl) = node( doc = ctx-doc
-                                     id  = lt_label_ctl[ 1 ] ).
+
+
+
+          temp42 = sy-tabix.
+          READ TABLE lt_label_ctl INDEX 1 ASSIGNING <temp41>.
+          sy-tabix = temp42.
+          IF sy-subrc <> 0.
+            ASSERT 1 = 0.
+          ENDIF.
+          ls_label_ctl = node( doc = ctx-doc
+                                     id  = <temp41> ).
           lv_label = label_new( text     = text_of( node = ls_label_ctl
                                                     name = `text`
                                                     ctx  = ctx )
@@ -1898,12 +2475,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                                  default_value = abap_false ) ).
         ENDIF.
       ENDIF.
-      LOOP AT ls_node-t_child INTO DATA(lv_agg_id).
+
+      LOOP AT ls_node-t_child INTO lv_agg_id.
         IF node( doc = ctx-doc
                  id  = lv_agg_id )-local = `label`.
           CONTINUE.
         ENDIF.
-        DATA(ls_fe_ctx) = ls_c.
+
+        ls_fe_ctx = ls_c.
         ls_fe_ctx-label = lv_label.
         walk( id  = lv_agg_id
               ctx = ls_fe_ctx ).
@@ -1912,21 +2491,32 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDIF.
 
     IF lv_name = `sap.m.MessageStrip`.
-      DATA(lv_strip) = text_of( node = ls_node
+
+      lv_strip = text_of( node = ls_node
                                 name = `text`
                                 ctx  = ctx ).
       IF lv_strip IS NOT INITIAL.
-        DATA(lv_strip_type) = text_of( node = ls_node
+
+        lv_strip_type = text_of( node = ls_node
                                        name = `type`
                                        ctx  = ctx ).
         IF lv_strip_type IS INITIAL.
           lv_strip_type = `Information`.
         ENDIF.
-        DATA(lv_mtype) = message_type( lv_strip_type ).
-        INSERT VALUE #( type   = COND #( WHEN lv_mtype IS INITIAL THEN `info` ELSE lv_mtype )
-                        text   = z2ui5_cl_agent_viewxml=>clip( val = lv_strip
-                                                               len = 1000 )
-                        source = `strip` ) INTO TABLE mt_message.
+
+        lv_mtype = message_type( lv_strip_type ).
+
+        CLEAR temp121.
+
+        IF lv_mtype IS INITIAL.
+          temp43 = `info`.
+        ELSE.
+          temp43 = lv_mtype.
+        ENDIF.
+        temp121-type = temp43.
+        temp121-text = z2ui5_cl_agent_viewxml=>clip( val = lv_strip len = 1000 ).
+        temp121-source = `strip`.
+        INSERT temp121 INTO TABLE mt_message.
       ENDIF.
       wires( node = ls_node
              ctx  = ls_c
@@ -1934,8 +2524,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA(ls_spec) = field_spec( lv_name ).
-    DATA(lv_field) = 0.
+
+    ls_spec = field_spec( lv_name ).
+
+    lv_field = 0.
     IF ls_spec-found = abap_true AND ctx-row_table IS INITIAL.
       lv_field = field( node = ls_node
                         ctx  = ls_c
@@ -1943,12 +2535,21 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                         spec = ls_spec ).
     ENDIF.
     IF ls_spec-found = abap_false AND ctx-row_table IS INITIAL.
-      DATA(lt_props) = text_props( lv_name ).
+
+      lt_props = text_props( lv_name ).
       IF lt_props IS NOT INITIAL.
-        DATA(lt_parts) = VALUE string_table( ).
-        DATA(lt_source) = VALUE string_table( ).
-        LOOP AT lt_props INTO DATA(lv_prop).
-          DATA(lv_part) = text_of( node = ls_node
+
+        CLEAR temp122.
+
+        lt_parts = temp122.
+
+        CLEAR temp123.
+
+        lt_source = temp123.
+
+        LOOP AT lt_props INTO lv_prop.
+
+          lv_part = text_of( node = ls_node
                                    name = lv_prop
                                    ctx  = ctx ).
           IF lv_part IS NOT INITIAL.
@@ -1957,13 +2558,15 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                                                       name = lv_prop ) ) INTO TABLE lt_source.
           ENDIF.
         ENDLOOP.
-        DATA(lv_text) = concat_lines_of( table = lt_parts
+
+        lv_text = concat_lines_of( table = lt_parts
                                          sep   = ` ` ).
         IF lv_name = `sap.m.FormattedText`.
           lv_text = strip_tags( lv_text ).
         ENDIF.
         IF lv_text IS NOT INITIAL.
-          READ TABLE mt_label INDEX ctx-label INTO DATA(ls_label).
+
+          READ TABLE mt_label INDEX ctx-label INTO ls_label.
           IF sy-subrc = 0 AND ls_label-text IS NOT INITIAL.
             add_text( val    = |{ ls_label-text }: { lv_text }|
                       t_path = lt_source ).
@@ -1991,9 +2594,19 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(lv_id) = z2ui5_cl_agent_viewxml=>attr( node = node
+    DATA lv_id TYPE string.
+    DATA lv_for TYPE string.
+    DATA lr_label TYPE REF TO z2ui5_cl_agent_snapshot=>ty_s_label.
+      DATA temp124 TYPE string.
+      DATA lv_ph LIKE temp124.
+      DATA temp125 TYPE string.
+    DATA temp44 TYPE string_table.
+    DATA temp126 LIKE temp44.
+    DATA lv_prop LIKE LINE OF temp126.
+    lv_id = z2ui5_cl_agent_viewxml=>attr( node = node
                                                name = `id` ).
-    DATA(lv_for) = label_for( EXPORTING ctx   = ctx
+
+    lv_for = label_for( EXPORTING ctx   = ctx
                                         id    = lv_id
                               IMPORTING found = lv_found ).
     IF lv_found = abap_true.
@@ -2001,15 +2614,27 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    READ TABLE mt_label INDEX ctx-label REFERENCE INTO DATA(lr_label).
+
+    READ TABLE mt_label INDEX ctx-label REFERENCE INTO lr_label.
     IF sy-subrc = 0 AND lr_label->text IS NOT INITIAL.
       " one form label over several fields (a first and a last name input):
       " the placeholder tells them apart
       lr_label->uses = lr_label->uses + 1.
-      DATA(lv_ph) = COND string( WHEN lr_label->uses > 1 THEN text_of( node = node
-                                                                       name = `placeholder`
-                                                                       ctx  = ctx ) ).
-      result = COND #( WHEN lv_ph IS NOT INITIAL THEN |{ lr_label->text } ({ lv_ph })| ELSE lr_label->text ).
+
+      IF lr_label->uses > 1.
+        temp124 = text_of( node = node name = `placeholder` ctx = ctx ).
+      ELSE.
+        CLEAR temp124.
+      ENDIF.
+
+      lv_ph = temp124.
+
+      IF lv_ph IS NOT INITIAL.
+        temp125 = |{ lr_label->text } ({ lv_ph })|.
+      ELSE.
+        temp125 = lr_label->text.
+      ENDIF.
+      result = temp125.
       RETURN.
     ENDIF.
 
@@ -2023,7 +2648,16 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
-    LOOP AT VALUE string_table( ( `placeholder` ) ( `tooltip` ) ( `ariaLabel` ) ( `title` ) ) INTO DATA(lv_prop).
+
+    CLEAR temp44.
+    INSERT `placeholder` INTO TABLE temp44.
+    INSERT `tooltip` INTO TABLE temp44.
+    INSERT `ariaLabel` INTO TABLE temp44.
+    INSERT `title` INTO TABLE temp44.
+
+    temp126 = temp44.
+
+    LOOP AT temp126 INTO lv_prop.
       result = text_of( node = node
                         name = lv_prop
                         ctx  = ctx ).
@@ -2041,7 +2675,30 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     DATA ls_binding TYPE z2ui5_cl_agent_viewxml=>ty_s_binding.
     DATA lv_required TYPE abap_bool.
 
-    LOOP AT spec-t_prop INTO DATA(lv_candidate).
+    DATA lv_candidate LIKE LINE OF spec-t_prop.
+    DATA ls_value TYPE z2ui5_cl_agent_snapshot=>ty_s_val.
+    DATA lv_label TYPE string.
+    DATA lv_kind TYPE string.
+        DATA temp127 TYPE string.
+    DATA lv_editable TYPE abap_bool.
+    DATA temp6 TYPE xsdboolean.
+      DATA temp7 TYPE xsdboolean.
+    DATA ls_label TYPE z2ui5_cl_agent_snapshot=>ty_s_label.
+    DATA lv_label_required TYPE abap_bool.
+    DATA temp8 TYPE xsdboolean.
+    DATA lv_required_all TYPE abap_bool.
+    DATA temp9 TYPE xsdboolean.
+    DATA lv_name TYPE string.
+    DATA temp128 TYPE ty_s_field.
+    DATA temp46 TYPE string.
+    DATA temp10 TYPE xsdboolean.
+    DATA ls_field LIKE temp128.
+      DATA lt_values TYPE z2ui5_cl_agent_snapshot=>ty_t_choice.
+    DATA lv_state TYPE string.
+    DATA lv_type TYPE string.
+      DATA lv_state_text TYPE string.
+      DATA temp129 TYPE z2ui5_cl_agent_snapshot=>ty_s_message.
+    LOOP AT spec-t_prop INTO lv_candidate.
       z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                               name  = lv_candidate
                                     IMPORTING found = lv_found ).
@@ -2054,7 +2711,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA(ls_value) = resolve( EXPORTING raw     = z2ui5_cl_agent_viewxml=>attr( node = node
+
+    ls_value = resolve( EXPORTING raw     = z2ui5_cl_agent_viewxml=>attr( node = node
                                                                                name = lv_prop )
                                         ctx     = ctx
                               IMPORTING binding = ls_binding ).
@@ -2071,71 +2729,89 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA(lv_label) = label_of( node = node
+
+    lv_label = label_of( node = node
                                ctx  = ctx
                                spec = spec ).
-    DATA(lv_kind) = kind_from_type( ls_binding-type ).
+
+    lv_kind = kind_from_type( ls_binding-type ).
     IF lv_kind IS INITIAL.
       lv_kind = spec-kind.
       IF lv_kind = `input`.
-        lv_kind = SWITCH #( z2ui5_cl_agent_viewxml=>attr( node = node
-                                                          name = `type` )
-                            WHEN `Number`   THEN `number`
-                            WHEN `Date`     THEN `date`
-                            WHEN `Time`     THEN `time`
-                            WHEN `DateTime` THEN `datetime`
-                            ELSE `text` ).
+
+        CASE z2ui5_cl_agent_viewxml=>attr( node = node name = `type` ).
+          WHEN `Number`.
+            temp127 = `number`.
+          WHEN `Date`.
+            temp127 = `date`.
+          WHEN `Time`.
+            temp127 = `time`.
+          WHEN `DateTime`.
+            temp127 = `datetime`.
+          WHEN OTHERS.
+            temp127 = `text`.
+        ENDCASE.
+        lv_kind = temp127.
       ENDIF.
     ENDIF.
 
     " two checks: the 7.02 downport puts one xsdbool( ) on one line
-    DATA(lv_editable) = xsdbool( bool( node          = node
-                                       name          = `editable`
-                                       ctx           = ctx
-                                       default_value = abap_true ) = abap_true
-                             AND bool( node          = node
-                                       name          = `enabled`
-                                       ctx           = ctx
-                                       default_value = abap_true ) = abap_true ).
+
+
+    temp6 = boolc( bool( node = node name = `editable` ctx = ctx default_value = abap_true ) = abap_true AND bool( node = node name = `enabled` ctx = ctx default_value = abap_true ) = abap_true ).
+    lv_editable = temp6.
     IF lv_editable = abap_true.
-      lv_editable = xsdbool( bool( node          = node
-                                   name          = `displayOnly`
-                                   ctx           = ctx
-                                   default_value = abap_false ) = abap_false ).
+
+      temp7 = boolc( bool( node = node name = `displayOnly` ctx = ctx default_value = abap_false ) = abap_false ).
+      lv_editable = temp7.
     ENDIF.
     label_for( EXPORTING ctx      = ctx
                          id       = z2ui5_cl_agent_viewxml=>attr( node = node
                                                                   name = `id` )
                IMPORTING found    = lv_found
                          required = lv_required ).
-    READ TABLE mt_label INDEX ctx-label INTO DATA(ls_label).
-    DATA(lv_label_required) = xsdbool( sy-subrc = 0 AND ls_label-required = abap_true ).
-    DATA(lv_required_all) = xsdbool( bool( node          = node
-                                           name          = `required`
-                                           ctx           = ctx
-                                           default_value = abap_false ) = abap_true
-                                     OR ( lv_found = abap_true AND lv_required = abap_true )
-                                     OR lv_label_required = abap_true ).
 
-    DATA(lv_name) = name_of_path( ls_binding-path ).
-    DATA(ls_field) = VALUE ty_s_field( id        = |f{ lines( mt_field ) + 1 }|
-                                       path      = ls_binding-path
-                                       name      = lv_name
-                                       label     = z2ui5_cl_agent_viewxml=>clip( val = COND #( WHEN lv_label IS NOT INITIAL THEN lv_label ELSE lv_name )
-                                                                                 len = 120 )
-                                       control   = name
-                                       kind      = lv_kind
-                                       value     = ls_value
-                                       required  = lv_required_all
-                                       editable  = lv_editable
-                                       layer     = ctx-layer
-                                       model_key = ctx-model_key
-                                       doc       = ctx-doc
-                                       node      = node-id
-                                       secret    = xsdbool( z2ui5_cl_agent_viewxml=>attr( node = node
-                                                                                          name = `type` ) = `Password` ) ).
+    READ TABLE mt_label INDEX ctx-label INTO ls_label.
+
+
+    temp8 = boolc( sy-subrc = 0 AND ls_label-required = abap_true ).
+    lv_label_required = temp8.
+
+
+    temp9 = boolc( bool( node = node name = `required` ctx = ctx default_value = abap_false ) = abap_true OR ( lv_found = abap_true AND lv_required = abap_true ) OR lv_label_required = abap_true ).
+    lv_required_all = temp9.
+
+
+    lv_name = name_of_path( ls_binding-path ).
+
+    CLEAR temp128.
+    temp128-id = |f{ lines( mt_field ) + 1 }|.
+    temp128-path = ls_binding-path.
+    temp128-name = lv_name.
+
+    IF lv_label IS NOT INITIAL.
+      temp46 = lv_label.
+    ELSE.
+      temp46 = lv_name.
+    ENDIF.
+    temp128-label = z2ui5_cl_agent_viewxml=>clip( val = temp46 len = 120 ).
+    temp128-control = name.
+    temp128-kind = lv_kind.
+    temp128-value = ls_value.
+    temp128-required = lv_required_all.
+    temp128-editable = lv_editable.
+    temp128-layer = ctx-layer.
+    temp128-model_key = ctx-model_key.
+    temp128-doc = ctx-doc.
+    temp128-node = node-id.
+
+    temp10 = boolc( z2ui5_cl_agent_viewxml=>attr( node = node name = `type` ) = `Password` ).
+    temp128-secret = temp10.
+
+    ls_field = temp128.
     IF spec-items IS NOT INITIAL.
-      DATA(lt_values) = choice_values( EXPORTING node  = node
+
+      lt_values = choice_values( EXPORTING node  = node
                                                  ctx   = ctx
                                                  spec  = spec
                                        IMPORTING found = lv_found ).
@@ -2151,29 +2827,35 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     INSERT ls_field INTO TABLE mt_field.
     result = lines( mt_field ).
 
-    DATA(lv_state) = text_of( node = node
+
+    lv_state = text_of( node = node
                               name = `valueState`
                               ctx  = ctx ).
-    DATA(lv_type) = message_type( lv_state ).
+
+    lv_type = message_type( lv_state ).
     IF lv_type IS NOT INITIAL.
-      DATA(lv_state_text) = text_of( node = node
+
+      lv_state_text = text_of( node = node
                                      name = `valueStateText`
                                      ctx  = ctx ).
       IF lv_state_text IS INITIAL.
         lv_state_text = |{ ls_field-label }: { lv_state }|.
       ENDIF.
-      INSERT VALUE #( type   = lv_type
-                      text   = z2ui5_cl_agent_viewxml=>clip( val = lv_state_text
-                                                             len = 1000 )
-                      source = `field`
-                      field  = ls_field-id ) INTO TABLE mt_message.
+
+      CLEAR temp129.
+      temp129-type = lv_type.
+      temp129-text = z2ui5_cl_agent_viewxml=>clip( val = lv_state_text len = 1000 ).
+      temp129-source = `field`.
+      temp129-field = ls_field-id.
+      INSERT temp129 INTO TABLE mt_message.
     ENDIF.
 
   ENDMETHOD.
 
   METHOD controls_of.
 
-    LOOP AT t_child INTO DATA(lv_child).
+    DATA lv_child LIKE LINE OF t_child.
+    LOOP AT t_child INTO lv_child.
       IF z2ui5_cl_agent_viewxml=>is_aggregation( node( doc = doc
                                                        id  = lv_child ) ) = abap_false.
         INSERT lv_child INTO TABLE result.
@@ -2184,7 +2866,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD child_agg.
 
-    LOOP AT node-t_child INTO DATA(lv_child).
+    DATA lv_child LIKE LINE OF node-t_child.
+    LOOP AT node-t_child INTO lv_child.
       IF node( doc = doc
                id  = lv_child )-local = local.
         result = lv_child.
@@ -2196,49 +2879,87 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD item_controls.
 
-    DATA(lv_agg) = child_agg( doc   = ctx-doc
+    DATA lv_agg TYPE i.
+    DATA temp130 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+    lv_agg = child_agg( doc   = ctx-doc
                               node  = node
                               local = agg ).
+
+    IF lv_agg > 0.
+      temp130 = node( doc = ctx-doc id = lv_agg )-t_child.
+    ELSE.
+      temp130 = node-t_child.
+    ENDIF.
     result = controls_of( doc     = ctx-doc
-                          t_child = COND #( WHEN lv_agg > 0
-                                            THEN node( doc = ctx-doc
-                                                       id  = lv_agg )-t_child
-                                            ELSE node-t_child ) ).
+                          t_child = temp130 ).
 
   ENDMETHOD.
 
   METHOD choice_values.
 
     DATA lv_found TYPE abap_bool.
+    DATA temp131 TYPE string.
+    DATA lt_items TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+      DATA lv_item LIKE LINE OF lt_items.
+        DATA temp132 TYPE z2ui5_cl_agent_snapshot=>ty_s_choice.
+    DATA lv_items_raw TYPE string.
+    DATA lv_bpath TYPE string.
+      DATA ls_bound TYPE z2ui5_cl_agent_viewxml=>ty_s_binding.
+        DATA ls_part LIKE LINE OF ls_bound-t_part.
+      DATA ls_rows TYPE z2ui5_cl_agent_snapshot=>ty_s_val.
+      DATA ls_tmpl TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      FIELD-SYMBOLS <temp47> LIKE LINE OF lt_items.
+      DATA temp48 LIKE sy-tabix.
+      DATA temp133 TYPE i.
+      DATA lv_count LIKE temp133.
+        DATA lv_row TYPE string.
+        DATA lv_text TYPE string.
+        DATA temp134 TYPE z2ui5_cl_agent_snapshot=>ty_s_choice.
+        DATA temp49 TYPE string.
+      DATA ls_item TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA temp135 TYPE z2ui5_cl_agent_snapshot=>ty_s_choice.
+      DATA temp50 TYPE string.
 
     found = abap_false.
-    DATA(lt_items) = item_controls( node = node
+
+    IF spec-items = `index`.
+      temp131 = `buttons`.
+    ELSE.
+      temp131 = `items`.
+    ENDIF.
+
+    lt_items = item_controls( node = node
                                     ctx  = ctx
-                                    agg  = COND #( WHEN spec-items = `index` THEN `buttons` ELSE `items` ) ).
+                                    agg  = temp131 ).
     IF spec-items = `index`.
       found = abap_true.
-      LOOP AT lt_items INTO DATA(lv_item).
-        INSERT VALUE #( key  = z2ui5_cl_agent_viewxml=>val_number( |{ sy-tabix - 1 }| )
-                        text = text_of( node = node( doc = ctx-doc
-                                                     id  = lv_item )
-                                        name = `text`
-                                        ctx  = ctx ) ) INTO TABLE result.
+
+      LOOP AT lt_items INTO lv_item.
+
+        CLEAR temp132.
+        temp132-key = z2ui5_cl_agent_viewxml=>val_number( |{ sy-tabix - 1 }| ).
+        temp132-text = text_of( node = node( doc = ctx-doc id = lv_item ) name = `text` ctx = ctx ).
+        INSERT temp132 INTO TABLE result.
       ENDLOOP.
       RETURN.
     ENDIF.
 
-    DATA(lv_items_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
+
+    lv_items_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                                                  name  = `items`
                                                        IMPORTING found = lv_found ).
-    DATA(lv_bpath) = ``.
+
+    lv_bpath = ``.
     IF lv_found = abap_true.
-      DATA(ls_bound) = z2ui5_cl_agent_viewxml=>parse_binding( lv_items_raw ).
+
+      ls_bound = z2ui5_cl_agent_viewxml=>parse_binding( lv_items_raw ).
       IF ls_bound-kind = z2ui5_cl_agent_viewxml=>cs_binding-path.
         IF ls_bound-model IS INITIAL AND ls_bound-relative = abap_false.
           lv_bpath = ls_bound-path.
         ENDIF.
       ELSE.
-        LOOP AT ls_bound-t_part INTO DATA(ls_part) WHERE is_path = abap_true. "#EC CI_SORTSEQ
+
+        LOOP AT ls_bound-t_part INTO ls_part WHERE is_path = abap_true. "#EC CI_SORTSEQ
           IF ls_part-model IS INITIAL AND ls_part-relative = abap_false.
             lv_bpath = ls_part-path.
           ENDIF.
@@ -2248,33 +2969,52 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDIF.
 
     IF lv_bpath IS NOT INITIAL.
-      DATA(ls_rows) = model_get( model_key  = ctx-model_key
+
+      ls_rows = model_get( model_key  = ctx-model_key
                                  path       = lv_bpath
                                  check_json = abap_false ).
       IF ls_rows-kind <> z2ui5_cl_agent_viewxml=>cs_kind-array OR lt_items IS INITIAL.
         RETURN.
       ENDIF.
       found = abap_true.
-      DATA(ls_tmpl) = node( doc = ctx-doc
-                            id  = lt_items[ 1 ] ).
+
+
+
+      temp48 = sy-tabix.
+      READ TABLE lt_items INDEX 1 ASSIGNING <temp47>.
+      sy-tabix = temp48.
+      IF sy-subrc <> 0.
+        ASSERT 1 = 0.
+      ENDIF.
+      ls_tmpl = node( doc = ctx-doc
+                            id  = <temp47> ).
       z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_tmpl
                                               name  = `key`
                                     IMPORTING found = lv_found ).
-      DATA(lv_count) = CONV i( ls_rows-num ).
+
+      temp133 = ls_rows-num.
+
+      lv_count = temp133.
       DO lv_count TIMES.
-        DATA(lv_row) = tree_path( model_key = ctx-model_key
+
+        lv_row = tree_path( model_key = ctx-model_key
                                   path      = |{ lv_bpath }/{ sy-index - 1 }| ).
-        DATA(lv_text) = text_of( node = ls_tmpl
+
+        lv_text = text_of( node = ls_tmpl
                                  name = `text`
                                  ctx  = ctx
                                  row  = lv_row ).
-        INSERT VALUE #( key  = z2ui5_cl_agent_viewxml=>val_string( COND #( WHEN lv_found = abap_true
-                                                                           THEN text_of( node = ls_tmpl
-                                                                                         name = `key`
-                                                                                         ctx  = ctx
-                                                                                         row  = lv_row )
-                                                                           ELSE lv_text ) )
-                        text = lv_text ) INTO TABLE result.
+
+        CLEAR temp134.
+
+        IF lv_found = abap_true.
+          temp49 = text_of( node = ls_tmpl name = `key` ctx = ctx row = lv_row ).
+        ELSE.
+          temp49 = lv_text.
+        ENDIF.
+        temp134-key = z2ui5_cl_agent_viewxml=>val_string( temp49 ).
+        temp134-text = lv_text.
+        INSERT temp134 INTO TABLE result.
       ENDDO.
       RETURN.
     ENDIF.
@@ -2284,7 +3024,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDIF.
     found = abap_true.
     LOOP AT lt_items INTO lv_item.
-      DATA(ls_item) = node( doc = ctx-doc
+
+      ls_item = node( doc = ctx-doc
                             id  = lv_item ).
       lv_text = text_of( node = ls_item
                          name = `text`
@@ -2292,19 +3033,25 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_item
                                               name  = `key`
                                     IMPORTING found = lv_found ).
-      INSERT VALUE #( key  = z2ui5_cl_agent_viewxml=>val_string( COND #( WHEN lv_found = abap_true
-                                                                         THEN text_of( node = ls_item
-                                                                                       name = `key`
-                                                                                       ctx  = ctx )
-                                                                         ELSE lv_text ) )
-                      text = lv_text ) INTO TABLE result.
+
+      CLEAR temp135.
+
+      IF lv_found = abap_true.
+        temp50 = text_of( node = ls_item name = `key` ctx = ctx ).
+      ELSE.
+        temp50 = lv_text.
+      ENDIF.
+      temp135-key = z2ui5_cl_agent_viewxml=>val_string( temp50 ).
+      temp135-text = lv_text.
+      INSERT temp135 INTO TABLE result.
     ENDLOOP.
 
   ENDMETHOD.
 
   METHOD push_action.
 
-    DATA(ls_action) = action.
+    DATA ls_action LIKE action.
+    ls_action = action.
     ls_action-id = |a{ lines( mt_action ) + 1 }|.
     IF ls_action-scope <> `row`.
       CLEAR ls_action-table.
@@ -2317,73 +3064,164 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lt_desc TYPE string_table.
 
-    LOOP AT node-t_attr INTO DATA(ls_attr).
+    DATA ls_attr LIKE LINE OF node-t_attr.
+      DATA ls_wire TYPE z2ui5_cl_agent_viewxml=>ty_s_wire.
+      DATA temp136 TYPE string.
+      DATA lv_gate LIKE temp136.
+      DATA temp137 TYPE string.
+      DATA lv_label LIKE temp137.
+      DATA lv_enabled TYPE abap_bool.
+      DATA temp138 TYPE string.
+      DATA lv_scope LIKE temp138.
+        DATA temp139 TYPE string_table.
+        DATA lt_static LIKE temp139.
+        DATA ls_arg LIKE LINE OF ls_wire-t_arg.
+          DATA temp140 TYPE string.
+        DATA temp141 TYPE string.
+        DATA temp142 TYPE string.
+        DATA lv_slot LIKE temp141.
+        DATA temp143 TYPE string.
+        DATA temp144 TYPE string.
+        DATA lv_static_1 LIKE temp143.
+        DATA temp145 TYPE string.
+        DATA temp146 TYPE string.
+        DATA lv_static_2 LIKE temp145.
+          DATA temp147 TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+          DATA temp51 TYPE z2ui5_cl_agent_snapshot=>ty_s_action-event.
+            DATA temp148 TYPE string.
+      DATA temp149 TYPE string_table.
+      DATA lt_arg_json LIKE temp149.
+        DATA temp150 TYPE string.
+      DATA temp151 TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+    LOOP AT node-t_attr INTO ls_attr.
       IF only IS NOT INITIAL AND ls_attr-name <> only.
         CONTINUE.
       ENDIF.
       IF z2ui5_cl_agent_viewxml=>has_wire( ls_attr-value ) = abap_false.
         CONTINUE.
       ENDIF.
-      DATA(ls_wire) = z2ui5_cl_agent_viewxml=>parse_wire( ls_attr-value ).
+
+      ls_wire = z2ui5_cl_agent_viewxml=>parse_wire( ls_attr-value ).
       IF ls_wire-valid = abap_false.
         note( |event { ls_attr-name } on { node-local } ({ ctx-layer }) - a handler this client cannot read| ).
         CONTINUE.
       ENDIF.
       " a wire whose trigger is not shown is skipped
-      DATA(lv_gate) = SWITCH string( ls_attr-name
-                                     WHEN `navButtonPress`   THEN `showNavButton`
-                                     WHEN `valueHelpRequest` THEN `showValueHelp` ).
+
+      CASE ls_attr-name.
+        WHEN `navButtonPress`.
+          temp136 = `showNavButton`.
+        WHEN `valueHelpRequest`.
+          temp136 = `showValueHelp`.
+      ENDCASE.
+
+      lv_gate = temp136.
       IF lv_gate IS NOT INITIAL AND bool( node          = node
                                           name          = lv_gate
                                           ctx           = ctx
                                           default_value = abap_false ) = abap_false.
         CONTINUE.
       ENDIF.
-      DATA(lv_label) = COND string( WHEN override IS NOT INITIAL THEN override
-                                    ELSE action_label( node    = node
-                                                       ctx     = ctx
-                                                       name    = name
-                                                       trigger = ls_attr-name
-                                                       field   = field ) ).
-      DATA(lv_enabled) = bool( node          = node
+
+      IF override IS NOT INITIAL.
+        temp137 = override.
+      ELSE.
+        temp137 = action_label( node = node ctx = ctx name = name trigger = ls_attr-name field = field ).
+      ENDIF.
+
+      lv_label = temp137.
+
+      lv_enabled = bool( node          = node
                                name          = `enabled`
                                ctx           = ctx
                                default_value = abap_true ).
-      DATA(lv_scope) = COND string( WHEN ctx-row_table IS NOT INITIAL THEN `row` ELSE `screen` ).
+
+      IF ctx-row_table IS NOT INITIAL.
+        temp138 = `row`.
+      ELSE.
+        temp138 = `screen`.
+      ENDIF.
+
+      lv_scope = temp138.
 
       IF ls_wire-fn = `eF`.
-        DATA(lt_static) = VALUE string_table( ).
-        LOOP AT ls_wire-t_arg INTO DATA(ls_arg).
-          INSERT COND #( WHEN ls_arg-static = abap_true THEN ls_arg-val-str ELSE `#dynamic#` ) INTO TABLE lt_static.
+
+        CLEAR temp139.
+
+        lt_static = temp139.
+
+        LOOP AT ls_wire-t_arg INTO ls_arg.
+
+          IF ls_arg-static = abap_true.
+            temp140 = ls_arg-val-str.
+          ELSE.
+            temp140 = `#dynamic#`.
+          ENDIF.
+          INSERT temp140 INTO TABLE lt_static.
         ENDLOOP.
         " read ahead: a table expression in the condition would be hoisted in
         " front of the IF by the 7.02 downport, where no guard protects it
-        DATA(lv_slot) = VALUE string( lt_static[ 3 ] OPTIONAL ).
-        DATA(lv_static_1) = VALUE string( lt_static[ 1 ] OPTIONAL ).
-        DATA(lv_static_2) = VALUE string( lt_static[ 2 ] OPTIONAL ).
+
+        CLEAR temp141.
+
+        READ TABLE lt_static INTO temp142 INDEX 3.
+        IF sy-subrc = 0.
+          temp141 = temp142.
+        ENDIF.
+
+        lv_slot = temp141.
+
+        CLEAR temp143.
+
+        READ TABLE lt_static INTO temp144 INDEX 1.
+        IF sy-subrc = 0.
+          temp143 = temp144.
+        ENDIF.
+
+        lv_static_1 = temp143.
+
+        CLEAR temp145.
+
+        READ TABLE lt_static INTO temp146 INDEX 2.
+        IF sy-subrc = 0.
+          temp145 = temp146.
+        ENDIF.
+
+        lv_static_2 = temp145.
         IF ls_wire-action = z2ui5_if_client=>cs_event-control_global
             AND lv_static_1 = `VIEW_SLOTS` AND lv_static_2 = `destroy`
             AND ( lv_slot = cs_model-popup OR lv_slot = cs_model-popover ).
-          push_action( VALUE #( event     = COND #( WHEN lv_slot = cs_model-popup
-                                                    THEN cs_frontend_event-popup
-                                                    ELSE cs_frontend_event-popover )
-                                label     = lv_label
-                                control   = name
-                                trigger   = ls_attr-name
-                                enabled   = lv_enabled
-                                scope     = lv_scope
-                                table     = ctx-row_table
-                                layer     = ctx-layer
-                                model_key = ctx-model_key
-                                doc       = ctx-doc
-                                node      = node-id
-                                frontend  = lv_slot ) ).
+
+          CLEAR temp147.
+
+          IF lv_slot = cs_model-popup.
+            temp51 = cs_frontend_event-popup.
+          ELSE.
+            temp51 = cs_frontend_event-popover.
+          ENDIF.
+          temp147-event = temp51.
+          temp147-label = lv_label.
+          temp147-control = name.
+          temp147-trigger = ls_attr-name.
+          temp147-enabled = lv_enabled.
+          temp147-scope = lv_scope.
+          temp147-table = ctx-row_table.
+          temp147-layer = ctx-layer.
+          temp147-model_key = ctx-model_key.
+          temp147-doc = ctx-doc.
+          temp147-node = node-id.
+          temp147-frontend = lv_slot.
+          push_action( temp147 ).
         ELSE.
           CLEAR lt_desc.
           LOOP AT ls_wire-t_arg INTO ls_arg.
-            INSERT COND #( WHEN ls_arg-static = abap_true
-                           THEN z2ui5_cl_agent_viewxml=>val_to_json( ls_arg-val )
-                           ELSE ls_arg-describe ) INTO TABLE lt_desc.
+
+            IF ls_arg-static = abap_true.
+              temp148 = z2ui5_cl_agent_viewxml=>val_to_json( ls_arg-val ).
+            ELSE.
+              temp148 = ls_arg-describe.
+            ENDIF.
+            INSERT temp148 INTO TABLE lt_desc.
           ENDLOOP.
           note( |frontend action { ls_wire-action }({ concat_lines_of( table = lt_desc
                                                                       sep   = `, ` ) }) on { node-local } | &&
@@ -2393,27 +3231,37 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         CONTINUE.
       ENDIF.
 
-      DATA(lt_arg_json) = VALUE string_table( ).
+
+      CLEAR temp149.
+
+      lt_arg_json = temp149.
       LOOP AT ls_wire-t_arg INTO ls_arg.
-        INSERT COND #( WHEN ls_arg-static = abap_true
-                       THEN z2ui5_cl_agent_viewxml=>val_to_json( ls_arg-val )
-                       ELSE z2ui5_cl_agent_viewxml=>json_string( ls_arg-describe ) ) INTO TABLE lt_arg_json.
+
+        IF ls_arg-static = abap_true.
+          temp150 = z2ui5_cl_agent_viewxml=>val_to_json( ls_arg-val ).
+        ELSE.
+          temp150 = z2ui5_cl_agent_viewxml=>json_string( ls_arg-describe ).
+        ENDIF.
+        INSERT temp150 INTO TABLE lt_arg_json.
       ENDLOOP.
-      push_action( VALUE #( event        = ls_wire-event
-                            t_arg_json   = lt_arg_json
-                            label        = lv_label
-                            control      = name
-                            trigger      = ls_attr-name
-                            enabled      = lv_enabled
-                            scope        = lv_scope
-                            table        = ctx-row_table
-                            layer        = ctx-layer
-                            model_key    = ctx-model_key
-                            doc          = ctx-doc
-                            node         = node-id
-                            t_wire_arg   = ls_wire-t_arg
-                            pick         = pick
-                            row_template = ctx-row_template ) ).
+
+      CLEAR temp151.
+      temp151-event = ls_wire-event.
+      temp151-t_arg_json = lt_arg_json.
+      temp151-label = lv_label.
+      temp151-control = name.
+      temp151-trigger = ls_attr-name.
+      temp151-enabled = lv_enabled.
+      temp151-scope = lv_scope.
+      temp151-table = ctx-row_table.
+      temp151-layer = ctx-layer.
+      temp151-model_key = ctx-model_key.
+      temp151-doc = ctx-doc.
+      temp151-node = node-id.
+      temp151-t_wire_arg = ls_wire-t_arg.
+      temp151-pick = pick.
+      temp151-row_template = ctx-row_template.
+      push_action( temp151 ).
     ENDLOOP.
 
   ENDMETHOD.
@@ -2421,18 +3269,39 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   METHOD action_label.
 
     DATA lv_found TYPE abap_bool.
+      FIELD-SYMBOLS <temp152> LIKE LINE OF mt_field.
+      DATA temp153 LIKE sy-tabix.
+    DATA ls_spec TYPE z2ui5_cl_agent_snapshot=>ty_s_spec.
+      DATA lv_label TYPE string.
+    DATA temp52 TYPE string_table.
+    DATA temp154 LIKE temp52.
+    DATA lv_prop LIKE LINE OF temp154.
+      DATA lv_raw TYPE string.
+      DATA lv_text TYPE string.
+    DATA lv_icon TYPE string.
+    DATA lv_type TYPE string.
 
     IF trigger = `navButtonPress`.
       result = `Back`.
       RETURN.
     ENDIF.
     IF field > 0.
-      result = |{ mt_field[ field ]-label }: { trigger }|.
+
+
+      temp153 = sy-tabix.
+      READ TABLE mt_field INDEX field ASSIGNING <temp152>.
+      sy-tabix = temp153.
+      IF sy-subrc <> 0.
+        ASSERT 1 = 0.
+      ENDIF.
+      result = |{ <temp152>-label }: { trigger }|.
       RETURN.
     ENDIF.
-    DATA(ls_spec) = field_spec( name ).
+
+    ls_spec = field_spec( name ).
     IF ls_spec-found = abap_true AND ctx-row_table IS INITIAL.
-      DATA(lv_label) = label_of( node = node
+
+      lv_label = label_of( node = node
                                  ctx  = ctx
                                  spec = ls_spec ).
       IF lv_label IS NOT INITIAL.
@@ -2441,8 +3310,19 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         RETURN.
       ENDIF.
     ENDIF.
-    LOOP AT VALUE string_table( ( `text` ) ( `title` ) ( `tooltip` ) ( `headerText` ) ( `ariaLabel` ) ) INTO DATA(lv_prop).
-      DATA(lv_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
+
+    CLEAR temp52.
+    INSERT `text` INTO TABLE temp52.
+    INSERT `title` INTO TABLE temp52.
+    INSERT `tooltip` INTO TABLE temp52.
+    INSERT `headerText` INTO TABLE temp52.
+    INSERT `ariaLabel` INTO TABLE temp52.
+
+    temp154 = temp52.
+
+    LOOP AT temp154 INTO lv_prop.
+
+      lv_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                                              name  = lv_prop
                                                    IMPORTING found = lv_found ).
       IF lv_found = abap_false.
@@ -2453,7 +3333,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
           AND z2ui5_cl_agent_viewxml=>parse_binding( lv_raw )-kind <> z2ui5_cl_agent_viewxml=>cs_binding-literal.
         CONTINUE.
       ENDIF.
-      DATA(lv_text) = text_of_raw( raw = lv_raw
+
+      lv_text = text_of_raw( raw = lv_raw
                                    ctx = ctx ).
       IF lv_text IS NOT INITIAL.
         result = z2ui5_cl_agent_viewxml=>clip( val = lv_text
@@ -2461,14 +3342,16 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         RETURN.
       ENDIF.
     ENDLOOP.
-    DATA(lv_icon) = z2ui5_cl_agent_viewxml=>attr( node = node
+
+    lv_icon = z2ui5_cl_agent_viewxml=>attr( node = node
                                                  name = `icon` ).
     IF lv_icon IS NOT INITIAL
         AND z2ui5_cl_agent_viewxml=>parse_binding( lv_icon )-kind = z2ui5_cl_agent_viewxml=>cs_binding-literal.
       result = icon_name( lv_icon ).
       RETURN.
     ENDIF.
-    DATA(lv_type) = z2ui5_cl_agent_viewxml=>attr( node = node
+
+    lv_type = z2ui5_cl_agent_viewxml=>attr( node = node
                                                  name = `type` ).
     IF ctx-row_table IS NOT INITIAL AND lv_type IS NOT INITIAL
         AND z2ui5_cl_agent_viewxml=>parse_binding( lv_type )-kind = z2ui5_cl_agent_viewxml=>cs_binding-literal.
@@ -2485,31 +3368,81 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD message_manager.
 
-    DATA(ls_b) = z2ui5_cl_agent_viewxml=>parse_binding( z2ui5_cl_agent_viewxml=>attr( node = node
+    DATA ls_b TYPE z2ui5_cl_agent_viewxml=>ty_s_binding.
+    DATA ls_rows TYPE z2ui5_cl_agent_snapshot=>ty_s_val.
+    DATA temp155 TYPE i.
+    DATA lv_count LIKE temp155.
+      DATA lv_row TYPE string.
+      DATA lv_text TYPE string.
+      DATA lv_type TYPE string.
+      DATA lv_target TYPE string.
+      DATA temp54 TYPE string_table.
+      DATA temp156 LIKE temp54.
+      DATA lv_key LIKE LINE OF temp156.
+        DATA temp157 TYPE ty_s_val.
+        DATA ls_val LIKE temp157.
+        DATA temp56 TYPE string_table.
+        DATA temp1 TYPE string.
+        DATA temp4 LIKE LINE OF temp56.
+        DATA temp158 LIKE temp56.
+        DATA lv_variant LIKE LINE OF temp158.
+        DATA temp159 TYPE string.
+        DATA lv_value LIKE temp159.
+      DATA temp160 TYPE z2ui5_cl_agent_snapshot=>ty_s_mgr_msg.
+      DATA temp58 TYPE z2ui5_cl_agent_snapshot=>ty_s_mgr_msg-type.
+    ls_b = z2ui5_cl_agent_viewxml=>parse_binding( z2ui5_cl_agent_viewxml=>attr( node = node
                                                                                        name = `items` ) ).
     IF ls_b-kind <> z2ui5_cl_agent_viewxml=>cs_binding-path OR ls_b-model IS NOT INITIAL OR ls_b-relative = abap_true.
       RETURN.
     ENDIF.
-    DATA(ls_rows) = model_get( model_key  = ctx-model_key
+
+    ls_rows = model_get( model_key  = ctx-model_key
                                path       = ls_b-path
                                check_json = abap_false ).
     IF ls_rows-kind <> z2ui5_cl_agent_viewxml=>cs_kind-array.
       RETURN.
     ENDIF.
-    DATA(lv_count) = CONV i( ls_rows-num ).
+
+    temp155 = ls_rows-num.
+
+    lv_count = temp155.
     DO lv_count TIMES.
-      DATA(lv_row) = tree_path( model_key = ctx-model_key
+
+      lv_row = tree_path( model_key = ctx-model_key
                                 path      = |{ ls_b-path }/{ sy-index - 1 }| ).
-      DATA(lv_text) = ``.
-      DATA(lv_type) = ``.
-      DATA(lv_target) = ``.
-      LOOP AT VALUE string_table( ( `MESSAGE` ) ( `TYPE` ) ( `TARGET` ) ) INTO DATA(lv_key).
+
+      lv_text = ``.
+
+      lv_type = ``.
+
+      lv_target = ``.
+
+      CLEAR temp54.
+      INSERT `MESSAGE` INTO TABLE temp54.
+      INSERT `TYPE` INTO TABLE temp54.
+      INSERT `TARGET` INTO TABLE temp54.
+
+      temp156 = temp54.
+
+      LOOP AT temp156 INTO lv_key.
         " the column as written, in lower case, or capitalized
-        DATA(ls_val) = VALUE ty_s_val( ).
-        LOOP AT VALUE string_table( ( lv_key )
-                                    ( to_lower( lv_key ) )
-                                    ( lv_key(1) && to_lower( substring( val = lv_key
-                                                                         off = 1 ) ) ) ) INTO DATA(lv_variant).
+
+        CLEAR temp157.
+
+        ls_val = temp157.
+
+        CLEAR temp56.
+        INSERT lv_key INTO TABLE temp56.
+
+        temp1 = to_lower( lv_key ).
+        INSERT temp1 INTO TABLE temp56.
+
+        temp4 = lv_key(1) && to_lower( substring( val = lv_key off = 1 ) ).
+        INSERT temp4 INTO TABLE temp56.
+
+        temp158 = temp56.
+
+        LOOP AT temp158 INTO lv_variant.
           ls_val = model_get( model_key = ctx-model_key
                               path      = lv_variant
                               base      = lv_row ).
@@ -2517,8 +3450,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
             EXIT.
           ENDIF.
         ENDLOOP.
-        DATA(lv_value) = COND string( WHEN z2ui5_cl_agent_viewxml=>val_truthy( ls_val ) = abap_true
-                                      THEN z2ui5_cl_agent_viewxml=>val_to_string( ls_val ) ).
+
+        IF z2ui5_cl_agent_viewxml=>val_truthy( ls_val ) = abap_true.
+          temp159 = z2ui5_cl_agent_viewxml=>val_to_string( ls_val ).
+        ELSE.
+          CLEAR temp159.
+        ENDIF.
+
+        lv_value = temp159.
         CASE lv_key.
           WHEN `MESSAGE`.
             lv_text = lv_value.
@@ -2531,10 +3470,18 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       IF lv_text IS INITIAL.
         CONTINUE.
       ENDIF.
-      INSERT VALUE #( type   = COND #( WHEN lv_type IS INITIAL THEN `info` ELSE lv_type )
-                      text   = z2ui5_cl_agent_viewxml=>clip( val = lv_text
-                                                             len = 1000 )
-                      target = lv_target ) INTO TABLE mt_mgr_msg.
+
+      CLEAR temp160.
+
+      IF lv_type IS INITIAL.
+        temp58 = `info`.
+      ELSE.
+        temp58 = lv_type.
+      ENDIF.
+      temp160-type = temp58.
+      temp160-text = z2ui5_cl_agent_viewxml=>clip( val = lv_text len = 1000 ).
+      temp160-target = lv_target.
+      INSERT temp160 INTO TABLE mt_mgr_msg.
     ENDDO.
 
   ENDMETHOD.
@@ -2549,19 +3496,64 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     " or not (a MessagePopover in dependents opens in the browser only - the
     " messages are what the app shows there). Static items, or the template
     " of a bound items resolved per row
-    DATA(lv_source) = message_source( name ).
-    DATA(lt_items) = VALUE z2ui5_cl_agent_viewxml=>ty_t_int( ).
-    LOOP AT item_controls( node = node
-                           ctx  = ctx
-                           agg  = `items` ) INTO DATA(lv_item).
-      DATA(lv_item_name) = z2ui5_cl_agent_viewxml=>control_name( node( doc = ctx-doc
+    DATA lv_source TYPE string.
+    DATA temp161 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+    DATA lt_items LIKE temp161.
+    DATA temp162 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+    DATA lv_item LIKE LINE OF temp162.
+      DATA lv_item_name TYPE string.
+    DATA lv_items_raw TYPE string.
+      DATA lv_bpath TYPE string.
+      DATA lv_bmodel TYPE string.
+      DATA lv_brelative LIKE abap_false.
+      DATA lv_has_bpath LIKE abap_false.
+      DATA ls_bound TYPE z2ui5_cl_agent_viewxml=>ty_s_binding.
+        DATA ls_part LIKE LINE OF ls_bound-t_part.
+        DATA temp163 TYPE string.
+        DATA ls_rows TYPE z2ui5_cl_agent_snapshot=>ty_s_val.
+        DATA temp164 TYPE i.
+        DATA temp165 TYPE i.
+        DATA lv_template LIKE temp164.
+          DATA temp166 TYPE i.
+          DATA lv_count LIKE temp166.
+    DATA lv_messages TYPE i.
+      DATA lv_row LIKE LINE OF lt_entry_row.
+      FIELD-SYMBOLS <temp59> LIKE LINE OF lt_entry_row.
+      DATA temp60 LIKE sy-tabix.
+      DATA ls_item TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA lv_type_raw TYPE string.
+      DATA temp167 TYPE string.
+      DATA lv_type_value LIKE temp167.
+      DATA lv_type TYPE string.
+        DATA temp168 TYPE string.
+      DATA lv_title TYPE string.
+      DATA lv_subtitle TYPE string.
+      DATA lv_description TYPE string.
+      DATA lv_title_clip TYPE string.
+      DATA lv_subtitle_clip TYPE string.
+      DATA lv_description_clip TYPE string.
+      DATA temp169 TYPE z2ui5_cl_agent_snapshot=>ty_s_message.
+    DATA lv_child LIKE LINE OF node-t_child.
+      DATA ls_child TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+    lv_source = message_source( name ).
+
+    CLEAR temp161.
+
+    lt_items = temp161.
+
+    temp162 = item_controls( node = node ctx = ctx agg = `items` ).
+
+    LOOP AT temp162 INTO lv_item.
+
+      lv_item_name = z2ui5_cl_agent_viewxml=>control_name( node( doc = ctx-doc
                                                                        id  = lv_item ) ).
       IF lv_item_name = `sap.m.MessageItem` OR lv_item_name = `sap.m.MessagePopoverItem`.
         INSERT lv_item INTO TABLE lt_items.
       ENDIF.
     ENDLOOP.
 
-    DATA(lv_items_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
+
+    lv_items_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                                                  name  = `items`
                                                        IMPORTING found = lv_found ).
     IF lv_found = abap_false.
@@ -2570,18 +3562,24 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         INSERT `` INTO TABLE lt_entry_row.
       ENDLOOP.
     ELSE.
-      DATA(lv_bpath) = ``.
-      DATA(lv_bmodel) = ``.
-      DATA(lv_brelative) = abap_false.
-      DATA(lv_has_bpath) = abap_false.
-      DATA(ls_bound) = z2ui5_cl_agent_viewxml=>parse_binding( lv_items_raw ).
+
+      lv_bpath = ``.
+
+      lv_bmodel = ``.
+
+      lv_brelative = abap_false.
+
+      lv_has_bpath = abap_false.
+
+      ls_bound = z2ui5_cl_agent_viewxml=>parse_binding( lv_items_raw ).
       IF ls_bound-kind = z2ui5_cl_agent_viewxml=>cs_binding-path.
         lv_has_bpath = abap_true.
         lv_bpath = ls_bound-path.
         lv_bmodel = ls_bound-model.
         lv_brelative = ls_bound-relative.
       ELSE.
-        LOOP AT ls_bound-t_part INTO DATA(ls_part) WHERE is_path = abap_true. "#EC CI_SORTSEQ
+
+        LOOP AT ls_bound-t_part INTO ls_part WHERE is_path = abap_true. "#EC CI_SORTSEQ
           lv_has_bpath = abap_true.
           lv_bpath = ls_part-path.
           lv_bmodel = ls_part-model.
@@ -2590,16 +3588,32 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         ENDLOOP.
       ENDIF.
       IF lv_bpath IS INITIAL OR lv_bmodel IS NOT INITIAL OR lv_brelative = abap_true.
-        note( |{ node-local } bound to { COND #( WHEN lv_has_bpath = abap_true AND lv_bmodel IS NOT INITIAL
-                                                THEN |the named model '{ lv_bmodel }'|
-                                                ELSE `something other than a model table` ) } ({ ctx-layer }) - messages not described| ).
+
+        IF lv_has_bpath = abap_true AND lv_bmodel IS NOT INITIAL.
+          temp163 = |the named model '{ lv_bmodel }'|.
+        ELSE.
+          temp163 = `something other than a model table`.
+        ENDIF.
+        note( |{ node-local } bound to { temp163 } ({ ctx-layer }) - messages not described| ).
       ELSE.
-        DATA(ls_rows) = model_get( model_key  = ctx-model_key
+
+        ls_rows = model_get( model_key  = ctx-model_key
                                    path       = lv_bpath
                                    check_json = abap_false ).
-        DATA(lv_template) = VALUE i( lt_items[ 1 ] OPTIONAL ).
+
+        CLEAR temp164.
+
+        READ TABLE lt_items INTO temp165 INDEX 1.
+        IF sy-subrc = 0.
+          temp164 = temp165.
+        ENDIF.
+
+        lv_template = temp164.
         IF ls_rows-kind = z2ui5_cl_agent_viewxml=>cs_kind-array AND lv_template > 0.
-          DATA(lv_count) = CONV i( ls_rows-num ).
+
+          temp166 = ls_rows-num.
+
+          lv_count = temp166.
           DO lv_count TIMES.
             INSERT lv_template INTO TABLE lt_entry_item.
             INSERT tree_path( model_key = ctx-model_key
@@ -2609,32 +3623,58 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
-    DATA(lv_messages) = 0.
+
+    lv_messages = 0.
     LOOP AT lt_entry_item INTO lv_item.
-      DATA(lv_row) = lt_entry_row[ sy-tabix ].
-      DATA(ls_item) = node( doc = ctx-doc
+
+
+
+      temp60 = sy-tabix.
+      READ TABLE lt_entry_row INDEX sy-tabix ASSIGNING <temp59>.
+      sy-tabix = temp60.
+      IF sy-subrc <> 0.
+        ASSERT 1 = 0.
+      ENDIF.
+      lv_row = <temp59>.
+
+      ls_item = node( doc = ctx-doc
                             id  = lv_item ).
       " the item's type; absent (or empty) is UI5's default, Error
-      DATA(lv_type_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_item
+
+      lv_type_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_item
                                                                   name  = `type`
                                                         IMPORTING found = lv_found ).
-      DATA(lv_type_value) = COND string( WHEN lv_found = abap_false THEN `Error`
-                                         ELSE text_of_raw( raw = lv_type_raw
-                                                           ctx = ctx
-                                                           row = lv_row ) ).
-      DATA(lv_type) = message_type( lv_type_value ).
-      IF lv_type IS INITIAL.
-        lv_type = COND #( WHEN lv_type_value IS INITIAL THEN `error` ELSE `info` ).
+
+      IF lv_found = abap_false.
+        temp167 = `Error`.
+      ELSE.
+        temp167 = text_of_raw( raw = lv_type_raw ctx = ctx row = lv_row ).
       ENDIF.
-      DATA(lv_title) = text_of( node = ls_item
+
+      lv_type_value = temp167.
+
+      lv_type = message_type( lv_type_value ).
+      IF lv_type IS INITIAL.
+
+        IF lv_type_value IS INITIAL.
+          temp168 = `error`.
+        ELSE.
+          temp168 = `info`.
+        ENDIF.
+        lv_type = temp168.
+      ENDIF.
+
+      lv_title = text_of( node = ls_item
                                 name = `title`
                                 ctx  = ctx
                                 row  = lv_row ).
-      DATA(lv_subtitle) = text_of( node = ls_item
+
+      lv_subtitle = text_of( node = ls_item
                                    name = `subtitle`
                                    ctx  = ctx
                                    row  = lv_row ).
-      DATA(lv_description) = text_of( node = ls_item
+
+      lv_description = text_of( node = ls_item
                                       name = `description`
                                       ctx  = ctx
                                       row  = lv_row ).
@@ -2646,11 +3686,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         lv_description = strip_tags( lv_description ).
       ENDIF.
       " clipped: whitespace collapsed - empty when there is nothing but blanks
-      DATA(lv_title_clip) = z2ui5_cl_agent_viewxml=>clip( val = lv_title
+
+      lv_title_clip = z2ui5_cl_agent_viewxml=>clip( val = lv_title
                                                           len = 1000 ).
-      DATA(lv_subtitle_clip) = z2ui5_cl_agent_viewxml=>clip( val = lv_subtitle
+
+      lv_subtitle_clip = z2ui5_cl_agent_viewxml=>clip( val = lv_subtitle
                                                              len = 1000 ).
-      DATA(lv_description_clip) = z2ui5_cl_agent_viewxml=>clip( val = lv_description
+
+      lv_description_clip = z2ui5_cl_agent_viewxml=>clip( val = lv_description
                                                                 len = 1000 ).
       IF lv_title_clip IS INITIAL AND lv_subtitle_clip IS INITIAL AND lv_description_clip IS INITIAL.
         CONTINUE.
@@ -2659,11 +3702,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       IF lv_messages > c_max_item_messages.
         CONTINUE.
       ENDIF.
-      INSERT VALUE #( type        = lv_type
-                      text        = lv_title_clip
-                      source      = lv_source
-                      subtitle    = lv_subtitle_clip
-                      description = lv_description_clip ) INTO TABLE mt_message.
+
+      CLEAR temp169.
+      temp169-type = lv_type.
+      temp169-text = lv_title_clip.
+      temp169-source = lv_source.
+      temp169-subtitle = lv_subtitle_clip.
+      temp169-description = lv_description_clip.
+      INSERT temp169 INTO TABLE mt_message.
     ENDLOOP.
     IF lv_messages > c_max_item_messages.
       note( |{ node-local } ({ ctx-layer }): { lv_messages } messages, the first { c_max_item_messages } listed| ).
@@ -2673,8 +3719,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
            ctx  = ctx
            name = name ).
     " what else it aggregates (a headerButton) is on the screen like any control
-    LOOP AT node-t_child INTO DATA(lv_child).
-      DATA(ls_child) = node( doc = ctx-doc
+
+    LOOP AT node-t_child INTO lv_child.
+
+      ls_child = node( doc = ctx-doc
                              id  = lv_child ).
       IF z2ui5_cl_agent_viewxml=>is_aggregation( ls_child ) = abap_true AND ls_child-local <> `items`.
         walk( id  = lv_child
@@ -2692,22 +3740,140 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     DATA lv_template TYPE i.
     DATA lt_columns TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
 
-    DATA(lv_bound_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
+    DATA lv_bound_raw TYPE string.
+    DATA lv_bpath TYPE string.
+    DATA lv_bmodel TYPE string.
+    DATA lv_brelative LIKE abap_false.
+    DATA lv_has_bpath LIKE abap_false.
+      DATA ls_bound TYPE z2ui5_cl_agent_viewxml=>ty_s_binding.
+        DATA ls_part LIKE LINE OF ls_bound-t_part.
+        DATA temp170 TYPE string.
+    DATA lv_table_id TYPE string.
+    DATA lv_label TYPE string.
+    DATA ls_rows TYPE z2ui5_cl_agent_snapshot=>ty_s_val.
+    DATA temp171 TYPE i.
+    DATA temp61 TYPE i.
+    DATA lv_row_count LIKE temp61.
+    DATA lv_col_agg TYPE i.
+      DATA lv_items_agg TYPE i.
+      DATA temp172 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+      DATA lt_tmpl TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+        FIELD-SYMBOLS <temp173> LIKE LINE OF lt_tmpl.
+        DATA temp174 LIKE sy-tabix.
+      DATA temp175 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+      DATA lv_col_candidate LIKE LINE OF temp175.
+      DATA ls_template TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA lv_cells_agg TYPE i.
+        DATA temp176 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+        DATA lt_cell_nodes TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+        DATA lv_cell_node LIKE LINE OF lt_cell_nodes.
+          DATA temp177 TYPE i.
+          DATA temp178 TYPE i.
+          DATA lv_col_node LIKE temp177.
+          DATA temp179 TYPE z2ui5_cl_agent_snapshot=>ty_s_cellsrc.
+          DATA temp62 TYPE abap_bool.
+        DATA ls_tattr LIKE LINE OF ls_template-t_attr.
+          DATA ls_tb TYPE z2ui5_cl_agent_viewxml=>ty_s_binding.
+          DATA lv_take LIKE abap_false.
+            DATA ls_tpart LIKE LINE OF ls_tb-t_part.
+            DATA temp180 TYPE z2ui5_cl_agent_snapshot=>ty_s_cellsrc.
+          DATA temp181 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+          DATA lv_desc LIKE LINE OF temp181.
+            DATA lv_main TYPE string.
+              DATA temp182 TYPE z2ui5_cl_agent_snapshot=>ty_s_cellsrc.
+      DATA lv_column LIKE LINE OF lt_columns.
+        DATA ls_col TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+        DATA lv_tmpl_agg TYPE i.
+        DATA lt_tnode TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+        DATA lv_header TYPE string.
+          DATA lv_label_agg TYPE i.
+          DATA temp183 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+          DATA lt_lnode TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+            FIELD-SYMBOLS <temp184> LIKE LINE OF lt_lnode.
+            DATA temp185 LIKE sy-tabix.
+        DATA temp186 TYPE z2ui5_cl_agent_snapshot=>ty_s_cellsrc.
+        FIELD-SYMBOLS <temp63> LIKE LINE OF lt_tnode.
+        DATA temp64 LIKE sy-tabix.
+    DATA temp187 TYPE ty_s_table.
+    DATA ls_table LIKE temp187.
+    DATA ls_cell LIKE LINE OF lt_cell.
+      DATA lv_cell_index LIKE sy-tabix.
+      DATA ls_cn TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA temp188 TYPE string.
+      DATA lv_prop LIKE temp188.
+      DATA temp189 TYPE ty_s_cellspec.
+      DATA ls_spec_cell LIKE temp189.
+      DATA lv_col_name TYPE string.
+      DATA temp190 LIKE sy-subrc.
+      DATA temp191 LIKE sy-tabix.
+      DATA temp192 TYPE z2ui5_cl_agent_snapshot=>ty_s_column.
+      DATA temp65 TYPE z2ui5_cl_agent_snapshot=>ty_s_cellsrc-header.
+        DATA ls_cell_field TYPE z2ui5_cl_agent_snapshot=>ty_s_spec.
+          DATA temp193 TYPE z2ui5_cl_agent_snapshot=>ty_s_cellspec-field_kind.
+      DATA temp194 TYPE string.
+      DATA lv_mode LIKE temp194.
+      DATA temp195 TYPE string.
+    DATA temp196 TYPE z2ui5_cl_agent_snapshot=>ty_s_table-selection_mode.
+      DATA lv_sel_raw TYPE string.
+        DATA ls_sb TYPE z2ui5_cl_agent_viewxml=>ty_s_binding.
+    DATA temp197 LIKE LINE OF ls_table-t_cellspec.
+    DATA lr_spec LIKE REF TO temp197.
+      DATA ls_cell_node TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA lv_ok LIKE abap_false.
+    DATA temp198 LIKE sy-subrc.
+    DATA lv_shown TYPE i.
+      DATA lv_row TYPE string.
+      DATA temp199 TYPE ty_s_row.
+      DATA ls_row LIKE temp199.
+      DATA ls_cs LIKE LINE OF ls_table-t_cellspec.
+        DATA temp200 TYPE ty_s_val.
+        DATA ls_val LIKE temp200.
+        DATA temp201 TYPE z2ui5_cl_agent_snapshot=>ty_s_cell.
+      DATA temp202 LIKE sy-subrc.
+        DATA temp203 TYPE z2ui5_cl_agent_snapshot=>ty_s_cell.
+    DATA temp11 TYPE xsdboolean.
+    DATA ls_attr LIKE LINE OF node-t_attr.
+      DATA lv_pick TYPE abap_bool.
+      DATA temp12 TYPE xsdboolean.
+      DATA ls_row_ctx LIKE ctx.
+    DATA lv_child LIKE LINE OF node-t_child.
+      DATA ls_child TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA lv_is_agg TYPE abap_bool.
+        DATA lv_col LIKE LINE OF ls_child-t_child.
+          DATA ls_colnode TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+          DATA lv_sub LIKE LINE OF ls_colnode-t_child.
+            DATA ls_sub TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+            DATA lv_sub_agg TYPE abap_bool.
+            DATA temp204 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+            DATA temp66 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+            DATA lt_headers LIKE temp66.
+            DATA lv_h LIKE LINE OF lt_headers.
+              DATA lv_hn TYPE string.
+    DATA ls_tmpl_ctx LIKE ctx.
+      DATA lv_local TYPE z2ui5_cl_agent_viewxml=>ty_s_node-local.
+        DATA ls_agg_ctx LIKE ls_tmpl_ctx.
+    lv_bound_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                                                  name  = agg
                                                        IMPORTING found = lv_found ).
-    DATA(lv_bpath) = ``.
-    DATA(lv_bmodel) = ``.
-    DATA(lv_brelative) = abap_false.
-    DATA(lv_has_bpath) = abap_false.
+
+    lv_bpath = ``.
+
+    lv_bmodel = ``.
+
+    lv_brelative = abap_false.
+
+    lv_has_bpath = abap_false.
     IF lv_found = abap_true.
-      DATA(ls_bound) = z2ui5_cl_agent_viewxml=>parse_binding( lv_bound_raw ).
+
+      ls_bound = z2ui5_cl_agent_viewxml=>parse_binding( lv_bound_raw ).
       IF ls_bound-kind = z2ui5_cl_agent_viewxml=>cs_binding-path.
         lv_has_bpath = abap_true.
         lv_bpath = ls_bound-path.
         lv_bmodel = ls_bound-model.
         lv_brelative = ls_bound-relative.
       ELSE.
-        LOOP AT ls_bound-t_part INTO DATA(ls_part) WHERE is_path = abap_true. "#EC CI_SORTSEQ
+
+        LOOP AT ls_bound-t_part INTO ls_part WHERE is_path = abap_true. "#EC CI_SORTSEQ
           lv_has_bpath = abap_true.
           lv_bpath = ls_part-path.
           lv_bmodel = ls_part-model.
@@ -2718,9 +3884,13 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDIF.
     IF lv_bpath IS INITIAL OR lv_bmodel IS NOT INITIAL OR lv_brelative = abap_true.
       IF lv_found = abap_true.
-        note( |{ node-local } bound to { COND #( WHEN lv_has_bpath = abap_true AND lv_bmodel IS NOT INITIAL
-                                                THEN |the named model '{ lv_bmodel }'|
-                                                ELSE `something other than a model table` ) } ({ ctx-layer }) - rows not described| ).
+
+        IF lv_has_bpath = abap_true AND lv_bmodel IS NOT INITIAL.
+          temp170 = |the named model '{ lv_bmodel }'|.
+        ELSE.
+          temp170 = `something other than a model table`.
+        ENDIF.
+        note( |{ node-local } bound to { temp170 } ({ ctx-layer }) - rows not described| ).
       ENDIF.
       wires( node = node
              ctx  = ctx
@@ -2730,8 +3900,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA(lv_table_id) = |t{ lines( mt_table ) + 1 }|.
-    DATA(lv_label) = text_of( node = node
+
+    lv_table_id = |t{ lines( mt_table ) + 1 }|.
+
+    lv_label = text_of( node = node
                               name = `headerText`
                               ctx  = ctx ).
     IF lv_label IS INITIAL.
@@ -2746,26 +3918,50 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     IF lv_label IS INITIAL.
       lv_label = name_of_path( lv_bpath ).
     ENDIF.
-    DATA(ls_rows) = model_get( model_key  = ctx-model_key
+
+    ls_rows = model_get( model_key  = ctx-model_key
                                path       = lv_bpath
                                check_json = abap_false ).
-    DATA(lv_row_count) = COND i( WHEN ls_rows-kind = z2ui5_cl_agent_viewxml=>cs_kind-array THEN CONV i( ls_rows-num ) ).
+
+    temp171 = ls_rows-num.
+
+    IF ls_rows-kind = z2ui5_cl_agent_viewxml=>cs_kind-array.
+      temp61 = temp171.
+    ELSE.
+      CLEAR temp61.
+    ENDIF.
+
+    lv_row_count = temp61.
 
     " the template: the one control of the bound aggregation
-    DATA(lv_col_agg) = child_agg( doc   = ctx-doc
+
+    lv_col_agg = child_agg( doc   = ctx-doc
                                   node  = node
                                   local = `columns` ).
     IF kind = `m`.
-      DATA(lv_items_agg) = child_agg( doc   = ctx-doc
+
+      lv_items_agg = child_agg( doc   = ctx-doc
                                       node  = node
                                       local = agg ).
-      DATA(lt_tmpl) = controls_of( doc     = ctx-doc
-                                   t_child = COND #( WHEN lv_items_agg > 0
-                                                     THEN node( doc = ctx-doc
-                                                                id  = lv_items_agg )-t_child
-                                                     ELSE node-t_child ) ).
+
+      IF lv_items_agg > 0.
+        temp172 = node( doc = ctx-doc id = lv_items_agg )-t_child.
+      ELSE.
+        temp172 = node-t_child.
+      ENDIF.
+
+      lt_tmpl = controls_of( doc     = ctx-doc
+                                   t_child = temp172 ).
       IF lt_tmpl IS NOT INITIAL.
-        lv_template = lt_tmpl[ 1 ].
+
+
+        temp174 = sy-tabix.
+        READ TABLE lt_tmpl INDEX 1 ASSIGNING <temp173>.
+        sy-tabix = temp174.
+        IF sy-subrc <> 0.
+          ASSERT 1 = 0.
+        ENDIF.
+        lv_template = <temp173>.
       ENDIF.
       IF lv_col_agg > 0.
         lt_columns = controls_of( doc     = ctx-doc
@@ -2777,8 +3973,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                 t_child = node( doc = ctx-doc
                                                 id  = lv_col_agg )-t_child ).
     ELSE.
-      LOOP AT controls_of( doc     = ctx-doc
-                           t_child = node-t_child ) INTO DATA(lv_col_candidate).
+
+      temp175 = controls_of( doc = ctx-doc t_child = node-t_child ).
+
+      LOOP AT temp175 INTO lv_col_candidate.
         IF ends_with( val    = node( doc = ctx-doc
                                      id  = lv_col_candidate )-local
                       suffix = `Column` ) = abap_true.
@@ -2789,33 +3987,51 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     " the cells: which control, which property, which header
     IF kind = `m` AND lv_template > 0.
-      DATA(ls_template) = node( doc = ctx-doc
+
+      ls_template = node( doc = ctx-doc
                                 id  = lv_template ).
-      DATA(lv_cells_agg) = child_agg( doc   = ctx-doc
+
+      lv_cells_agg = child_agg( doc   = ctx-doc
                                       node  = ls_template
                                       local = `cells` ).
       IF lv_cells_agg > 0 OR z2ui5_cl_agent_viewxml=>control_name( ls_template ) = `sap.m.ColumnListItem`.
-        DATA(lt_cell_nodes) = controls_of( doc     = ctx-doc
-                                           t_child = COND #( WHEN lv_cells_agg > 0
-                                                             THEN node( doc = ctx-doc
-                                                                        id  = lv_cells_agg )-t_child
-                                                             ELSE ls_template-t_child ) ).
-        LOOP AT lt_cell_nodes INTO DATA(lv_cell_node).
-          DATA(lv_col_node) = VALUE i( lt_columns[ sy-tabix ] OPTIONAL ).
-          INSERT VALUE #( node    = lv_cell_node
-                          header  = column_header( ctx = ctx
-                                                   col = lv_col_node )
-                          visible = COND #( WHEN lv_col_node > 0
-                                            THEN bool( node    = node( doc = ctx-doc
-                                                                       id  = lv_col_node )
-                                                       name          = `visible`
-                                                       ctx           = ctx
-                                                       default_value = abap_true )
-                                            ELSE abap_true ) ) INTO TABLE lt_cell.
+
+        IF lv_cells_agg > 0.
+          temp176 = node( doc = ctx-doc id = lv_cells_agg )-t_child.
+        ELSE.
+          temp176 = ls_template-t_child.
+        ENDIF.
+
+        lt_cell_nodes = controls_of( doc     = ctx-doc
+                                           t_child = temp176 ).
+
+        LOOP AT lt_cell_nodes INTO lv_cell_node.
+
+          CLEAR temp177.
+
+          READ TABLE lt_columns INTO temp178 INDEX sy-tabix.
+          IF sy-subrc = 0.
+            temp177 = temp178.
+          ENDIF.
+
+          lv_col_node = temp177.
+
+          CLEAR temp179.
+          temp179-node = lv_cell_node.
+          temp179-header = column_header( ctx = ctx col = lv_col_node ).
+
+          IF lv_col_node > 0.
+            temp62 = bool( node = node( doc = ctx-doc id = lv_col_node ) name = `visible` ctx = ctx default_value = abap_true ).
+          ELSE.
+            temp62 = abap_true.
+          ENDIF.
+          temp179-visible = temp62.
+          INSERT temp179 INTO TABLE lt_cell.
         ENDLOOP.
       ELSE.
         " a list item: its bound properties are the columns
-        LOOP AT ls_template-t_attr INTO DATA(ls_tattr).
+
+        LOOP AT ls_template-t_attr INTO ls_tattr.
           IF ls_tattr-name = `selected` OR ls_tattr-name = `type` OR ls_tattr-name = `visible` OR ls_tattr-name = `highlight`
               OR ls_tattr-name = `unread` OR ls_tattr-name = `counter` OR ls_tattr-name = `navigated`
               OR ls_tattr-name = `id` OR ls_tattr-name = `class`.
@@ -2824,12 +4040,15 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
           IF z2ui5_cl_agent_viewxml=>has_wire( ls_tattr-value ) = abap_true.
             CONTINUE.
           ENDIF.
-          DATA(ls_tb) = z2ui5_cl_agent_viewxml=>parse_binding( ls_tattr-value ).
-          DATA(lv_take) = abap_false.
+
+          ls_tb = z2ui5_cl_agent_viewxml=>parse_binding( ls_tattr-value ).
+
+          lv_take = abap_false.
           IF ls_tb-kind = z2ui5_cl_agent_viewxml=>cs_binding-path AND ls_tb-relative = abap_true AND ls_tb-model IS INITIAL.
             lv_take = abap_true.
           ELSEIF ls_tb-kind = z2ui5_cl_agent_viewxml=>cs_binding-composite.
-            LOOP AT ls_tb-t_part INTO DATA(ls_tpart) WHERE is_path = abap_true AND relative = abap_true. "#EC CI_SORTSEQ
+
+            LOOP AT ls_tb-t_part INTO ls_tpart WHERE is_path = abap_true AND relative = abap_true. "#EC CI_SORTSEQ
               IF ls_tpart-path IS NOT INITIAL.
                 lv_take = abap_true.
                 EXIT.
@@ -2837,94 +4056,147 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
             ENDLOOP.
           ENDIF.
           IF lv_take = abap_true.
-            INSERT VALUE #( node    = lv_template
-                            prop    = ls_tattr-name
-                            header  = ls_tattr-name
-                            visible = abap_true ) INTO TABLE lt_cell.
+
+            CLEAR temp180.
+            temp180-node = lv_template.
+            temp180-prop = ls_tattr-name.
+            temp180-header = ls_tattr-name.
+            temp180-visible = abap_true.
+            INSERT temp180 INTO TABLE lt_cell.
           ENDIF.
         ENDLOOP.
         IF lt_cell IS INITIAL.
           " a CustomListItem: the bound controls inside it
-          LOOP AT descendants( doc = ctx-doc
-                               id  = lv_template ) INTO DATA(lv_desc).
-            DATA(lv_main) = main_prop( node( doc = ctx-doc
+
+          temp181 = descendants( doc = ctx-doc id = lv_template ).
+
+          LOOP AT temp181 INTO lv_desc.
+
+            lv_main = main_prop( node( doc = ctx-doc
                                              id  = lv_desc ) ).
             IF lv_main IS NOT INITIAL.
-              INSERT VALUE #( node    = lv_desc
-                              prop    = lv_main
-                              header  = lv_main
-                              visible = abap_true ) INTO TABLE lt_cell.
+
+              CLEAR temp182.
+              temp182-node = lv_desc.
+              temp182-prop = lv_main.
+              temp182-header = lv_main.
+              temp182-visible = abap_true.
+              INSERT temp182 INTO TABLE lt_cell.
             ENDIF.
           ENDLOOP.
         ENDIF.
       ENDIF.
     ELSEIF kind = `ui`.
-      LOOP AT lt_columns INTO DATA(lv_column).
-        DATA(ls_col) = node( doc = ctx-doc
+
+      LOOP AT lt_columns INTO lv_column.
+
+        ls_col = node( doc = ctx-doc
                              id  = lv_column ).
-        DATA(lv_tmpl_agg) = child_agg( doc   = ctx-doc
+
+        lv_tmpl_agg = child_agg( doc   = ctx-doc
                                        node  = ls_col
                                        local = `template` ).
         IF lv_tmpl_agg = 0.
           CONTINUE.
         ENDIF.
-        DATA(lt_tnode) = controls_of( doc     = ctx-doc
+
+        lt_tnode = controls_of( doc     = ctx-doc
                                       t_child = node( doc = ctx-doc
                                                       id  = lv_tmpl_agg )-t_child ).
         IF lt_tnode IS INITIAL.
           CONTINUE.
         ENDIF.
-        DATA(lv_header) = text_of( node = ls_col
+
+        lv_header = text_of( node = ls_col
                                    name = `label`
                                    ctx  = ctx ).
         IF lv_header IS INITIAL.
           " the label aggregation, written out or as the column's default one
-          DATA(lv_label_agg) = child_agg( doc   = ctx-doc
+
+          lv_label_agg = child_agg( doc   = ctx-doc
                                           node  = ls_col
                                           local = `label` ).
-          DATA(lt_lnode) = controls_of( doc     = ctx-doc
-                                        t_child = COND #( WHEN lv_label_agg > 0
-                                                          THEN node( doc = ctx-doc
-                                                                     id  = lv_label_agg )-t_child
-                                                          ELSE ls_col-t_child ) ).
+
+          IF lv_label_agg > 0.
+            temp183 = node( doc = ctx-doc id = lv_label_agg )-t_child.
+          ELSE.
+            temp183 = ls_col-t_child.
+          ENDIF.
+
+          lt_lnode = controls_of( doc     = ctx-doc
+                                        t_child = temp183 ).
           IF lt_lnode IS NOT INITIAL.
+
+
+            temp185 = sy-tabix.
+            READ TABLE lt_lnode INDEX 1 ASSIGNING <temp184>.
+            sy-tabix = temp185.
+            IF sy-subrc <> 0.
+              ASSERT 1 = 0.
+            ENDIF.
             lv_header = text_of( node = node( doc = ctx-doc
-                                              id  = lt_lnode[ 1 ] )
+                                              id  = <temp184> )
                                  name = `text`
                                  ctx  = ctx ).
           ENDIF.
         ENDIF.
-        INSERT VALUE #( node    = lt_tnode[ 1 ]
-                        header  = lv_header
-                        visible = bool( node          = ls_col
-                                        name          = `visible`
-                                        ctx           = ctx
-                                        default_value = abap_true ) ) INTO TABLE lt_cell.
+
+        CLEAR temp186.
+
+
+        temp64 = sy-tabix.
+        READ TABLE lt_tnode INDEX 1 ASSIGNING <temp63>.
+        sy-tabix = temp64.
+        IF sy-subrc <> 0.
+          ASSERT 1 = 0.
+        ENDIF.
+        temp186-node = <temp63>.
+        temp186-header = lv_header.
+        temp186-visible = bool( node = ls_col name = `visible` ctx = ctx default_value = abap_true ).
+        INSERT temp186 INTO TABLE lt_cell.
       ENDLOOP.
     ENDIF.
 
     " columns and how each one is read
-    DATA(ls_table) = VALUE ty_s_table( id        = lv_table_id
-                                       path      = lv_bpath
-                                       name      = name_of_path( lv_bpath )
-                                       label     = z2ui5_cl_agent_viewxml=>clip( val = lv_label
-                                                                                 len = 120 )
-                                       control   = name
-                                       row_count = lv_row_count
-                                       layer     = ctx-layer
-                                       model_key = ctx-model_key
-                                       doc       = ctx-doc ).
-    LOOP AT lt_cell INTO DATA(ls_cell).
-      DATA(lv_cell_index) = sy-tabix.
+
+    CLEAR temp187.
+    temp187-id = lv_table_id.
+    temp187-path = lv_bpath.
+    temp187-name = name_of_path( lv_bpath ).
+    temp187-label = z2ui5_cl_agent_viewxml=>clip( val = lv_label len = 120 ).
+    temp187-control = name.
+    temp187-row_count = lv_row_count.
+    temp187-layer = ctx-layer.
+    temp187-model_key = ctx-model_key.
+    temp187-doc = ctx-doc.
+
+    ls_table = temp187.
+
+    LOOP AT lt_cell INTO ls_cell.
+
+      lv_cell_index = sy-tabix.
       IF ls_cell-visible = abap_false.
         CONTINUE.
       ENDIF.
-      DATA(ls_cn) = node( doc = ctx-doc
+
+      ls_cn = node( doc = ctx-doc
                           id  = ls_cell-node ).
-      DATA(lv_prop) = COND string( WHEN ls_cell-prop IS NOT INITIAL THEN ls_cell-prop ELSE main_prop( ls_cn ) ).
-      DATA(ls_spec_cell) = VALUE ty_s_cellspec( node = ls_cell-node
-                                                prop = lv_prop ).
-      DATA(lv_col_name) = |COL{ lv_cell_index }|.
+
+      IF ls_cell-prop IS NOT INITIAL.
+        temp188 = ls_cell-prop.
+      ELSE.
+        temp188 = main_prop( ls_cn ).
+      ENDIF.
+
+      lv_prop = temp188.
+
+      CLEAR temp189.
+      temp189-node = ls_cell-node.
+      temp189-prop = lv_prop.
+
+      ls_spec_cell = temp189.
+
+      lv_col_name = |COL{ lv_cell_index }|.
       IF lv_prop IS NOT INITIAL.
         ls_spec_cell-has_binding = abap_true.
         ls_spec_cell-binding = z2ui5_cl_agent_viewxml=>parse_binding( z2ui5_cl_agent_viewxml=>attr( node = ls_cn
@@ -2934,19 +4206,40 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
           lv_col_name = ls_spec_cell-binding-path.
         ENDIF.
       ENDIF.
-      IF line_exists( lt_used[ table_line = lv_col_name ] ). "#EC CI_SORTSEQ
+
+
+      temp191 = sy-tabix.
+      READ TABLE lt_used WITH KEY table_line = lv_col_name TRANSPORTING NO FIELDS.
+      temp190 = sy-subrc.
+      sy-tabix = temp191.
+      IF temp190 = 0. "#EC CI_SORTSEQ
         lv_col_name = |{ lv_col_name }_{ lv_cell_index }|.
       ENDIF.
       INSERT lv_col_name INTO TABLE lt_used.
       ls_spec_cell-name = lv_col_name.
-      INSERT VALUE #( name  = lv_col_name
-                      label = z2ui5_cl_agent_viewxml=>clip( val = COND #( WHEN ls_cell-header IS NOT INITIAL THEN ls_cell-header ELSE lv_col_name )
-                                                            len = 80 ) ) INTO TABLE ls_table-t_column.
+
+      CLEAR temp192.
+      temp192-name = lv_col_name.
+
+      IF ls_cell-header IS NOT INITIAL.
+        temp65 = ls_cell-header.
+      ELSE.
+        temp65 = lv_col_name.
+      ENDIF.
+      temp192-label = z2ui5_cl_agent_viewxml=>clip( val = temp65 len = 80 ).
+      INSERT temp192 INTO TABLE ls_table-t_column.
       IF ls_cell-prop IS INITIAL.
-        DATA(ls_cell_field) = field_spec( z2ui5_cl_agent_viewxml=>control_name( ls_cn ) ).
+
+        ls_cell_field = field_spec( z2ui5_cl_agent_viewxml=>control_name( ls_cn ) ).
         IF ls_cell_field-found = abap_true.
           ls_spec_cell-has_field_spec = abap_true.
-          ls_spec_cell-field_kind = COND #( WHEN ls_cell_field-kind = `input` THEN `text` ELSE ls_cell_field-kind ).
+
+          IF ls_cell_field-kind = `input`.
+            temp193 = `text`.
+          ELSE.
+            temp193 = ls_cell_field-kind.
+          ENDIF.
+          ls_spec_cell-field_kind = temp193.
         ENDIF.
       ENDIF.
       INSERT ls_spec_cell INTO TABLE ls_table-t_cellspec.
@@ -2955,12 +4248,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     " selection
     IF dialog = abap_true.
       " a selection dialog always selects: one row (a pick confirms) or several
-      DATA(lv_mode) = COND string( WHEN bool( node          = node
-                                              name          = `multiSelect`
-                                              ctx           = ctx
-                                              default_value = abap_false ) = abap_true
-                                   THEN `Multi`
-                                   ELSE `Single` ).
+
+      IF bool( node = node name = `multiSelect` ctx = ctx default_value = abap_false ) = abap_true.
+        temp194 = `Multi`.
+      ELSE.
+        temp194 = `Single`.
+      ENDIF.
+
+      lv_mode = temp194.
     ELSEIF kind = `m`.
       lv_mode = text_of( node = node
                          name = `mode`
@@ -2969,24 +4264,32 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                               name  = `selectionMode`
                                     IMPORTING found = lv_found ).
-      lv_mode = COND #( WHEN lv_found = abap_true
-                        THEN text_of( node = node
-                                      name = `selectionMode`
-                                      ctx  = ctx )
-                        ELSE `MultiToggle` ).
+
+      IF lv_found = abap_true.
+        temp195 = text_of( node = node name = `selectionMode` ctx = ctx ).
+      ELSE.
+        temp195 = `MultiToggle`.
+      ENDIF.
+      lv_mode = temp195.
     ENDIF.
-    ls_table-selection_mode = COND #( WHEN find( val = lv_mode
-                                                 sub = `Multi` ) >= 0 THEN `Multi`
-                                      WHEN find( val = lv_mode
-                                                 sub = `Single` ) >= 0 THEN `Single`
-                                      ELSE `None` ).
+
+    IF find( val = lv_mode sub = `Multi` ) >= 0.
+      temp196 = `Multi`.
+    ELSEIF find( val = lv_mode sub = `Single` ) >= 0.
+      temp196 = `Single`.
+    ELSE.
+      temp196 = `None`.
+    ENDIF.
+    ls_table-selection_mode = temp196.
     IF lv_template > 0.
-      DATA(lv_sel_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node( doc = ctx-doc
+
+      lv_sel_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node( doc = ctx-doc
                                                                                id  = lv_template )
                                                                  name  = `selected`
                                                        IMPORTING found = lv_found ).
       IF lv_found = abap_true.
-        DATA(ls_sb) = z2ui5_cl_agent_viewxml=>parse_binding( lv_sel_raw ).
+
+        ls_sb = z2ui5_cl_agent_viewxml=>parse_binding( lv_sel_raw ).
         IF ls_sb-kind = z2ui5_cl_agent_viewxml=>cs_binding-path AND ls_sb-relative = abap_true AND ls_sb-model IS INITIAL.
           ls_table-selection_field = ls_sb-path.
         ENDIF.
@@ -2994,16 +4297,20 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDIF.
 
     " editable cells: an input bound to a row property, not disabled for every row
-    LOOP AT ls_table-t_cellspec REFERENCE INTO DATA(lr_spec).
+
+
+    LOOP AT ls_table-t_cellspec REFERENCE INTO lr_spec.
       IF lr_spec->has_field_spec = abap_false OR lr_spec->has_binding = abap_false
           OR lr_spec->binding-kind <> z2ui5_cl_agent_viewxml=>cs_binding-path
           OR lr_spec->binding-relative = abap_false OR lr_spec->binding-model IS NOT INITIAL.
         CONTINUE.
       ENDIF.
       lr_spec->check_editable = abap_true.
-      DATA(ls_cell_node) = node( doc = ctx-doc
+
+      ls_cell_node = node( doc = ctx-doc
                                  id  = lr_spec->node ).
-      DATA(lv_ok) = abap_false.
+
+      lv_ok = abap_false.
       IF lv_row_count = 0.
         lv_ok = cell_ok( ctx  = ctx
                          node = ls_cell_node
@@ -3026,19 +4333,32 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     IF ls_table-selection_mode = `None`.
       CLEAR ls_table-selection_field.
     ENDIF.
-    IF ls_table-selection_field IS NOT INITIAL AND NOT line_exists( ls_table-t_editable[ table_line = ls_table-selection_field ] ). "#EC CI_SORTSEQ
+
+    READ TABLE ls_table-t_editable WITH KEY table_line = ls_table-selection_field TRANSPORTING NO FIELDS.
+    temp198 = sy-subrc.
+    IF ls_table-selection_field IS NOT INITIAL AND NOT temp198 = 0. "#EC CI_SORTSEQ
       INSERT ls_table-selection_field INTO TABLE ls_table-t_editable.
     ENDIF.
 
     " the first rows
-    DATA(lv_shown) = nmin( val1 = lv_row_count
+
+    lv_shown = nmin( val1 = lv_row_count
                            val2 = mv_rows ).
     DO lv_shown TIMES.
-      DATA(lv_row) = tree_path( model_key = ctx-model_key
+
+      lv_row = tree_path( model_key = ctx-model_key
                                 path      = |{ lv_bpath }/{ sy-index - 1 }| ).
-      DATA(ls_row) = VALUE ty_s_row( ).
-      LOOP AT ls_table-t_cellspec INTO DATA(ls_cs).
-        DATA(ls_val) = VALUE ty_s_val( kind = z2ui5_cl_agent_viewxml=>cs_kind-null ).
+
+      CLEAR temp199.
+
+      ls_row = temp199.
+
+      LOOP AT ls_table-t_cellspec INTO ls_cs.
+
+        CLEAR temp200.
+        temp200-kind = z2ui5_cl_agent_viewxml=>cs_kind-null.
+
+        ls_val = temp200.
         IF ls_cs-prop IS NOT INITIAL.
           ls_val = resolve( raw = z2ui5_cl_agent_viewxml=>attr( node = node( doc = ctx-doc
                                                                              id  = ls_cs-node )
@@ -3046,18 +4366,27 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                             ctx = ctx
                             row = lv_row ).
         ENDIF.
-        INSERT VALUE #( name = ls_cs-name
-                        val  = ls_val ) INTO TABLE ls_row-t_cell.
+
+        CLEAR temp201.
+        temp201-name = ls_cs-name.
+        temp201-val = ls_val.
+        INSERT temp201 INTO TABLE ls_row-t_cell.
       ENDLOOP.
-      IF ls_table-selection_field IS NOT INITIAL AND NOT line_exists( ls_row-t_cell[ name = ls_table-selection_field ] ). "#EC CI_SORTSEQ
-        INSERT VALUE #( name = ls_table-selection_field
-                        val  = model_get( model_key = ctx-model_key
-                                          path      = ls_table-selection_field
-                                          base      = lv_row ) ) INTO TABLE ls_row-t_cell.
+
+      READ TABLE ls_row-t_cell WITH KEY name = ls_table-selection_field TRANSPORTING NO FIELDS.
+      temp202 = sy-subrc.
+      IF ls_table-selection_field IS NOT INITIAL AND NOT temp202 = 0. "#EC CI_SORTSEQ
+
+        CLEAR temp203.
+        temp203-name = ls_table-selection_field.
+        temp203-val = model_get( model_key = ctx-model_key path = ls_table-selection_field base = lv_row ).
+        INSERT temp203 INTO TABLE ls_row-t_cell.
       ENDIF.
       INSERT ls_row INTO TABLE ls_table-t_row.
     ENDDO.
-    ls_table-truncated = xsdbool( lv_row_count > lines( ls_table-t_row ) ).
+
+    temp11 = boolc( lv_row_count > lines( ls_table-t_row ) ).
+    ls_table-truncated = temp11.
     " what the session needs to fill a row event's $parameters: the item
     " template and its cells (getCells( )[n] counts every cell of a
     " ColumnListItem; a grid table's row has the visible columns' templates)
@@ -3074,12 +4403,17 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     " the table's own events: a row event on the table is row scope, and so
     " is a selection dialog's confirm - the pick of a row
-    LOOP AT node-t_attr INTO DATA(ls_attr).
+
+    LOOP AT node-t_attr INTO ls_attr.
       IF z2ui5_cl_agent_viewxml=>has_wire( ls_attr-value ) = abap_false.
         CONTINUE.
       ENDIF.
-      DATA(lv_pick) = xsdbool( dialog = abap_true AND ls_attr-name = `confirm` ).
-      DATA(ls_row_ctx) = ctx.
+
+
+      temp12 = boolc( dialog = abap_true AND ls_attr-name = `confirm` ).
+      lv_pick = temp12.
+
+      ls_row_ctx = ctx.
       IF ls_attr-name = `itemPress` OR ls_attr-name = `selectionChange` OR ls_attr-name = `rowSelectionChange`
           OR ls_attr-name = `cellClick` OR ls_attr-name = `rowPress` OR ls_attr-name = `delete`
           OR ls_attr-name = `beforeOpenContextMenu` OR lv_pick = abap_true.
@@ -3095,21 +4429,29 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDLOOP.
 
     " everything but the template: toolbars, the columns' own controls, ...
-    LOOP AT node-t_child INTO DATA(lv_child).
-      DATA(ls_child) = node( doc = ctx-doc
+
+    LOOP AT node-t_child INTO lv_child.
+
+      ls_child = node( doc = ctx-doc
                              id  = lv_child ).
-      DATA(lv_is_agg) = z2ui5_cl_agent_viewxml=>is_aggregation( ls_child ).
+
+      lv_is_agg = z2ui5_cl_agent_viewxml=>is_aggregation( ls_child ).
       IF ( lv_is_agg = abap_true AND ls_child-local = agg ) OR lv_child = lv_template.
         CONTINUE.
       ENDIF.
       IF ls_child-local = `columns`.
-        LOOP AT ls_child-t_child INTO DATA(lv_col).
-          DATA(ls_colnode) = node( doc = ctx-doc
+
+        LOOP AT ls_child-t_child INTO lv_col.
+
+          ls_colnode = node( doc = ctx-doc
                                    id  = lv_col ).
-          LOOP AT ls_colnode-t_child INTO DATA(lv_sub).
-            DATA(ls_sub) = node( doc = ctx-doc
+
+          LOOP AT ls_colnode-t_child INTO lv_sub.
+
+            ls_sub = node( doc = ctx-doc
                                  id  = lv_sub ).
-            DATA(lv_sub_agg) = z2ui5_cl_agent_viewxml=>is_aggregation( ls_sub ).
+
+            lv_sub_agg = z2ui5_cl_agent_viewxml=>is_aggregation( ls_sub ).
             IF lv_sub_agg = abap_true AND ls_sub-local = `template`.
               CONTINUE.
             ENDIF.
@@ -3121,12 +4463,21 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                     ctx = ctx ).
               CONTINUE.
             ENDIF.
-            DATA(lt_headers) = COND z2ui5_cl_agent_viewxml=>ty_t_int( WHEN lv_sub_agg = abap_true
-                                                                       THEN controls_of( doc     = ctx-doc
-                                                                                         t_child = ls_sub-t_child )
-                                                                       ELSE VALUE #( ( lv_sub ) ) ).
-            LOOP AT lt_headers INTO DATA(lv_h).
-              DATA(lv_hn) = z2ui5_cl_agent_viewxml=>control_name( node( doc = ctx-doc
+
+            CLEAR temp204.
+            INSERT lv_sub INTO TABLE temp204.
+
+            IF lv_sub_agg = abap_true.
+              temp66 = controls_of( doc = ctx-doc t_child = ls_sub-t_child ).
+            ELSE.
+              temp66 = temp204.
+            ENDIF.
+
+            lt_headers = temp66.
+
+            LOOP AT lt_headers INTO lv_h.
+
+              lv_hn = z2ui5_cl_agent_viewxml=>control_name( node( doc = ctx-doc
                                                                          id  = lv_h ) ).
               IF text_props( lv_hn ) IS NOT INITIAL OR lv_hn = `sap.m.Label`.
                 CONTINUE.
@@ -3149,7 +4500,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     ENDLOOP.
 
     " the template's wires, once, as row actions
-    DATA(ls_tmpl_ctx) = ctx.
+
+    ls_tmpl_ctx = ctx.
     ls_tmpl_ctx-row_table = lv_table_id.
     ls_tmpl_ctx-label = 0.
     IF lv_template > 0.
@@ -3163,10 +4515,12 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       ENDLOOP.
     ENDIF.
     LOOP AT node-t_child INTO lv_child.
-      DATA(lv_local) = node( doc = ctx-doc
+
+      lv_local = node( doc = ctx-doc
                              id  = lv_child )-local.
       IF lv_local = `rowActionTemplate` OR lv_local = `rowSettingsTemplate`.
-        DATA(ls_agg_ctx) = ls_tmpl_ctx.
+
+        ls_agg_ctx = ls_tmpl_ctx.
         ls_agg_ctx-row_template = lv_local.
         walk_template( id  = lv_child
                        ctx = ls_agg_ctx ).
@@ -3178,41 +4532,49 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   METHOD cell_ok.
 
     " two checks: the 7.02 downport puts one xsdbool( ) on one line
-    result = xsdbool( bool( node          = node
-                            name          = `editable`
-                            ctx           = ctx
-                            row           = row
-                            default_value = abap_true ) = abap_true
-                  AND bool( node          = node
-                            name          = `enabled`
-                            ctx           = ctx
-                            row           = row
-                            default_value = abap_true ) = abap_true ).
+    DATA temp13 TYPE xsdboolean.
+      DATA temp14 TYPE xsdboolean.
+    temp13 = boolc( bool( node = node name = `editable` ctx = ctx row = row default_value = abap_true ) = abap_true AND bool( node = node name = `enabled` ctx = ctx row = row default_value = abap_true ) = abap_true ).
+    result = temp13.
     IF result = abap_true.
-      result = xsdbool( bool( node          = node
-                              name          = `displayOnly`
-                              ctx           = ctx
-                              row           = row
-                              default_value = abap_false ) = abap_false ).
+
+      temp14 = boolc( bool( node = node name = `displayOnly` ctx = ctx row = row default_value = abap_false ) = abap_false ).
+      result = temp14.
     ENDIF.
 
   ENDMETHOD.
 
   METHOD cell_editable.
 
-    READ TABLE mt_table INTO DATA(ls_table) WITH KEY id = table_id. "#EC CI_SORTSEQ
+    DATA ls_table TYPE z2ui5_cl_agent_snapshot=>ty_s_table.
+    DATA ls_spec TYPE z2ui5_cl_agent_snapshot=>ty_s_cellspec.
+      DATA temp206 LIKE sy-subrc.
+      DATA temp15 TYPE xsdboolean.
+    DATA temp207 TYPE ty_s_ctx.
+    DATA ls_ctx LIKE temp207.
+    READ TABLE mt_table INTO ls_table WITH KEY id = table_id. "#EC CI_SORTSEQ
     IF sy-subrc <> 0.
       RETURN.
     ENDIF.
-    READ TABLE ls_table-t_cellspec INTO DATA(ls_spec) WITH KEY name = column. "#EC CI_SORTSEQ
+
+    READ TABLE ls_table-t_cellspec INTO ls_spec WITH KEY name = column. "#EC CI_SORTSEQ
     IF sy-subrc <> 0 OR ls_spec-check_editable = abap_false.
       " the selection field and the cells without a probe are editable as listed
-      result = xsdbool( line_exists( ls_table-t_editable[ table_line = column ] ) ). "#EC CI_SORTSEQ
+
+      READ TABLE ls_table-t_editable WITH KEY table_line = column TRANSPORTING NO FIELDS.
+      temp206 = sy-subrc.
+
+      temp15 = boolc( temp206 = 0 ).
+      result = temp15. "#EC CI_SORTSEQ
       RETURN.
     ENDIF.
-    DATA(ls_ctx) = VALUE ty_s_ctx( doc       = ls_table-doc
-                                   layer     = ls_table-layer
-                                   model_key = ls_table-model_key ).
+
+    CLEAR temp207.
+    temp207-doc = ls_table-doc.
+    temp207-layer = ls_table-layer.
+    temp207-model_key = ls_table-model_key.
+
+    ls_ctx = temp207.
     result = cell_ok( ctx  = ls_ctx
                       node = node( doc = ls_table-doc
                                    id  = ls_spec-node )
@@ -3225,31 +4587,47 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
     DATA lv_row TYPE string.
+    DATA ls_action TYPE z2ui5_cl_agent_snapshot=>ty_s_action.
+    DATA ls_node TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+    DATA lv_raw TYPE string.
+      DATA ls_table TYPE z2ui5_cl_agent_snapshot=>ty_s_table.
+    DATA temp208 TYPE ty_s_ctx.
+    DATA ls_ctx LIKE temp208.
+    DATA ls_binding TYPE z2ui5_cl_agent_viewxml=>ty_s_binding.
 
     result-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined.
-    READ TABLE mt_action INTO DATA(ls_action) WITH KEY id = action_id. "#EC CI_SORTSEQ
+
+    READ TABLE mt_action INTO ls_action WITH KEY id = action_id. "#EC CI_SORTSEQ
     IF sy-subrc <> 0 OR ls_action-node = 0.
       RETURN.
     ENDIF.
-    DATA(ls_node) = node( doc = ls_action-doc
+
+    ls_node = node( doc = ls_action-doc
                           id  = ls_action-node ).
-    DATA(lv_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_node
+
+    lv_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_node
                                                            name  = prop
                                                  IMPORTING found = lv_found ).
     IF lv_found = abap_false.
       RETURN.
     ENDIF.
     IF ls_action-table IS NOT INITIAL AND row >= 0.
-      READ TABLE mt_table INTO DATA(ls_table) WITH KEY id = ls_action-table. "#EC CI_SORTSEQ
+
+      READ TABLE mt_table INTO ls_table WITH KEY id = ls_action-table. "#EC CI_SORTSEQ
       IF sy-subrc = 0.
         lv_row = tree_path( model_key = ls_table-model_key
                             path      = |{ ls_table-path }/{ row }| ).
       ENDIF.
     ENDIF.
-    DATA(ls_ctx) = VALUE ty_s_ctx( doc       = ls_action-doc
-                                   layer     = ls_action-layer
-                                   model_key = ls_action-model_key ).
-    DATA(ls_binding) = z2ui5_cl_agent_viewxml=>parse_binding( lv_raw ).
+
+    CLEAR temp208.
+    temp208-doc = ls_action-doc.
+    temp208-layer = ls_action-layer.
+    temp208-model_key = ls_action-model_key.
+
+    ls_ctx = temp208.
+
+    ls_binding = z2ui5_cl_agent_viewxml=>parse_binding( lv_raw ).
     IF ls_binding-kind = z2ui5_cl_agent_viewxml=>cs_binding-composite.
       RETURN.
     ENDIF.
@@ -3262,13 +4640,19 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   METHOD template_value.
 
     DATA lv_found TYPE abap_bool.
+    DATA ls_table TYPE z2ui5_cl_agent_snapshot=>ty_s_table.
+    DATA lv_raw TYPE string.
+    DATA temp209 TYPE ty_s_ctx.
+    DATA ls_ctx LIKE temp209.
 
     result-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined.
-    READ TABLE mt_table INTO DATA(ls_table) WITH KEY id = table_id. "#EC CI_SORTSEQ
+
+    READ TABLE mt_table INTO ls_table WITH KEY id = table_id. "#EC CI_SORTSEQ
     IF sy-subrc <> 0 OR node = 0.
       RETURN.
     ENDIF.
-    DATA(lv_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = me->node( doc = ls_table-doc
+
+    lv_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = me->node( doc = ls_table-doc
                                                                              id  = node )
                                                            name  = prop
                                                  IMPORTING found = lv_found ).
@@ -3278,9 +4662,13 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     IF z2ui5_cl_agent_viewxml=>parse_binding( lv_raw )-kind = z2ui5_cl_agent_viewxml=>cs_binding-composite.
       RETURN.
     ENDIF.
-    DATA(ls_ctx) = VALUE ty_s_ctx( doc       = ls_table-doc
-                                   layer     = ls_table-layer
-                                   model_key = ls_table-model_key ).
+
+    CLEAR temp209.
+    temp209-doc = ls_table-doc.
+    temp209-layer = ls_table-layer.
+    temp209-model_key = ls_table-model_key.
+
+    ls_ctx = temp209.
     result = resolve( raw = lv_raw
                       ctx = ls_ctx
                       row = tree_path( model_key = ls_table-model_key
@@ -3292,29 +4680,38 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(ls_node) = node( doc = ctx-doc
+    DATA ls_node TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA lv_child LIKE LINE OF ls_node-t_child.
+    DATA lv_visible TYPE string.
+    DATA lv_name TYPE string.
+    DATA ls_spec TYPE z2ui5_cl_agent_snapshot=>ty_s_spec.
+    ls_node = node( doc = ctx-doc
                           id  = id ).
     IF z2ui5_cl_agent_viewxml=>is_aggregation( ls_node ) = abap_true.
-      LOOP AT ls_node-t_child INTO DATA(lv_child).
+
+      LOOP AT ls_node-t_child INTO lv_child.
         walk_template( id  = lv_child
                        ctx = ctx ).
       ENDLOOP.
       RETURN.
     ENDIF.
-    DATA(lv_visible) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_node
+
+    lv_visible = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_node
                                                                name  = `visible`
                                                      IMPORTING found = lv_found ).
     IF lv_found = abap_true AND condense( lv_visible ) = `false`.
       RETURN.
     ENDIF.
-    DATA(lv_name) = z2ui5_cl_agent_viewxml=>control_name( ls_node ).
+
+    lv_name = z2ui5_cl_agent_viewxml=>control_name( ls_node ).
     IF starts_sap( ls_node-ns ) = abap_false.
       note( |custom control { lv_name } in table { ctx-row_table } - not described| ).
     ENDIF.
     wires( node = ls_node
            ctx  = ctx
            name = lv_name ).
-    DATA(ls_spec) = field_spec( lv_name ).
+
+    ls_spec = field_spec( lv_name ).
     IF ls_spec-found = abap_true AND ls_spec-items IS NOT INITIAL.
       RETURN.
     ENDIF.
@@ -3328,13 +4725,24 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   METHOD column_header.
 
     DATA lv_found TYPE abap_bool.
+    DATA ls_col TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+    DATA lv_header TYPE string.
+    DATA lv_header_agg TYPE i.
+    DATA temp210 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+    DATA lt_hnode TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+    DATA ls_h TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+    FIELD-SYMBOLS <temp67> LIKE LINE OF lt_hnode.
+    DATA temp68 LIKE sy-tabix.
+    DATA temp211 TYPE string.
 
     IF col = 0.
       RETURN.
     ENDIF.
-    DATA(ls_col) = node( doc = ctx-doc
+
+    ls_col = node( doc = ctx-doc
                          id  = col ).
-    DATA(lv_header) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_col
+
+    lv_header = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_col
                                                               name  = `header`
                                                     IMPORTING found = lv_found ).
     IF lv_found = abap_true.
@@ -3342,32 +4750,56 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                             ctx = ctx ).
       RETURN.
     ENDIF.
-    DATA(lv_header_agg) = child_agg( doc   = ctx-doc
+
+    lv_header_agg = child_agg( doc   = ctx-doc
                                      node  = ls_col
                                      local = `header` ).
-    DATA(lt_hnode) = controls_of( doc     = ctx-doc
-                                  t_child = COND #( WHEN lv_header_agg > 0
-                                                    THEN node( doc = ctx-doc
-                                                               id  = lv_header_agg )-t_child
-                                                    ELSE ls_col-t_child ) ).
+
+    IF lv_header_agg > 0.
+      temp210 = node( doc = ctx-doc id = lv_header_agg )-t_child.
+    ELSE.
+      temp210 = ls_col-t_child.
+    ENDIF.
+
+    lt_hnode = controls_of( doc     = ctx-doc
+                                  t_child = temp210 ).
     IF lt_hnode IS INITIAL.
       RETURN.
     ENDIF.
-    DATA(ls_h) = node( doc = ctx-doc
-                       id  = lt_hnode[ 1 ] ).
+
+
+
+    temp68 = sy-tabix.
+    READ TABLE lt_hnode INDEX 1 ASSIGNING <temp67>.
+    sy-tabix = temp68.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    ls_h = node( doc = ctx-doc
+                       id  = <temp67> ).
     z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = ls_h
                                             name  = `text`
                                   IMPORTING found = lv_found ).
+
+    IF lv_found = abap_true.
+      temp211 = `text`.
+    ELSE.
+      temp211 = `title`.
+    ENDIF.
     result = text_of( node = ls_h
-                      name = COND #( WHEN lv_found = abap_true THEN `text` ELSE `title` )
+                      name = temp211
                       ctx  = ctx ).
 
   ENDMETHOD.
 
   METHOD header_title.
 
-    LOOP AT node-t_child INTO DATA(lv_child).
-      DATA(ls_child) = node( doc = ctx-doc
+    DATA lv_child LIKE LINE OF node-t_child.
+      DATA ls_child TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+      DATA lv_title TYPE i.
+    LOOP AT node-t_child INTO lv_child.
+
+      ls_child = node( doc = ctx-doc
                              id  = lv_child ).
       IF z2ui5_cl_agent_viewxml=>is_aggregation( ls_child ) = abap_false.
         CONTINUE.
@@ -3376,7 +4808,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
           AND ls_child-local <> `title` AND ls_child-local <> `toolbar`.
         CONTINUE.
       ENDIF.
-      DATA(lv_title) = find_first( doc     = ctx-doc
+
+      lv_title = find_first( doc     = ctx-doc
                                    id      = lv_child
                                    control = `sap.m.Title` ).
       IF lv_title > 0.
@@ -3392,9 +4825,14 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD find_first.
 
-    LOOP AT node( doc = doc
-                  id  = id )-t_child INTO DATA(lv_child).
-      DATA(ls_child) = node( doc = doc
+    DATA temp212 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+    DATA lv_child LIKE LINE OF temp212.
+      DATA ls_child TYPE z2ui5_cl_agent_viewxml=>ty_s_node.
+    temp212 = node( doc = doc id = id )-t_child.
+
+    LOOP AT temp212 INTO lv_child.
+
+      ls_child = node( doc = doc
                              id  = lv_child ).
       IF z2ui5_cl_agent_viewxml=>is_aggregation( ls_child ) = abap_false
           AND z2ui5_cl_agent_viewxml=>control_name( ls_child ) = control.
@@ -3413,8 +4851,11 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD descendants.
 
-    LOOP AT node( doc = doc
-                  id  = id )-t_child INTO DATA(lv_child).
+    DATA temp213 TYPE z2ui5_cl_agent_viewxml=>ty_t_int.
+    DATA lv_child LIKE LINE OF temp213.
+    temp213 = node( doc = doc id = id )-t_child.
+
+    LOOP AT temp213 INTO lv_child.
       IF z2ui5_cl_agent_viewxml=>is_aggregation( node( doc = doc
                                                        id  = lv_child ) ) = abap_false.
         INSERT lv_child INTO TABLE result.
@@ -3429,9 +4870,15 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
     DATA lv_found TYPE abap_bool.
 
-    DATA(ls_spec) = field_spec( z2ui5_cl_agent_viewxml=>control_name( node ) ).
+    DATA ls_spec TYPE z2ui5_cl_agent_snapshot=>ty_s_spec.
+      DATA lv_prop LIKE LINE OF ls_spec-t_prop.
+    DATA temp69 TYPE string_table.
+    DATA temp214 LIKE temp69.
+      DATA lv_raw TYPE string.
+    ls_spec = field_spec( z2ui5_cl_agent_viewxml=>control_name( node ) ).
     IF ls_spec-found = abap_true.
-      LOOP AT ls_spec-t_prop INTO DATA(lv_prop).
+
+      LOOP AT ls_spec-t_prop INTO lv_prop.
         z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                                 name  = lv_prop
                                       IMPORTING found = lv_found ).
@@ -3442,9 +4889,23 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       ENDLOOP.
       RETURN.
     ENDIF.
-    LOOP AT VALUE string_table( ( `text` ) ( `title` ) ( `number` ) ( `value` ) ( `displayValue` ) ( `percentValue` )
-                                ( `state` ) ( `selected` ) ( `src` ) ( `htmlText` ) ) INTO lv_prop.
-      DATA(lv_raw) = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
+
+    CLEAR temp69.
+    INSERT `text` INTO TABLE temp69.
+    INSERT `title` INTO TABLE temp69.
+    INSERT `number` INTO TABLE temp69.
+    INSERT `value` INTO TABLE temp69.
+    INSERT `displayValue` INTO TABLE temp69.
+    INSERT `percentValue` INTO TABLE temp69.
+    INSERT `state` INTO TABLE temp69.
+    INSERT `selected` INTO TABLE temp69.
+    INSERT `src` INTO TABLE temp69.
+    INSERT `htmlText` INTO TABLE temp69.
+
+    temp214 = temp69.
+    LOOP AT temp214 INTO lv_prop.
+
+      lv_raw = z2ui5_cl_agent_viewxml=>attr( EXPORTING node  = node
                                                              name  = lv_prop
                                                    IMPORTING found = lv_found ).
       IF lv_found = abap_true AND z2ui5_cl_agent_viewxml=>has_wire( lv_raw ) = abap_false.
@@ -3456,6 +4917,20 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD field_spec.
+        DATA temp215 TYPE string_table.
+        DATA temp217 TYPE string_table.
+        DATA temp219 TYPE string_table.
+        DATA temp221 TYPE string_table.
+        DATA temp223 TYPE string_table.
+        DATA temp225 TYPE string_table.
+        DATA temp227 TYPE string_table.
+        DATA temp229 TYPE string_table.
+        DATA temp231 TYPE string_table.
+        DATA temp233 TYPE string_table.
+        DATA temp235 TYPE string_table.
+        DATA temp237 TYPE string_table.
+        DATA temp239 TYPE string_table.
+        DATA temp241 TYPE string_table.
 
     " the editable value of each input-like control: which property carries
     " it, and what kind of value it is. text_label: the control's own text
@@ -3463,51 +4938,97 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     result-found = abap_true.
     CASE name.
       WHEN `sap.m.Input`.
-        result-t_prop = VALUE #( ( `value` ) ).
+
+        CLEAR temp215.
+        INSERT `value` INTO TABLE temp215.
+        result-t_prop = temp215.
         result-kind = `input`.
       WHEN `sap.m.InputBase` OR `sap.m.MaskInput` OR `sap.m.SearchField` OR `sap.m.MultiInput`.
-        result-t_prop = VALUE #( ( `value` ) ).
+
+        CLEAR temp217.
+        INSERT `value` INTO TABLE temp217.
+        result-t_prop = temp217.
         result-kind = `text`.
       WHEN `sap.m.TextArea`.
-        result-t_prop = VALUE #( ( `value` ) ).
+
+        CLEAR temp219.
+        INSERT `value` INTO TABLE temp219.
+        result-t_prop = temp219.
         result-kind = `textarea`.
       WHEN `sap.m.StepInput` OR `sap.m.Slider` OR `sap.m.RangeSlider` OR `sap.m.RatingIndicator`.
-        result-t_prop = VALUE #( ( `value` ) ).
+
+        CLEAR temp221.
+        INSERT `value` INTO TABLE temp221.
+        result-t_prop = temp221.
         result-kind = `number`.
       WHEN `sap.m.DatePicker` OR `sap.m.DateRangeSelection`.
-        result-t_prop = VALUE #( ( `value` ) ( `dateValue` ) ).
+
+        CLEAR temp223.
+        INSERT `value` INTO TABLE temp223.
+        INSERT `dateValue` INTO TABLE temp223.
+        result-t_prop = temp223.
         result-kind = `date`.
       WHEN `sap.m.TimePicker`.
-        result-t_prop = VALUE #( ( `value` ) ( `dateValue` ) ).
+
+        CLEAR temp225.
+        INSERT `value` INTO TABLE temp225.
+        INSERT `dateValue` INTO TABLE temp225.
+        result-t_prop = temp225.
         result-kind = `time`.
       WHEN `sap.m.DateTimePicker`.
-        result-t_prop = VALUE #( ( `value` ) ( `dateValue` ) ).
+
+        CLEAR temp227.
+        INSERT `value` INTO TABLE temp227.
+        INSERT `dateValue` INTO TABLE temp227.
+        result-t_prop = temp227.
         result-kind = `datetime`.
       WHEN `sap.m.CheckBox` OR `sap.m.RadioButton`.
-        result-t_prop = VALUE #( ( `selected` ) ).
+
+        CLEAR temp229.
+        INSERT `selected` INTO TABLE temp229.
+        result-t_prop = temp229.
         result-kind = `boolean`.
         result-text_label = abap_true.
       WHEN `sap.m.Switch`.
-        result-t_prop = VALUE #( ( `state` ) ).
+
+        CLEAR temp231.
+        INSERT `state` INTO TABLE temp231.
+        result-t_prop = temp231.
         result-kind = `boolean`.
       WHEN `sap.m.ToggleButton`.
-        result-t_prop = VALUE #( ( `pressed` ) ).
+
+        CLEAR temp233.
+        INSERT `pressed` INTO TABLE temp233.
+        result-t_prop = temp233.
         result-kind = `boolean`.
         result-text_label = abap_true.
       WHEN `sap.m.Select` OR `sap.m.SegmentedButton`.
-        result-t_prop = VALUE #( ( `selectedKey` ) ).
+
+        CLEAR temp235.
+        INSERT `selectedKey` INTO TABLE temp235.
+        result-t_prop = temp235.
         result-kind = `choice`.
         result-items = `key`.
       WHEN `sap.m.ComboBox`.
-        result-t_prop = VALUE #( ( `selectedKey` ) ( `value` ) ).
+
+        CLEAR temp237.
+        INSERT `selectedKey` INTO TABLE temp237.
+        INSERT `value` INTO TABLE temp237.
+        result-t_prop = temp237.
         result-kind = `choice`.
         result-items = `key`.
       WHEN `sap.m.MultiComboBox`.
-        result-t_prop = VALUE #( ( `selectedKeys` ) ).
+
+        CLEAR temp239.
+        INSERT `selectedKeys` INTO TABLE temp239.
+        result-t_prop = temp239.
         result-kind = `multichoice`.
         result-items = `key`.
       WHEN `sap.m.RadioButtonGroup`.
-        result-t_prop = VALUE #( ( `selectedIndex` ) ).
+
+        CLEAR temp241.
+        INSERT `selectedIndex` INTO TABLE temp241.
+        result-t_prop = temp241.
         result-kind = `choice`.
         result-items = `index`.
       WHEN OTHERS.
@@ -3542,19 +5063,50 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
   METHOD text_props.
 
     " controls whose text is context worth handing an agent (outside tables)
-    result = SWITCH #( name
-                       WHEN `sap.m.Text` OR `sap.m.Title` OR `sap.m.ExpandableText` OR `sap.m.GenericTag` OR `sap.ui.core.Title`
-                         THEN VALUE #( ( `text` ) )
-                       WHEN `sap.m.ObjectStatus` OR `sap.m.ObjectAttribute` OR `sap.m.ObjectIdentifier`
-                         THEN VALUE #( ( `title` ) ( `text` ) )
-                       WHEN `sap.m.ObjectNumber`
-                         THEN VALUE #( ( `number` ) ( `unit` ) )
-                       WHEN `sap.m.ObjectHeader`
-                         THEN VALUE #( ( `title` ) ( `number` ) )
-                       WHEN `sap.m.FormattedText`
-                         THEN VALUE #( ( `htmlText` ) )
-                       WHEN `sap.m.IllustratedMessage`
-                         THEN VALUE #( ( `title` ) ( `description` ) ) ).
+    DATA temp243 TYPE string_table.
+    DATA temp71 TYPE string_table.
+    DATA temp5 TYPE string_table.
+    DATA temp1 TYPE string_table.
+    DATA temp7 TYPE string_table.
+    DATA temp10 TYPE string_table.
+    DATA temp2 TYPE string_table.
+    CLEAR temp243.
+    INSERT `text` INTO TABLE temp243.
+
+    CLEAR temp71.
+    INSERT `title` INTO TABLE temp71.
+    INSERT `text` INTO TABLE temp71.
+
+    CLEAR temp5.
+    INSERT `number` INTO TABLE temp5.
+    INSERT `unit` INTO TABLE temp5.
+
+    CLEAR temp1.
+    INSERT `title` INTO TABLE temp1.
+    INSERT `number` INTO TABLE temp1.
+
+    CLEAR temp7.
+    INSERT `htmlText` INTO TABLE temp7.
+
+    CLEAR temp10.
+    INSERT `title` INTO TABLE temp10.
+    INSERT `description` INTO TABLE temp10.
+
+    CASE name.
+      WHEN `sap.m.Text` OR `sap.m.Title` OR `sap.m.ExpandableText` OR `sap.m.GenericTag` OR `sap.ui.core.Title`.
+        temp2 = temp243.
+      WHEN `sap.m.ObjectStatus` OR `sap.m.ObjectAttribute` OR `sap.m.ObjectIdentifier`.
+        temp2 = temp71.
+      WHEN `sap.m.ObjectNumber`.
+        temp2 = temp5.
+      WHEN `sap.m.ObjectHeader`.
+        temp2 = temp1.
+      WHEN `sap.m.FormattedText`.
+        temp2 = temp7.
+      WHEN `sap.m.IllustratedMessage`.
+        temp2 = temp10.
+    ENDCASE.
+    result = temp2.
 
   ENDMETHOD.
 
@@ -3591,29 +5143,43 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD message_type.
 
-    result = SWITCH #( val
-                       WHEN `Error`       THEN `error`
-                       WHEN `Warning`     THEN `warning`
-                       WHEN `Success`     THEN `success`
-                       WHEN `Information` THEN `info` ).
+    DATA temp245 TYPE string.
+    CASE val.
+      WHEN `Error`.
+        temp245 = `error`.
+      WHEN `Warning`.
+        temp245 = `warning`.
+      WHEN `Success`.
+        temp245 = `success`.
+      WHEN `Information`.
+        temp245 = `info`.
+    ENDCASE.
+    result = temp245.
 
   ENDMETHOD.
 
   METHOD message_source.
 
-    result = SWITCH #( name
-                       WHEN `sap.m.MessagePopover` THEN `popover`
-                       WHEN `sap.m.MessageView`    THEN `messageview` ).
+    DATA temp246 TYPE string.
+    CASE name.
+      WHEN `sap.m.MessagePopover`.
+        temp246 = `popover`.
+      WHEN `sap.m.MessageView`.
+        temp246 = `messageview`.
+    ENDCASE.
+    result = temp246.
 
   ENDMETHOD.
 
   METHOD icon_name.
+      DATA lv_slash TYPE i.
 
     result = val.
     IF strlen( result ) >= 11 AND result(11) = `sap-icon://`.
       result = substring( val = result
                           off = 11 ).
-      DATA(lv_slash) = find( val = result
+
+      lv_slash = find( val = result
                              sub = `/` ).
       IF lv_slash > 0.
         result = substring( val = result
@@ -3626,10 +5192,17 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD strip_tags.
 
-    DATA(lv_pos) = 0.
-    DATA(lv_len) = strlen( val ).
+    DATA lv_pos TYPE i.
+    DATA lv_len TYPE i.
+      DATA lv_lt TYPE i.
+      DATA lv_gt TYPE i.
+        DATA lv_next TYPE i.
+    lv_pos = 0.
+
+    lv_len = strlen( val ).
     WHILE lv_pos < lv_len.
-      DATA(lv_lt) = find( val = val
+
+      lv_lt = find( val = val
                           sub = `<`
                           off = lv_pos ).
       IF lv_lt < 0.
@@ -3637,7 +5210,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                                       off = lv_pos ).
         RETURN.
       ENDIF.
-      DATA(lv_gt) = find( val = val
+
+      lv_gt = find( val = val
                           sub = `>`
                           off = lv_lt ).
       IF lv_gt < 0.
@@ -3648,7 +5222,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       " the reference's <[^<>]*>: a tag holds no `<`, so it starts at the
       " last `<` before its `>` - what stands in front of that is text
       DO.
-        DATA(lv_next) = find( val = val
+
+        lv_next = find( val = val
                               sub = `<`
                               off = lv_lt + 1 ).
         IF lv_next < 0 OR lv_next > lv_gt.
@@ -3666,24 +5241,30 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
 
   METHOD starts_sap.
 
-    result = xsdbool( strlen( ns ) >= 4 AND ns(4) = `sap.` ).
+    DATA temp16 TYPE xsdboolean.
+    temp16 = boolc( strlen( ns ) >= 4 AND ns(4) = `sap.` ).
+    result = temp16.
 
   ENDMETHOD.
 
   METHOD ends_with.
 
-    DATA(lv_len) = strlen( val ) - strlen( suffix ).
+    DATA lv_len TYPE i.
+    DATA temp17 TYPE xsdboolean.
+    lv_len = strlen( val ) - strlen( suffix ).
     IF lv_len < 0.
       RETURN.
     ENDIF.
-    result = xsdbool( substring( val = val
-                                 off = lv_len ) = suffix ).
+
+    temp17 = boolc( substring( val = val off = lv_len ) = suffix ).
+    result = temp17.
 
   ENDMETHOD.
 
   METHOD set_policy.
 
-    READ TABLE mt_action REFERENCE INTO DATA(lr_action) WITH KEY id = id. "#EC CI_SORTSEQ
+    DATA lr_action TYPE REF TO z2ui5_cl_agent_snapshot=>ty_s_action.
+    READ TABLE mt_action REFERENCE INTO lr_action WITH KEY id = id. "#EC CI_SORTSEQ
     IF sy-subrc = 0.
       lr_action->policy = policy.
     ENDIF.
@@ -3697,20 +5278,71 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     DATA lt_sub TYPE string_table.
 
     " fields
-    LOOP AT mt_field INTO DATA(ls_field).
-      DATA(lv_field) = |\{"id":{ z2ui5_cl_agent_viewxml=>json_string( ls_field-id ) }| &&
+    DATA ls_field LIKE LINE OF mt_field.
+      DATA temp247 TYPE string.
+      DATA temp73 TYPE string.
+      DATA lv_field TYPE string.
+        DATA ls_choice LIKE LINE OF ls_field-t_value.
+          DATA temp248 LIKE LINE OF lt_sub.
+    DATA lv_fields TYPE string.
+    DATA ls_action LIKE LINE OF mt_action.
+      DATA temp249 TYPE string.
+      DATA lv_action TYPE string.
+      DATA temp250 LIKE LINE OF lt_item.
+    DATA lv_actions TYPE string.
+    DATA ls_table LIKE LINE OF mt_table.
+      DATA ls_column LIKE LINE OF ls_table-t_column.
+        DATA temp251 LIKE LINE OF lt_sub.
+      DATA lv_columns TYPE string.
+      DATA ls_row LIKE LINE OF ls_table-t_row.
+        DATA ls_cell LIKE LINE OF ls_row-t_cell.
+          DATA temp252 LIKE LINE OF lt_part.
+        DATA temp253 LIKE LINE OF lt_sub.
+      DATA lv_rows TYPE string.
+      DATA lv_editable LIKE LINE OF ls_table-t_editable.
+      DATA temp254 TYPE string.
+      DATA lv_table TYPE string.
+      DATA temp255 LIKE LINE OF lt_item.
+    DATA lv_tables TYPE string.
+    DATA ls_message LIKE LINE OF mt_message.
+      DATA lv_message TYPE string.
+      DATA temp256 LIKE LINE OF lt_item.
+    DATA lv_messages TYPE string.
+    DATA lv_text LIKE LINE OF mt_text.
+    DATA lv_texts TYPE string.
+    DATA lv_unsupported LIKE LINE OF mt_unsupported.
+    DATA lv_unsupported_json TYPE string.
+      DATA lv_pending LIKE LINE OF mt_pending.
+    LOOP AT mt_field INTO ls_field.
+
+      IF ls_field-required = abap_true.
+        temp247 = `true`.
+      ELSE.
+        temp247 = `false`.
+      ENDIF.
+
+      IF ls_field-editable = abap_true.
+        temp73 = `true`.
+      ELSE.
+        temp73 = `false`.
+      ENDIF.
+
+      lv_field = |\{"id":{ z2ui5_cl_agent_viewxml=>json_string( ls_field-id ) }| &&
                        |,"path":{ z2ui5_cl_agent_viewxml=>json_string( ls_field-path ) }| &&
                        |,"name":{ z2ui5_cl_agent_viewxml=>json_string( ls_field-name ) }| &&
                        |,"label":{ z2ui5_cl_agent_viewxml=>json_string( ls_field-label ) }| &&
                        |,"control":{ z2ui5_cl_agent_viewxml=>json_string( ls_field-control ) }| &&
                        |,"kind":{ z2ui5_cl_agent_viewxml=>json_string( ls_field-kind ) }| &&
                        |,"value":{ z2ui5_cl_agent_viewxml=>val_to_json( ls_field-value ) }| &&
-                       |,"required":{ COND #( WHEN ls_field-required = abap_true THEN `true` ELSE `false` ) }| &&
-                       |,"editable":{ COND #( WHEN ls_field-editable = abap_true THEN `true` ELSE `false` ) }|.
+                       |,"required":{ temp247 }| &&
+                       |,"editable":{ temp73 }|.
       IF ls_field-has_values = abap_true.
         CLEAR lt_sub.
-        LOOP AT ls_field-t_value INTO DATA(ls_choice).
-          INSERT |\{"key":{ z2ui5_cl_agent_viewxml=>val_to_json( ls_choice-key ) },"text":{ z2ui5_cl_agent_viewxml=>json_string( ls_choice-text ) }\}|
+
+        LOOP AT ls_field-t_value INTO ls_choice.
+
+          temp248 = |\{"key":{ z2ui5_cl_agent_viewxml=>val_to_json( ls_choice-key ) },"text":{ z2ui5_cl_agent_viewxml=>json_string( ls_choice-text ) }\}|.
+          INSERT temp248
                  INTO TABLE lt_sub.
         ENDLOOP.
         lv_field = |{ lv_field },"values":[{ concat_lines_of( table = lt_sub
@@ -3719,20 +5351,29 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       lv_field = |{ lv_field },"layer":{ z2ui5_cl_agent_viewxml=>json_string( ls_field-layer ) }\}|.
       INSERT lv_field INTO TABLE lt_item.
     ENDLOOP.
-    DATA(lv_fields) = concat_lines_of( table = lt_item
+
+    lv_fields = concat_lines_of( table = lt_item
                                        sep   = `,` ).
 
     " actions
     CLEAR lt_item.
-    LOOP AT mt_action INTO DATA(ls_action).
-      DATA(lv_action) = |\{"id":{ z2ui5_cl_agent_viewxml=>json_string( ls_action-id ) }| &&
+
+    LOOP AT mt_action INTO ls_action.
+
+      IF ls_action-enabled = abap_true.
+        temp249 = `true`.
+      ELSE.
+        temp249 = `false`.
+      ENDIF.
+
+      lv_action = |\{"id":{ z2ui5_cl_agent_viewxml=>json_string( ls_action-id ) }| &&
                         |,"event":{ z2ui5_cl_agent_viewxml=>json_string( ls_action-event ) }| &&
                         |,"args":[{ concat_lines_of( table = ls_action-t_arg_json
                                                      sep   = `,` ) }]| &&
                         |,"label":{ z2ui5_cl_agent_viewxml=>json_string( ls_action-label ) }| &&
                         |,"control":{ z2ui5_cl_agent_viewxml=>json_string( ls_action-control ) }| &&
                         |,"trigger":{ z2ui5_cl_agent_viewxml=>json_string( ls_action-trigger ) }| &&
-                        |,"enabled":{ COND #( WHEN ls_action-enabled = abap_true THEN `true` ELSE `false` ) }| &&
+                        |,"enabled":{ temp249 }| &&
                         |,"scope":{ z2ui5_cl_agent_viewxml=>json_string( ls_action-scope ) }|.
       IF ls_action-scope = `row`.
         lv_action = |{ lv_action },"table":{ z2ui5_cl_agent_viewxml=>json_string( ls_action-table ) }|.
@@ -3741,38 +5382,60 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       IF ls_action-policy IS NOT INITIAL AND ls_action-policy <> `allowed`.
         lv_action = |{ lv_action },"policy":{ z2ui5_cl_agent_viewxml=>json_string( ls_action-policy ) }|.
       ENDIF.
-      INSERT |{ lv_action }\}| INTO TABLE lt_item.
+
+      temp250 = |{ lv_action }\}|.
+      INSERT temp250 INTO TABLE lt_item.
     ENDLOOP.
-    DATA(lv_actions) = concat_lines_of( table = lt_item
+
+    lv_actions = concat_lines_of( table = lt_item
                                         sep   = `,` ).
 
     " tables
     CLEAR lt_item.
-    LOOP AT mt_table INTO DATA(ls_table).
+
+    LOOP AT mt_table INTO ls_table.
       CLEAR lt_sub.
-      LOOP AT ls_table-t_column INTO DATA(ls_column).
-        INSERT |\{"name":{ z2ui5_cl_agent_viewxml=>json_string( ls_column-name ) },"label":{ z2ui5_cl_agent_viewxml=>json_string( ls_column-label ) }\}|
+
+      LOOP AT ls_table-t_column INTO ls_column.
+
+        temp251 = |\{"name":{ z2ui5_cl_agent_viewxml=>json_string( ls_column-name ) },"label":{ z2ui5_cl_agent_viewxml=>json_string( ls_column-label ) }\}|.
+        INSERT temp251
                INTO TABLE lt_sub.
       ENDLOOP.
-      DATA(lv_columns) = concat_lines_of( table = lt_sub
+
+      lv_columns = concat_lines_of( table = lt_sub
                                           sep   = `,` ).
       CLEAR lt_sub.
-      LOOP AT ls_table-t_row INTO DATA(ls_row).
+
+      LOOP AT ls_table-t_row INTO ls_row.
         CLEAR lt_part.
-        LOOP AT ls_row-t_cell INTO DATA(ls_cell).
-          INSERT |{ z2ui5_cl_agent_viewxml=>json_string( ls_cell-name ) }:{ z2ui5_cl_agent_viewxml=>val_to_json( ls_cell-val ) }|
+
+        LOOP AT ls_row-t_cell INTO ls_cell.
+
+          temp252 = |{ z2ui5_cl_agent_viewxml=>json_string( ls_cell-name ) }:{ z2ui5_cl_agent_viewxml=>val_to_json( ls_cell-val ) }|.
+          INSERT temp252
                  INTO TABLE lt_part.
         ENDLOOP.
-        INSERT |\{{ concat_lines_of( table = lt_part
-                                     sep   = `,` ) }\}| INTO TABLE lt_sub.
+
+        temp253 = |\{{ concat_lines_of( table = lt_part sep = `,` ) }\}|.
+        INSERT temp253 INTO TABLE lt_sub.
       ENDLOOP.
-      DATA(lv_rows) = concat_lines_of( table = lt_sub
+
+      lv_rows = concat_lines_of( table = lt_sub
                                        sep   = `,` ).
       CLEAR lt_sub.
-      LOOP AT ls_table-t_editable INTO DATA(lv_editable).
+
+      LOOP AT ls_table-t_editable INTO lv_editable.
         INSERT z2ui5_cl_agent_viewxml=>json_string( lv_editable ) INTO TABLE lt_sub.
       ENDLOOP.
-      DATA(lv_table) = |\{"id":{ z2ui5_cl_agent_viewxml=>json_string( ls_table-id ) }| &&
+
+      IF ls_table-truncated = abap_true.
+        temp254 = `true`.
+      ELSE.
+        temp254 = `false`.
+      ENDIF.
+
+      lv_table = |\{"id":{ z2ui5_cl_agent_viewxml=>json_string( ls_table-id ) }| &&
                        |,"path":{ z2ui5_cl_agent_viewxml=>json_string( ls_table-path ) }| &&
                        |,"name":{ z2ui5_cl_agent_viewxml=>json_string( ls_table-name ) }| &&
                        |,"label":{ z2ui5_cl_agent_viewxml=>json_string( ls_table-label ) }| &&
@@ -3780,7 +5443,7 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                        |,"columns":[{ lv_columns }]| &&
                        |,"rowCount":{ ls_table-row_count }| &&
                        |,"rows":[{ lv_rows }]| &&
-                       |,"truncated":{ COND #( WHEN ls_table-truncated = abap_true THEN `true` ELSE `false` ) }| &&
+                       |,"truncated":{ temp254 }| &&
                        |,"selectionMode":{ z2ui5_cl_agent_viewxml=>json_string( ls_table-selection_mode ) }| &&
                        |,"editableCells":[{ concat_lines_of( table = lt_sub
                                                              sep   = `,` ) }]| &&
@@ -3788,15 +5451,20 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       IF ls_table-selection_field IS NOT INITIAL.
         lv_table = |{ lv_table },"selectionField":{ z2ui5_cl_agent_viewxml=>json_string( ls_table-selection_field ) }|.
       ENDIF.
-      INSERT |{ lv_table }\}| INTO TABLE lt_item.
+
+      temp255 = |{ lv_table }\}|.
+      INSERT temp255 INTO TABLE lt_item.
     ENDLOOP.
-    DATA(lv_tables) = concat_lines_of( table = lt_item
+
+    lv_tables = concat_lines_of( table = lt_item
                                        sep   = `,` ).
 
     " messages
     CLEAR lt_item.
-    LOOP AT mt_message INTO DATA(ls_message).
-      DATA(lv_message) = |\{"type":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-type ) }| &&
+
+    LOOP AT mt_message INTO ls_message.
+
+      lv_message = |\{"type":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-type ) }| &&
                          |,"text":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-text ) }| &&
                          |,"source":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-source ) }|.
       IF ls_message-field IS NOT INITIAL.
@@ -3808,23 +5476,30 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       IF ls_message-description IS NOT INITIAL.
         lv_message = |{ lv_message },"description":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-description ) }|.
       ENDIF.
-      INSERT |{ lv_message }\}| INTO TABLE lt_item.
+
+      temp256 = |{ lv_message }\}|.
+      INSERT temp256 INTO TABLE lt_item.
     ENDLOOP.
-    DATA(lv_messages) = concat_lines_of( table = lt_item
+
+    lv_messages = concat_lines_of( table = lt_item
                                          sep   = `,` ).
 
     CLEAR lt_item.
-    LOOP AT mt_text INTO DATA(lv_text).
+
+    LOOP AT mt_text INTO lv_text.
       INSERT z2ui5_cl_agent_viewxml=>json_string( lv_text ) INTO TABLE lt_item.
     ENDLOOP.
-    DATA(lv_texts) = concat_lines_of( table = lt_item
+
+    lv_texts = concat_lines_of( table = lt_item
                                       sep   = `,` ).
 
     CLEAR lt_item.
-    LOOP AT mt_unsupported INTO DATA(lv_unsupported).
+
+    LOOP AT mt_unsupported INTO lv_unsupported.
       INSERT z2ui5_cl_agent_viewxml=>json_string( lv_unsupported ) INTO TABLE lt_item.
     ENDLOOP.
-    DATA(lv_unsupported_json) = concat_lines_of( table = lt_item
+
+    lv_unsupported_json = concat_lines_of( table = lt_item
                                                  sep   = `,` ).
 
     result = |\{"snapshotVersion":{ c_version }| &&
@@ -3840,7 +5515,8 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
              |,"unsupported":[{ lv_unsupported_json }]|.
     IF mt_pending IS NOT INITIAL.
       CLEAR lt_item.
-      LOOP AT mt_pending INTO DATA(lv_pending).
+
+      LOOP AT mt_pending INTO lv_pending.
         INSERT z2ui5_cl_agent_viewxml=>json_string( lv_pending ) INTO TABLE lt_item.
       ENDLOOP.
       result = |{ result },"pending":[{ concat_lines_of( table = lt_item

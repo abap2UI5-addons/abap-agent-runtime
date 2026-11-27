@@ -61,7 +61,7 @@ INTERFACE z2ui5_if_agent_llm PUBLIC.
       role    TYPE string,
       content TYPE string,
     END OF ty_s_message.
-  TYPES ty_t_message TYPE STANDARD TABLE OF ty_s_message WITH EMPTY KEY.
+  TYPES ty_t_message TYPE STANDARD TABLE OF ty_s_message WITH DEFAULT KEY.
 
   TYPES:
     "! purpose / app: who asks (genui, copilot, test / the abap2UI5 app

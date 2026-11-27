@@ -113,25 +113,23 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
 
     " a model id may carry a platform prefix (anthropic.claude-...) or a date
     " two checks: the 7.02 downport puts one xsdbool( ) on one line
-    result = xsdbool( NOT ( model CP `*claude-haiku*`
-                         OR model CP `*claude-3*`
-                         OR model CP `*claude-sonnet-4-5*`
-                         OR model CP `*claude-sonnet-4-2*` ) ).
+    DATA temp1 TYPE xsdboolean.
+      DATA temp2 TYPE xsdboolean.
+    temp1 = boolc( NOT ( model CP `*claude-haiku*` OR model CP `*claude-3*` OR model CP `*claude-sonnet-4-5*` OR model CP `*claude-sonnet-4-2*` ) ).
+    result = temp1.
     IF result = abap_true.
-      result = xsdbool( NOT ( model CP `*claude-sonnet-4-0*`
-                           OR model CP `*claude-opus-4-1*`
-                           OR model CP `*claude-opus-4-2*`
-                           OR model CP `*claude-opus-4-0*` ) ).
+
+      temp2 = boolc( NOT ( model CP `*claude-sonnet-4-0*` OR model CP `*claude-opus-4-1*` OR model CP `*claude-opus-4-2*` OR model CP `*claude-opus-4-0*` ) ).
+      result = temp2.
     ENDIF.
 
   ENDMETHOD.
 
   METHOD takes_fallback.
 
-    result = xsdbool( model CP `*claude-fable-5*`
-                   OR model CP `*claude-mythos-5*`
-                   OR model CP `*claude-opus-5*`
-                   OR model CP `*claude-sonnet-5-5*` ).
+    DATA temp3 TYPE xsdboolean.
+    temp3 = boolc( model CP `*claude-fable-5*` OR model CP `*claude-mythos-5*` OR model CP `*claude-opus-5*` OR model CP `*claude-sonnet-5-5*` ).
+    result = temp3.
 
   ENDMETHOD.
 
@@ -140,7 +138,14 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
     DATA lt_message TYPE string_table.
     DATA lt_config TYPE string_table.
 
-    DATA(lv_model) = setting( item          = z2ui5_cl_agent_settings=>cs_llm-model
+    DATA lv_model TYPE string.
+    DATA ls_message LIKE LINE OF is_request-t_message.
+      DATA temp7 LIKE LINE OF lt_message.
+      DATA temp8 LIKE LINE OF lt_config.
+          DATA lx TYPE REF TO cx_root.
+      DATA temp9 LIKE LINE OF lt_config.
+    DATA temp10 TYPE i.
+    lv_model = setting( item          = z2ui5_cl_agent_settings=>cs_llm-model
                               default_value = c_default_model ).
 
     IF is_request-t_message IS INITIAL.
@@ -149,32 +154,44 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
           kind = z2ui5_cx_agent_llm=>cs_kind-config
           text = `a chat call needs at least one message`.
     ENDIF.
-    LOOP AT is_request-t_message INTO DATA(ls_message).
-      INSERT |\{"role":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-role ) }| &&
-             |,"content":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-content ) }\}| INTO TABLE lt_message.
+
+    LOOP AT is_request-t_message INTO ls_message.
+
+      temp7 = |\{"role":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-role ) }| && |,"content":{ z2ui5_cl_agent_viewxml=>json_string( ls_message-content ) }\}|.
+      INSERT temp7 INTO TABLE lt_message.
     ENDLOOP.
 
     IF is_request-effort IS NOT INITIAL AND takes_effort( lv_model ) = abap_true.
-      INSERT |"effort":{ z2ui5_cl_agent_viewxml=>json_string( is_request-effort ) }| INTO TABLE lt_config.
+
+      temp8 = |"effort":{ z2ui5_cl_agent_viewxml=>json_string( is_request-effort ) }|.
+      INSERT temp8 INTO TABLE lt_config.
     ENDIF.
     IF is_request-schema IS NOT INITIAL.
       " the schema is embedded as JSON - checked first, so a broken schema
       " is a readable error here and not a 400 from the service
       TRY.
           z2ui5_cl_ajson=>parse( is_request-schema ).
-        CATCH cx_root INTO DATA(lx).
+
+        CATCH cx_root INTO lx.
           RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
             EXPORTING
               kind     = z2ui5_cx_agent_llm=>cs_kind-config
               text     = `the JSON schema of the request is no valid JSON`
               previous = lx.
       ENDTRY.
-      INSERT |"format":\{"type":"json_schema","schema":{ is_request-schema }\}| INTO TABLE lt_config.
+
+      temp9 = |"format":\{"type":"json_schema","schema":{ is_request-schema }\}|.
+      INSERT temp9 INTO TABLE lt_config.
     ENDIF.
 
+
+    IF is_request-max_tokens > 0.
+      temp10 = is_request-max_tokens.
+    ELSE.
+      temp10 = z2ui5_cl_agent_llm=>c_default_max_tokens.
+    ENDIF.
     result = |\{"model":{ z2ui5_cl_agent_viewxml=>json_string( lv_model ) }| &&
-             |,"max_tokens":{ COND i( WHEN is_request-max_tokens > 0 THEN is_request-max_tokens
-                                       ELSE z2ui5_cl_agent_llm=>c_default_max_tokens ) }|.
+             |,"max_tokens":{ temp10 }|.
     IF is_request-system IS NOT INITIAL.
       result = |{ result },"system":[\{"type":"text","text":{ z2ui5_cl_agent_viewxml=>json_string( is_request-system ) }| &&
                |,"cache_control":\{"type":"ephemeral"\}\}]|.
@@ -195,11 +212,23 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_request.
+    DATA temp11 TYPE string.
+    DATA temp12 TYPE z2ui5_if_agent_llm_http=>ty_s_header.
+    DATA temp13 TYPE z2ui5_if_agent_llm_http=>ty_s_header.
+    DATA lv_key TYPE string.
+      DATA temp14 TYPE z2ui5_if_agent_llm_http=>ty_s_header.
+      DATA temp15 TYPE z2ui5_if_agent_llm_http=>ty_s_header.
 
     result-body = build_body( is_request ).
     result-destination = setting( z2ui5_cl_agent_settings=>cs_llm-destination ).
+
+    IF result-destination IS INITIAL.
+      temp11 = c_default_url.
+    ELSE.
+      temp11 = c_default_path.
+    ENDIF.
     result-url = setting( item          = z2ui5_cl_agent_settings=>cs_llm-url
-                          default_value = COND #( WHEN result-destination IS INITIAL THEN c_default_url ELSE c_default_path ) ).
+                          default_value = temp11 ).
     TRY.
         result-timeout = setting( item          = z2ui5_cl_agent_settings=>cs_llm-timeout
                                   default_value = |{ c_default_timeout }| ).
@@ -211,22 +240,34 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
       result-timeout = 120.
     ENDIF.
 
-    INSERT VALUE #( name  = `content-type`
-                    value = `application/json` ) INTO TABLE result-t_header.
-    INSERT VALUE #( name  = `anthropic-version`
-                    value = c_version ) INTO TABLE result-t_header.
-    DATA(lv_key) = z2ui5_cl_agent_settings=>get_llm_key( ).
+
+    CLEAR temp12.
+    temp12-name = `content-type`.
+    temp12-value = `application/json`.
+    INSERT temp12 INTO TABLE result-t_header.
+
+    CLEAR temp13.
+    temp13-name = `anthropic-version`.
+    temp13-value = c_version.
+    INSERT temp13 INTO TABLE result-t_header.
+
+    lv_key = z2ui5_cl_agent_settings=>get_llm_key( ).
     IF lv_key IS NOT INITIAL.
-      INSERT VALUE #( name  = `x-api-key`
-                      value = lv_key ) INTO TABLE result-t_header.
+
+      CLEAR temp14.
+      temp14-name = `x-api-key`.
+      temp14-value = lv_key.
+      INSERT temp14 INTO TABLE result-t_header.
     ENDIF.
     IF z2ui5_cl_agent_settings=>check_llm( item          = z2ui5_cl_agent_settings=>cs_llm-fallback
                                            default_value = abap_true ) = abap_true
         AND takes_fallback( setting( item          = z2ui5_cl_agent_settings=>cs_llm-model
                                      default_value = c_default_model ) ) = abap_true.
-      INSERT VALUE #( name  = `anthropic-beta`
-                      value = setting( item          = z2ui5_cl_agent_settings=>cs_llm-beta
-                                       default_value = c_default_beta ) ) INTO TABLE result-t_header.
+
+      CLEAR temp15.
+      temp15-name = `anthropic-beta`.
+      temp15-value = setting( item = z2ui5_cl_agent_settings=>cs_llm-beta default_value = c_default_beta ).
+      INSERT temp15 INTO TABLE result-t_header.
     ENDIF.
 
   ENDMETHOD.
@@ -235,6 +276,9 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
 
     DATA lo_json TYPE REF TO z2ui5_if_ajson.
     DATA lv_message TYPE string.
+      DATA temp4 TYPE xsdboolean.
+        DATA lv_count TYPE i.
+        DATA lx TYPE REF TO cx_root.
 
     TRY.
         lo_json = z2ui5_cl_ajson=>parse( is_response-body ).
@@ -254,12 +298,14 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
         lv_message = z2ui5_cl_agent_viewxml=>cut( val = is_response-body
                                                   len = 200 ).
       ENDIF.
+
+      temp4 = boolc( is_response-status = 408 OR is_response-status = 429 OR is_response-status >= 500 ).
       RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
         EXPORTING
           kind        = z2ui5_cx_agent_llm=>cs_kind-http
           text        = |the Claude API answered HTTP { is_response-status } { is_response-reason } - { lv_message }|
           http_status = is_response-status
-          retryable   = xsdbool( is_response-status = 408 OR is_response-status = 429 OR is_response-status >= 500 ).
+          retryable   = temp4.
     ENDIF.
 
     IF lo_json IS NOT BOUND.
@@ -279,14 +325,16 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
         result-usage-cache_read = lo_json->get_integer( `/usage/cache_read_input_tokens` ).
         result-usage-cache_write = lo_json->get_integer( `/usage/cache_creation_input_tokens` ).
         " the first text block - thinking blocks come first
-        DATA(lv_count) = lines( lo_json->members( `/content` ) ).
+
+        lv_count = lines( lo_json->members( `/content` ) ).
         DO lv_count TIMES.
           IF lo_json->get_string( |/content/{ sy-index }/type| ) = `text`.
             result-text = lo_json->get_string( |/content/{ sy-index }/text| ).
             EXIT.
           ENDIF.
         ENDDO.
-      CATCH cx_root INTO DATA(lx).
+
+      CATCH cx_root INTO lx.
         RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
           EXPORTING
             kind     = z2ui5_cx_agent_llm=>cs_kind-response
@@ -298,8 +346,11 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
 
   METHOD z2ui5_if_agent_llm~chat.
 
-    DATA(ls_http) = build_request( is_request ).
-    DATA(ls_response) = z2ui5_cl_agent_llm=>get_http( )->post( ls_http ).
+    DATA ls_http TYPE z2ui5_if_agent_llm_http=>ty_s_request.
+    DATA ls_response TYPE z2ui5_if_agent_llm_http=>ty_s_response.
+    ls_http = build_request( is_request ).
+
+    ls_response = z2ui5_cl_agent_llm=>get_http( )->post( ls_http ).
     result = parse_response( ls_response ).
 
   ENDMETHOD.

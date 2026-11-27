@@ -29,7 +29,7 @@ CLASS z2ui5_cl_agent_gen_vocab DEFINITION PUBLIC FINAL CREATE PUBLIC.
         type    TYPE c LENGTH 1,
         info    TYPE string,
       END OF ty_s_entry.
-    TYPES ty_t_entry TYPE STANDARD TABLE OF ty_s_entry WITH EMPTY KEY.
+    TYPES ty_t_entry TYPE STANDARD TABLE OF ty_s_entry WITH DEFAULT KEY.
 
     CLASS-METHODS get
       RETURNING

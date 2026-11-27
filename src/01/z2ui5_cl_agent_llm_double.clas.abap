@@ -26,8 +26,8 @@ CLASS z2ui5_cl_agent_llm_double DEFINITION PUBLIC FINAL CREATE PUBLIC.
         http_status TYPE i,
         retryable   TYPE abap_bool,
       END OF ty_s_canned.
-    TYPES ty_t_canned TYPE STANDARD TABLE OF ty_s_canned WITH EMPTY KEY.
-    TYPES ty_t_request TYPE STANDARD TABLE OF z2ui5_if_agent_llm=>ty_s_request WITH EMPTY KEY.
+    TYPES ty_t_canned TYPE STANDARD TABLE OF ty_s_canned WITH DEFAULT KEY.
+    TYPES ty_t_request TYPE STANDARD TABLE OF z2ui5_if_agent_llm=>ty_s_request WITH DEFAULT KEY.
 
     "! The requests of every chat call so far, in order.
     DATA mt_request TYPE ty_t_request READ-ONLY.
@@ -61,22 +61,31 @@ CLASS z2ui5_cl_agent_llm_double IMPLEMENTATION.
 
   METHOD add_answer.
 
-    INSERT VALUE #( text        = text
-                    stop_reason = stop_reason ) INTO TABLE mt_canned.
+    DATA temp1 TYPE z2ui5_cl_agent_llm_double=>ty_s_canned.
+    CLEAR temp1.
+    temp1-text = text.
+    temp1-stop_reason = stop_reason.
+    INSERT temp1 INTO TABLE mt_canned.
     result = me.
 
   ENDMETHOD.
 
   METHOD add_error.
 
-    INSERT VALUE #( error_kind  = kind
-                    http_status = http_status
-                    retryable   = retryable ) INTO TABLE mt_canned.
+    DATA temp2 TYPE z2ui5_cl_agent_llm_double=>ty_s_canned.
+    CLEAR temp2.
+    temp2-error_kind = kind.
+    temp2-http_status = http_status.
+    temp2-retryable = retryable.
+    INSERT temp2 INTO TABLE mt_canned.
     result = me.
 
   ENDMETHOD.
 
   METHOD z2ui5_if_agent_llm~chat.
+    DATA ls_canned LIKE LINE OF mt_canned.
+    FIELD-SYMBOLS <temp1> LIKE LINE OF mt_canned.
+    DATA temp2 LIKE sy-tabix.
 
     INSERT is_request INTO TABLE mt_request.
     IF mt_canned IS INITIAL.
@@ -85,7 +94,16 @@ CLASS z2ui5_cl_agent_llm_double IMPLEMENTATION.
           kind = z2ui5_cx_agent_llm=>cs_kind-config
           text = `the language model double has no canned answer left`.
     ENDIF.
-    DATA(ls_canned) = mt_canned[ 1 ].
+
+
+
+    temp2 = sy-tabix.
+    READ TABLE mt_canned INDEX 1 ASSIGNING <temp1>.
+    sy-tabix = temp2.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 0.
+    ENDIF.
+    ls_canned = <temp1>.
     DELETE mt_canned INDEX 1.
     IF ls_canned-error_kind IS NOT INITIAL.
       RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
@@ -95,12 +113,14 @@ CLASS z2ui5_cl_agent_llm_double IMPLEMENTATION.
           http_status = ls_canned-http_status
           retryable   = ls_canned-retryable.
     ENDIF.
-    result = VALUE #( id          = |msg_double_{ lines( mt_request ) }|
-                      model       = `double`
-                      text        = ls_canned-text
-                      stop_reason = ls_canned-stop_reason
-                      usage       = VALUE #( input_tokens  = strlen( is_request-system ) DIV 4 + 1
-                                             output_tokens = strlen( ls_canned-text ) DIV 4 + 1 ) ).
+    CLEAR result.
+    result-id = |msg_double_{ lines( mt_request ) }|.
+    result-model = `double`.
+    result-text = ls_canned-text.
+    result-stop_reason = ls_canned-stop_reason.
+    CLEAR result-usage.
+    result-usage-input_tokens = strlen( is_request-system ) DIV 4 + 1.
+    result-usage-output_tokens = strlen( ls_canned-text ) DIV 4 + 1.
 
   ENDMETHOD.
 

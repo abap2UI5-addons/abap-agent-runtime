@@ -45,7 +45,7 @@ CLASS z2ui5_cl_agent_mcp DEFINITION PUBLIC FINAL CREATE PUBLIC.
         name  TYPE string,
         value TYPE string,
       END OF ty_s_header.
-    TYPES ty_t_header TYPE STANDARD TABLE OF ty_s_header WITH EMPTY KEY.
+    TYPES ty_t_header TYPE STANDARD TABLE OF ty_s_header WITH DEFAULT KEY.
 
     TYPES:
       "! The parts of an HTTP request the protocol reads. Header values as
@@ -198,23 +198,38 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     DATA lo_http TYPE REF TO z2ui5_cl_ui5_util_http.
     DATA ls_response TYPE ty_s_response.
 
-    lo_http = COND #( WHEN server IS BOUND
-                      THEN z2ui5_cl_ui5_util_http=>factory( server )
-                      ELSE z2ui5_cl_ui5_util_http=>factory_cloud( req = req
-                                                                  res = res ) ).
+    DATA temp37 TYPE REF TO z2ui5_cl_ui5_util_http.
+        DATA temp38 TYPE ty_s_request.
+        DATA ls_request LIKE temp38.
+        DATA temp39 TYPE REF TO z2ui5_cl_agent_mcp.
+        DATA lx TYPE REF TO cx_root.
+    DATA ls_header LIKE LINE OF ls_response-t_header.
+    IF server IS BOUND.
+      temp37 = z2ui5_cl_ui5_util_http=>factory( server ).
+    ELSE.
+      temp37 = z2ui5_cl_ui5_util_http=>factory_cloud( req = req res = res ).
+    ENDIF.
+    lo_http = temp37.
     TRY.
-        DATA(ls_request) = VALUE ty_s_request( method           = to_upper( lo_http->get_method( ) )
-                                               body             = lo_http->get_cdata( )
-                                               content_type     = lo_http->get_header_field( `content-type` )
-                                               origin           = lo_http->get_header_field( `origin` )
-                                               referer          = lo_http->get_header_field( `referer` )
-                                               host             = lo_http->get_header_field( `host` )
-                                               session_id       = lo_http->get_header_field( `mcp-session-id` )
-                                               protocol_version = lo_http->get_header_field( `mcp-protocol-version` ) ).
-        ls_response = NEW z2ui5_cl_agent_mcp( )->handle( ls_request ).
+
+        CLEAR temp38.
+        temp38-method = to_upper( lo_http->get_method( ) ).
+        temp38-body = lo_http->get_cdata( ).
+        temp38-content_type = lo_http->get_header_field( `content-type` ).
+        temp38-origin = lo_http->get_header_field( `origin` ).
+        temp38-referer = lo_http->get_header_field( `referer` ).
+        temp38-host = lo_http->get_header_field( `host` ).
+        temp38-session_id = lo_http->get_header_field( `mcp-session-id` ).
+        temp38-protocol_version = lo_http->get_header_field( `mcp-protocol-version` ).
+
+        ls_request = temp38.
+
+        CREATE OBJECT temp39 TYPE z2ui5_cl_agent_mcp.
+        ls_response = temp39->handle( ls_request ).
         " the sessions and the audit log are written in this LUW
         COMMIT WORK.
-      CATCH cx_root INTO DATA(lx).
+
+      CATCH cx_root INTO lx.
         ls_response = http_error( status = 500
                                   reason = `Internal Server Error`
                                   code   = cs_error-internal
@@ -223,7 +238,8 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
     lo_http->set_status( code   = ls_response-status
                          reason = ls_response-reason ).
-    LOOP AT ls_response-t_header INTO DATA(ls_header).
+
+    LOOP AT ls_response-t_header INTO ls_header.
       lo_http->set_header_field( n = ls_header-name
                                  v = ls_header-value ).
     ENDLOOP.
@@ -232,29 +248,63 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD http_error.
+    DATA temp22 TYPE z2ui5_cl_agent_mcp=>ty_t_header.
+    DATA temp23 LIKE LINE OF temp22.
 
-    result = VALUE #( status   = status
-                      reason   = reason
-                      body     = rpc_error( id   = `null`
-                                            code = code
-                                            text = text )
-                      t_header = VALUE #( ( name = `Content-Type` value = `application/json` ) ) ).
+    CLEAR result.
+    result-status = status.
+    result-reason = reason.
+    result-body = rpc_error( id = `null`
+code = code
+text = text ).
+
+    CLEAR temp22.
+
+    temp23-name = `Content-Type`.
+    temp23-value = `application/json`.
+    INSERT temp23 INTO TABLE temp22.
+    result-t_header = temp22.
 
   ENDMETHOD.
 
   METHOD check_version.
 
-    SPLIT c_protocol_versions AT `,` INTO TABLE DATA(lt_version).
-    result = xsdbool( line_exists( lt_version[ table_line = version ] ) ). "#EC CI_SORTSEQ
+    TYPES temp1 TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+DATA lt_version TYPE temp1.
+    DATA temp40 LIKE sy-subrc.
+    DATA temp2 TYPE xsdboolean.
+    SPLIT c_protocol_versions AT `,` INTO TABLE lt_version.
+
+    READ TABLE lt_version WITH KEY table_line = version TRANSPORTING NO FIELDS.
+    temp40 = sy-subrc.
+
+    temp2 = boolc( temp40 = 0 ).
+    result = temp2. "#EC CI_SORTSEQ
 
   ENDMETHOD.
 
   METHOD handle.
 
     DATA lt_out TYPE string_table.
+    DATA lv_method TYPE string.
+      DATA temp41 TYPE z2ui5_t_15-id.
+      DATA lv_session LIKE temp41.
+      DATA temp24 TYPE z2ui5_cl_agent_mcp=>ty_t_header.
+      DATA temp25 LIKE LINE OF temp24.
+    DATA lv_media_type TYPE string.
+    DATA lv_semicolon TYPE i.
+        DATA temp42 TYPE REF TO z2ui5_if_ajson.
+        DATA lo_json LIKE temp42.
+      DATA lv_initialize LIKE abap_false.
+        DATA lv_messages TYPE i.
+        DATA temp3 TYPE xsdboolean.
+      DATA lv_count TYPE i.
+        DATA lv_out TYPE string.
+      DATA temp43 TYPE z2ui5_cl_agent_mcp=>ty_s_header.
 
     ms_request = is_request.
-    DATA(lv_method) = to_upper( is_request-method ).
+
+    lv_method = to_upper( is_request-method ).
 
     " a browser page must not drive the endpoint with the user's SSO
     " cookies: an Origin (or Referer) of another host is refused, the same
@@ -272,28 +322,41 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDIF.
 
     IF lv_method = `DELETE`.
-      DATA(lv_session) = CONV z2ui5_t_15-id( is_request-session_id ).
+
+      temp41 = is_request-session_id.
+
+      lv_session = temp41.
       " an id longer than the column is none - cut to it, an id with
       " anything appended would end the session of its prefix
       IF is_request-session_id IS NOT INITIAL AND lv_session = is_request-session_id.
-        DELETE FROM z2ui5_t_15 WHERE id = @lv_session AND uname = @sy-uname.
+        DELETE FROM z2ui5_t_15 WHERE id = lv_session AND uname = sy-uname.
       ENDIF.
-      result = VALUE #( status = 200
-                        reason = `OK` ).
+      CLEAR result.
+      result-status = 200.
+      result-reason = `OK`.
       RETURN.
     ENDIF.
     IF lv_method <> `POST`.
       " no server-initiated stream: everything is answered on the POST
-      result = VALUE #( status   = 405
-                        reason   = `Method Not Allowed`
-                        t_header = VALUE #( ( name = `Allow` value = `POST, DELETE` ) ) ).
+      CLEAR result.
+      result-status = 405.
+      result-reason = `Method Not Allowed`.
+
+      CLEAR temp24.
+
+      temp25-name = `Allow`.
+      temp25-value = `POST, DELETE`.
+      INSERT temp25 INTO TABLE temp24.
+      result-t_header = temp24.
       RETURN.
     ENDIF.
 
     " the media type itself, not a substring: text/plain;application/json
     " is a simple request a page may send cross-site without a preflight
-    DATA(lv_media_type) = to_lower( is_request-content_type ).
-    DATA(lv_semicolon) = find( val = lv_media_type
+
+    lv_media_type = to_lower( is_request-content_type ).
+
+    lv_semicolon = find( val = lv_media_type
                                sub = `;` ).
     IF lv_semicolon >= 0.
       lv_media_type = substring( val = lv_media_type
@@ -315,8 +378,10 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDIF.
 
     TRY.
-        DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = is_request-body
-                                                                    iv_keep_item_order = abap_true ) ).
+
+        temp42 ?= z2ui5_cl_ajson=>parse( iv_json = is_request-body iv_keep_item_order = abap_true ).
+
+        lo_json = temp42.
       CATCH cx_root.
         result = http_error( status = 400
                              reason = `Bad Request`
@@ -330,16 +395,20 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     " silently, the client never learned, and its calls went into the audit
     " log without its name. An initialize carries no session to check.
     IF client_of_session( ) = abap_false.
-      DATA(lv_initialize) = abap_false.
+
+      lv_initialize = abap_false.
       IF lo_json->get_node_type( `/` ) = z2ui5_if_ajson_types=>node_type-array.
-        DATA(lv_messages) = lines( lo_json->members( `/` ) ).
+
+        lv_messages = lines( lo_json->members( `/` ) ).
         DO lv_messages TIMES.
           IF lo_json->get_string( |/{ sy-index }/method| ) = `initialize`.
             lv_initialize = abap_true.
           ENDIF.
         ENDDO.
       ELSE.
-        lv_initialize = xsdbool( lo_json->get_string( `/method` ) = `initialize` ).
+
+        temp3 = boolc( lo_json->get_string( `/method` ) = `initialize` ).
+        lv_initialize = temp3.
       ENDIF.
       IF lv_initialize = abap_false.
         result = http_error( status = 404
@@ -352,7 +421,8 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
     IF lo_json->get_node_type( `/` ) = z2ui5_if_ajson_types=>node_type-array.
       " a batch (2025-03-26): every message answered, notifications not
-      DATA(lv_count) = lines( lo_json->members( `/` ) ).
+
+      lv_count = lines( lo_json->members( `/` ) ).
       IF lv_count = 0.
         result = http_error( status = 400
                              reason = `Bad Request`
@@ -361,7 +431,8 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
         RETURN.
       ENDIF.
       DO lv_count TIMES.
-        DATA(lv_out) = message( io_json = lo_json
+
+        lv_out = message( io_json = lo_json
                                 path    = |/{ sy-index }| ).
         " each message its own LUW: the app roundtrip of a later tool call
         " (abap2UI5 rolls back around main( )) would take this one's session
@@ -387,34 +458,48 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ELSE.
       result-status = 200.
       result-reason = `OK`.
-      INSERT VALUE #( name  = `Content-Type`
-                      value = `application/json` ) INTO TABLE result-t_header.
+
+      CLEAR temp43.
+      temp43-name = `Content-Type`.
+      temp43-value = `application/json`.
+      INSERT temp43 INTO TABLE result-t_header.
     ENDIF.
     INSERT LINES OF mt_header INTO TABLE result-t_header.
 
   ENDMETHOD.
 
   METHOD client_of_session.
+    DATA temp44 TYPE z2ui5_t_15-id.
+    DATA lv_session LIKE temp44.
+    DATA lv_client TYPE c LENGTH 60.
+    DATA lv_changed TYPE timestampl.
+      DATA lv_now TYPE timestampl.
 
     " the client of an initialized MCP session names the audit entries
     IF ms_request-session_id IS INITIAL.
       result = abap_true.
       RETURN.
     ENDIF.
-    DATA(lv_session) = CONV z2ui5_t_15-id( ms_request-session_id ).
+
+    temp44 = ms_request-session_id.
+
+    lv_session = temp44.
     " a longer id is unknown, never the session of its first 32 characters
     IF lv_session <> ms_request-session_id.
       RETURN.
     ENDIF.
-    SELECT SINGLE mcp_client, changed_at FROM z2ui5_t_15 WHERE id = @lv_session AND uname = @sy-uname
-      INTO (@DATA(lv_client), @DATA(lv_changed)).
+
+
+    SELECT SINGLE mcp_client changed_at FROM z2ui5_t_15 INTO (lv_client, lv_changed) WHERE id = lv_session AND uname = sy-uname
+      .
     IF sy-subrc = 0.
-      DATA(lv_now) = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
+
+      lv_now = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
       " unused for longer than a session lives: ended here, whether or not an
       " initialize has deleted the row since - the client gets its 404
       IF lv_changed < z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = lv_now
                                                                         seconds = c_session_seconds ).
-        DELETE FROM z2ui5_t_15 WHERE id = @lv_session AND uname = @sy-uname.
+        DELETE FROM z2ui5_t_15 WHERE id = lv_session AND uname = sy-uname.
         COMMIT WORK.
         RETURN.
       ENDIF.
@@ -425,7 +510,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       " the audit. Written at most once an hour, not on every request.
       IF lv_changed < z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = lv_now
                                                                         seconds = 3600 ).
-        UPDATE z2ui5_t_15 SET changed_at = @lv_now WHERE id = @lv_session AND uname = @sy-uname.
+        UPDATE z2ui5_t_15 SET changed_at = lv_now WHERE id = lv_session AND uname = sy-uname.
         " at once: an app start's roundtrip rolls back before main( )
         COMMIT WORK.
       ENDIF.
@@ -439,14 +524,26 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     DATA lv_code TYPE i.
     DATA lv_text TYPE string.
 
-    IF io_json->get_node_type( COND #( WHEN path IS INITIAL THEN `/` ELSE path ) ) <> z2ui5_if_ajson_types=>node_type-object.
+    DATA temp45 TYPE string.
+    DATA lv_has_id LIKE abap_false.
+    DATA lv_method TYPE string.
+            DATA lv_result TYPE string.
+            DATA temp46 TYPE string.
+        DATA lx TYPE REF TO cx_root.
+    IF path IS INITIAL.
+      temp45 = `/`.
+    ELSE.
+      temp45 = path.
+    ENDIF.
+    IF io_json->get_node_type( temp45 ) <> z2ui5_if_ajson_types=>node_type-object.
       result = rpc_error( id   = lv_id
                           code = cs_error-invalid_request
                           text = `invalid request - a JSON-RPC message is an object` ).
       RETURN.
     ENDIF.
 
-    DATA(lv_has_id) = abap_false.
+
+    lv_has_id = abap_false.
     CASE io_json->get_node_type( |{ path }/id| ).
       WHEN z2ui5_if_ajson_types=>node_type-string.
         lv_id = z2ui5_cl_agent_viewxml=>json_string( io_json->get( |{ path }/id| ) ).
@@ -472,7 +569,8 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
                           text = `invalid request - method is missing` ).
       RETURN.
     ENDIF.
-    DATA(lv_method) = io_json->get( |{ path }/method| ).
+
+    lv_method = io_json->get( |{ path }/method| ).
 
     IF lv_has_id = abap_false AND io_json->exists( |{ path }/id| ) = abap_true.
       " an id that is null, a boolean, an object or an array: a request
@@ -502,22 +600,25 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
             result = rpc_result( id     = lv_id
                                  result = get_tools( ) ).
           WHEN `tools/call`.
-            DATA(lv_result) = tools_call( EXPORTING io_json    = io_json
+
+            lv_result = tools_call( EXPORTING io_json    = io_json
                                                     path       = path
                                           IMPORTING error_code = lv_code
                                                     error_text = lv_text ).
-            result = COND #( WHEN lv_code IS NOT INITIAL
-                             THEN rpc_error( id   = lv_id
-                                             code = lv_code
-                                             text = lv_text )
-                             ELSE rpc_result( id     = lv_id
-                                              result = lv_result ) ).
+
+            IF lv_code IS NOT INITIAL.
+              temp46 = rpc_error( id = lv_id code = lv_code text = lv_text ).
+            ELSE.
+              temp46 = rpc_result( id = lv_id result = lv_result ).
+            ENDIF.
+            result = temp46.
           WHEN OTHERS.
             result = rpc_error( id   = lv_id
                                 code = cs_error-method_not_found
                                 text = |method not found: { z2ui5_cl_agent_viewxml=>echo( lv_method ) } - this endpoint offers initialize, ping, tools/list and tools/call| ).
         ENDCASE.
-      CATCH cx_root INTO DATA(lx).
+
+      CATCH cx_root INTO lx.
         result = rpc_error( id   = lv_id
                             code = cs_error-internal
                             text = lx->get_text( ) ).
@@ -529,39 +630,78 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
     DATA ls_row TYPE z2ui5_t_15.
 
-    SPLIT c_protocol_versions AT `,` INTO TABLE DATA(lt_version).
-    DATA(lv_requested) = io_json->get_string( |{ path }/params/protocolVersion| ).
-    DATA(lv_version) = COND string( WHEN check_version( lv_requested ) = abap_true
-                                    THEN lv_requested
-                                    ELSE VALUE #( lt_version[ 1 ] OPTIONAL ) ).
-    DATA(lv_name) = io_json->get_string( |{ path }/params/clientInfo/name| ).
-    DATA(lv_client_version) = io_json->get_string( |{ path }/params/clientInfo/version| ).
+    TYPES temp2 TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
+DATA lt_version TYPE temp2.
+    DATA lv_requested TYPE string.
+    DATA temp47 TYPE string.
+    DATA temp48 TYPE string.
+    DATA temp26 TYPE string.
+    DATA lv_version LIKE temp26.
+    DATA lv_name TYPE string.
+    DATA lv_client_version TYPE string.
+        DATA temp49 TYPE z2ui5_cl_agent_mcp=>ty_s_header.
+        DATA lv_limit TYPE timestampl.
+    DATA temp50 TYPE string.
+    DATA lv_state LIKE temp50.
+    DATA lv_instructions TYPE string.
+    SPLIT c_protocol_versions AT `,` INTO TABLE lt_version.
+
+    lv_requested = io_json->get_string( |{ path }/params/protocolVersion| ).
+
+    CLEAR temp47.
+
+    READ TABLE lt_version INTO temp48 INDEX 1.
+    IF sy-subrc = 0.
+      temp47 = temp48.
+    ENDIF.
+
+    IF check_version( lv_requested ) = abap_true.
+      temp26 = lv_requested.
+    ELSE.
+      temp26 = temp47.
+    ENDIF.
+
+    lv_version = temp26.
+
+    lv_name = io_json->get_string( |{ path }/params/clientInfo/name| ).
+
+    lv_client_version = io_json->get_string( |{ path }/params/clientInfo/version| ).
     mv_client = condense( |{ lv_name } { lv_client_version }| ).
 
     TRY.
-        ls_row = VALUE #( id         = z2ui5_cl_ui5_util_context=>uuid_get_c32( )
-                          uname      = sy-uname
-                          mcp_client = mv_client
-                          protocol   = lv_version
-                          created_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( )
-                          changed_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ) ).
-        INSERT z2ui5_t_15 FROM @ls_row.
-        INSERT VALUE #( name  = `Mcp-Session-Id`
-                        value = ls_row-id ) INTO TABLE mt_header.
+        CLEAR ls_row.
+        ls_row-id = z2ui5_cl_ui5_util_context=>uuid_get_c32( ).
+        ls_row-uname = sy-uname.
+        ls_row-mcp_client = mv_client.
+        ls_row-protocol = lv_version.
+        ls_row-created_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
+        ls_row-changed_at = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
+        INSERT z2ui5_t_15 FROM ls_row.
+
+        CLEAR temp49.
+        temp49-name = `Mcp-Session-Id`.
+        temp49-value = ls_row-id.
+        INSERT temp49 INTO TABLE mt_header.
         " MCP sessions older than a day are gone
-        DATA(lv_limit) = z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = ls_row-created_at
+
+        lv_limit = z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = ls_row-created_at
                                                                            seconds = c_session_seconds ).
-        DELETE FROM z2ui5_t_15 WHERE changed_at < @lv_limit.
+        DELETE FROM z2ui5_t_15 WHERE changed_at < lv_limit.
       CATCH cx_root ##NO_HANDLER.
         " the session id is optional - without it the client name stays
         " out of the audit log of later requests
     ENDTRY.
 
-    DATA(lv_state) = COND string( WHEN z2ui5_cl_agent_settings=>check_enabled( ) = abap_true
-                                  THEN `The endpoint is enabled.`
-                                  ELSE `The endpoint is DISABLED on this system - every tool call is refused until an administrator ` &&
-                                       `enables it (app Z2UI5_CL_AGENT_APP_ADMIN).` ).
-    DATA(lv_instructions) = |Operate the abap2UI5 apps of this SAP system as the SAP user { sy-uname }, through the apps' own logic | &&
+
+    IF z2ui5_cl_agent_settings=>check_enabled( ) = abap_true.
+      temp50 = `The endpoint is enabled.`.
+    ELSE.
+      temp50 = `The endpoint is DISABLED on this system - every tool call is refused until an administrator ` && `enables it (app Z2UI5_CL_AGENT_APP_ADMIN).`.
+    ENDIF.
+
+    lv_state = temp50.
+
+    lv_instructions = |Operate the abap2UI5 apps of this SAP system as the SAP user { sy-uname }, through the apps' own logic | &&
                             |and authority checks. app_list names the apps enabled for agents; app_start answers with an agent | &&
                             |snapshot (fields, actions, tables, messages); app_act fills fields and fires one event, and answers | &&
                             |with the next snapshot - always continue with its session. Actions marked policy "confirm" or | &&
@@ -581,11 +721,36 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     DATA ls_result TYPE z2ui5_cl_agent_session=>ty_s_result.
     DATA lv_values TYPE string.
     DATA lv_args TYPE string.
+    DATA lv_name TYPE string.
+    DATA lv_base TYPE string.
+    DATA lv_args_type TYPE z2ui5_if_ajson_types=>ty_node_type.
+    DATA temp51 TYPE string.
+    DATA lv_known LIKE temp51.
+      DATA temp52 TYPE string_table.
+      DATA lv_member LIKE LINE OF temp52.
+    DATA temp53 TYPE string_table.
+    DATA lt_string LIKE temp53.
+    DATA lv_key LIKE LINE OF lt_string.
+      DATA lv_type TYPE z2ui5_if_ajson_types=>ty_node_type.
+    DATA temp55 TYPE string_table.
+    DATA lt_number LIKE temp55.
+          DATA lx_values TYPE REF TO z2ui5_cx_ajson_error.
+          DATA lx_args TYPE REF TO z2ui5_cx_ajson_error.
+    DATA temp57 TYPE string.
+    DATA lv_row LIKE temp57.
+    DATA temp58 TYPE string.
+    DATA lv_max_rows LIKE temp58.
+    DATA lo_session TYPE REF TO z2ui5_cl_agent_session.
+    DATA lv_fitted TYPE string.
+    DATA lv_note TYPE string.
 
     CLEAR error_code.
-    DATA(lv_name) = io_json->get_string( |{ path }/params/name| ).
-    DATA(lv_base) = |{ path }/params/arguments|.
-    DATA(lv_args_type) = io_json->get_node_type( lv_base ).
+
+    lv_name = io_json->get_string( |{ path }/params/name| ).
+
+    lv_base = |{ path }/params/arguments|.
+
+    lv_args_type = io_json->get_node_type( lv_base ).
     IF lv_args_type IS NOT INITIAL AND lv_args_type <> z2ui5_if_ajson_types=>node_type-object
         AND lv_args_type <> z2ui5_if_ajson_types=>node_type-null.
       error_code = cs_error-invalid_params.
@@ -595,13 +760,24 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
     " an argument the tool does not take is refused, not dropped:
     " app_act { value: {...}, event } fired the event without the edits
-    DATA(lv_known) = SWITCH string( lv_name
-                                    WHEN `app_list` THEN `,filter,`
-                                    WHEN `app_start` THEN `,app,values,max_rows,`
-                                    WHEN `app_describe` THEN `,session,max_rows,`
-                                    WHEN `app_act` THEN `,session,values,event,args,row,max_rows,` ).
+
+    CASE lv_name.
+      WHEN `app_list`.
+        temp51 = `,filter,`.
+      WHEN `app_start`.
+        temp51 = `,app,values,max_rows,`.
+      WHEN `app_describe`.
+        temp51 = `,session,max_rows,`.
+      WHEN `app_act`.
+        temp51 = `,session,values,event,args,row,max_rows,`.
+    ENDCASE.
+
+    lv_known = temp51.
     IF lv_known IS NOT INITIAL AND lv_args_type = z2ui5_if_ajson_types=>node_type-object.
-      LOOP AT io_json->members( lv_base ) INTO DATA(lv_member).
+
+      temp52 = io_json->members( lv_base ).
+
+      LOOP AT temp52 INTO lv_member.
         IF find( val = lv_known
                  sub = |,{ lv_member },| ) < 0.
           result = tool_result( text     = |{ lv_name } has no argument '{ z2ui5_cl_agent_viewxml=>echo( lv_member ) }' - | &&
@@ -616,16 +792,30 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
     " the schema is documentation to the client, not a gate on the wire:
     " every argument is checked for its type before it is used
-    DATA(lt_string) = VALUE string_table( ( `filter` ) ( `app` ) ( `session` ) ( `event` ) ).
-    LOOP AT lt_string INTO DATA(lv_key).
-      DATA(lv_type) = io_json->get_node_type( |{ lv_base }/{ lv_key }| ).
+
+    CLEAR temp53.
+    INSERT `filter` INTO TABLE temp53.
+    INSERT `app` INTO TABLE temp53.
+    INSERT `session` INTO TABLE temp53.
+    INSERT `event` INTO TABLE temp53.
+
+    lt_string = temp53.
+
+    LOOP AT lt_string INTO lv_key.
+
+      lv_type = io_json->get_node_type( |{ lv_base }/{ lv_key }| ).
       IF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ajson_types=>node_type-string AND lv_type <> z2ui5_if_ajson_types=>node_type-null.
         result = tool_result( text     = |{ lv_key } must be a string|
                               is_error = abap_true ).
         RETURN.
       ENDIF.
     ENDLOOP.
-    DATA(lt_number) = VALUE string_table( ( `max_rows` ) ( `row` ) ).
+
+    CLEAR temp55.
+    INSERT `max_rows` INTO TABLE temp55.
+    INSERT `row` INTO TABLE temp55.
+
+    lt_number = temp55.
     LOOP AT lt_number INTO lv_key.
       lv_type = io_json->get_node_type( |{ lv_base }/{ lv_key }| ).
       IF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ajson_types=>node_type-number AND lv_type <> z2ui5_if_ajson_types=>node_type-null.
@@ -638,7 +828,8 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     IF lv_type = z2ui5_if_ajson_types=>node_type-object.
       TRY.
           lv_values = io_json->slice( |{ lv_base }/values| )->stringify( ).
-        CATCH z2ui5_cx_ajson_error INTO DATA(lx_values).
+
+        CATCH z2ui5_cx_ajson_error INTO lx_values.
           result = tool_result( text     = |values: { lx_values->get_text( ) }|
                                 is_error = abap_true ).
           RETURN.
@@ -652,7 +843,8 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     IF lv_type = z2ui5_if_ajson_types=>node_type-array.
       TRY.
           lv_args = io_json->slice( |{ lv_base }/args| )->stringify( ).
-        CATCH z2ui5_cx_ajson_error INTO DATA(lx_args).
+
+        CATCH z2ui5_cx_ajson_error INTO lx_args.
           result = tool_result( text     = |args: { lx_args->get_text( ) }|
                                 is_error = abap_true ).
           RETURN.
@@ -663,11 +855,24 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    DATA(lv_row) = COND string( WHEN io_json->get_node_type( |{ lv_base }/row| ) = z2ui5_if_ajson_types=>node_type-number
-                                THEN io_json->get( |{ lv_base }/row| ) ).
-    DATA(lv_max_rows) = COND string( WHEN io_json->get_node_type( |{ lv_base }/max_rows| ) = z2ui5_if_ajson_types=>node_type-number
-                                     THEN io_json->get( |{ lv_base }/max_rows| ) ).
-    DATA(lo_session) = NEW z2ui5_cl_agent_session( mv_client ).
+
+    IF io_json->get_node_type( |{ lv_base }/row| ) = z2ui5_if_ajson_types=>node_type-number.
+      temp57 = io_json->get( |{ lv_base }/row| ).
+    ELSE.
+      CLEAR temp57.
+    ENDIF.
+
+    lv_row = temp57.
+
+    IF io_json->get_node_type( |{ lv_base }/max_rows| ) = z2ui5_if_ajson_types=>node_type-number.
+      temp58 = io_json->get( |{ lv_base }/max_rows| ).
+    ELSE.
+      CLEAR temp58.
+    ENDIF.
+
+    lv_max_rows = temp58.
+
+    CREATE OBJECT lo_session TYPE z2ui5_cl_agent_session EXPORTING CLIENT = mv_client.
 
     CASE lv_name.
       WHEN `app_list`.
@@ -699,9 +904,11 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDIF.
     " a 120 KB TextArea or many wide rows went over the client's cap, and
     " the agent saw nothing
+
+
     fit_snapshot( EXPORTING json   = ls_result-text
-                  IMPORTING result = DATA(lv_fitted)
-                            note   = DATA(lv_note) ).
+                  IMPORTING result = lv_fitted
+                            note   = lv_note ).
     result = tool_result( text     = lv_fitted
                           is_error = abap_false
                           note     = lv_note ).
@@ -719,7 +926,34 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     DATA lt_cut TYPE string_table.
     DATA lt_cols TYPE string_table.
     DATA lt_keep TYPE string_table.
-    DATA lt_short TYPE STANDARD TABLE OF ty_s_short WITH EMPTY KEY.
+    TYPES temp3 TYPE STANDARD TABLE OF ty_s_short WITH DEFAULT KEY.
+DATA lt_short TYPE temp3.
+        DATA temp59 TYPE REF TO z2ui5_if_ajson.
+        DATA lo_json LIKE temp59.
+          DATA lv_field TYPE string.
+            DATA lv_value TYPE string.
+          DATA temp60 LIKE LINE OF lt_note.
+        DATA lv_tables TYPE i.
+          DATA lv_table TYPE string.
+          DATA lv_rows TYPE i.
+            DATA lv_row TYPE string.
+            DATA temp61 TYPE string_table.
+            DATA lv_col LIKE LINE OF temp61.
+                DATA temp62 LIKE sy-subrc.
+                DATA temp63 LIKE sy-subrc.
+              DATA lv_cell TYPE string.
+              DATA temp64 LIKE sy-subrc.
+              DATA temp65 LIKE sy-subrc.
+            DATA temp66 LIKE LINE OF lt_note.
+          DATA lv_big TYPE i.
+          DATA lv_big_len TYPE i.
+              DATA lv_len TYPE i.
+          DATA lv_keep_rows TYPE i.
+          DATA lv_short_id TYPE string.
+          FIELD-SYMBOLS <short> TYPE ty_s_short.
+            DATA temp67 TYPE ty_s_short.
+        DATA ls_short LIKE LINE OF lt_short.
+          DATA temp68 LIKE LINE OF lt_note.
 
     result = json.
     CLEAR note.
@@ -727,12 +961,16 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       RETURN.
     ENDIF.
     TRY.
-        DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = json
-                                                                    iv_keep_item_order = abap_true ) ).
+
+        temp59 ?= z2ui5_cl_ajson=>parse( iv_json = json iv_keep_item_order = abap_true ).
+
+        lo_json = temp59.
         DO lines( lo_json->members( `/fields` ) ) TIMES.
-          DATA(lv_field) = |/fields/{ sy-index }|.
+
+          lv_field = |/fields/{ sy-index }|.
           IF lo_json->get_node_type( |{ lv_field }/value| ) = z2ui5_if_ajson_types=>node_type-string.
-            DATA(lv_value) = lo_json->get_string( |{ lv_field }/value| ).
+
+            lv_value = lo_json->get_string( |{ lv_field }/value| ).
             IF strlen( lv_value ) > c_value_cap.
               lo_json->set_string( iv_path = |{ lv_field }/value|
                                    iv_val  = z2ui5_cl_agent_viewxml=>cut( val = lv_value
@@ -744,19 +982,27 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
           ENDIF.
         ENDDO.
         IF lt_cut IS NOT INITIAL.
-          INSERT |the values of { concat_lines_of( table = lt_cut
-                                                   sep   = `, ` ) } are cut to { c_value_cap } characters and read-only in this answer|
+
+          temp60 = |the values of { concat_lines_of( table = lt_cut sep = `, ` ) } are cut to { c_value_cap } characters and read-only in this answer|.
+          INSERT temp60
                  INTO TABLE lt_note.
         ENDIF.
 
-        DATA(lv_tables) = lines( lo_json->members( `/tables` ) ).
+
+        lv_tables = lines( lo_json->members( `/tables` ) ).
         DO lv_tables TIMES.
-          DATA(lv_table) = |/tables/{ sy-index }|.
+
+          lv_table = |/tables/{ sy-index }|.
           CLEAR lt_cols.
-          DATA(lv_rows) = lines( lo_json->members( |{ lv_table }/rows| ) ).
+
+          lv_rows = lines( lo_json->members( |{ lv_table }/rows| ) ).
           DO lv_rows TIMES.
-            DATA(lv_row) = |{ lv_table }/rows/{ sy-index }|.
-            LOOP AT lo_json->members( lv_row ) INTO DATA(lv_col).
+
+            lv_row = |{ lv_table }/rows/{ sy-index }|.
+
+            temp61 = lo_json->members( lv_row ).
+
+            LOOP AT temp61 INTO lv_col.
               IF lo_json->get_node_type( |{ lv_row }/{ lv_col }| ) <> z2ui5_if_ajson_types=>node_type-string.
                 CONTINUE.
               ENDIF.
@@ -765,7 +1011,13 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
                 lo_json->set_string( iv_path = |{ lv_row }/{ lv_col }|
                                      iv_val  = z2ui5_cl_agent_viewxml=>cut( val = lv_value
                                                                             len = c_value_cap ) && `...` ).
-                IF NOT line_exists( lt_cols[ table_line = lv_col ] ).
+
+
+                temp63 = sy-subrc.
+                READ TABLE lt_cols WITH KEY table_line = lv_col TRANSPORTING NO FIELDS.
+                temp62 = sy-subrc.
+                sy-subrc = temp63.
+                IF NOT temp62 = 0.
                   INSERT lv_col INTO TABLE lt_cols.
                 ENDIF.
               ENDIF.
@@ -774,28 +1026,38 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
           IF lt_cols IS NOT INITIAL.
             CLEAR lt_keep.
             DO lines( lo_json->members( |{ lv_table }/editableCells| ) ) TIMES.
-              DATA(lv_cell) = lo_json->get_string( |{ lv_table }/editableCells/{ sy-index }| ).
-              IF NOT line_exists( lt_cols[ table_line = lv_cell ] ).
+
+              lv_cell = lo_json->get_string( |{ lv_table }/editableCells/{ sy-index }| ).
+
+
+              temp65 = sy-subrc.
+              READ TABLE lt_cols WITH KEY table_line = lv_cell TRANSPORTING NO FIELDS.
+              temp64 = sy-subrc.
+              sy-subrc = temp65.
+              IF NOT temp64 = 0.
                 INSERT lv_cell INTO TABLE lt_keep.
               ENDIF.
             ENDDO.
             lo_json->set( iv_path         = |{ lv_table }/editableCells|
                           iv_val          = lt_keep
                           iv_ignore_empty = abap_false ).
-            INSERT |table { lo_json->get_string( |{ lv_table }/id| ) }: cells of { concat_lines_of( table = lt_cols
-                                                                                                       sep   = `, ` ) } | &&
-                   |are cut to { c_value_cap } characters and not editable in this answer| INTO TABLE lt_note.
+
+            temp66 = |table { lo_json->get_string( |{ lv_table }/id| ) }: cells of { concat_lines_of( table = lt_cols sep = `, ` ) } | && |are cut to { c_value_cap } characters and not editable in this answer|.
+            INSERT temp66 INTO TABLE lt_note.
           ENDIF.
         ENDDO.
 
         " then rows from the end of the largest table, halved until it fits
         WHILE strlen( lo_json->stringify( ) ) > c_answer_budget.
-          DATA(lv_big) = 0.
-          DATA(lv_big_len) = 0.
+
+          lv_big = 0.
+
+          lv_big_len = 0.
           DO lv_tables TIMES.
             lv_rows = lines( lo_json->members( |/tables/{ sy-index }/rows| ) ).
             IF lv_rows > 1.
-              DATA(lv_len) = strlen( lo_json->slice( |/tables/{ sy-index }/rows| )->stringify( ) ).
+
+              lv_len = strlen( lo_json->slice( |/tables/{ sy-index }/rows| )->stringify( ) ).
               IF lv_len > lv_big_len.
                 lv_big = sy-index.
                 lv_big_len = lv_len.
@@ -807,7 +1069,8 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
           ENDIF.
           lv_table = |/tables/{ lv_big }|.
           lv_rows = lines( lo_json->members( |{ lv_table }/rows| ) ).
-          DATA(lv_keep_rows) = nmax( val1 = 1
+
+          lv_keep_rows = nmax( val1 = 1
                                      val2 = lv_rows DIV 2 ).
           WHILE lv_rows > lv_keep_rows.
             lo_json->delete( |{ lv_table }/rows/{ lv_rows }| ).
@@ -817,18 +1080,25 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
                                 iv_val  = abap_true ).
           " one note per table, where it was first shortened, with the rows
           " it keeps in the end
-          DATA(lv_short_id) = lo_json->get_string( |{ lv_table }/id| ).
-          READ TABLE lt_short ASSIGNING FIELD-SYMBOL(<short>) WITH KEY id = lv_short_id. "#EC CI_SORTSEQ
+
+          lv_short_id = lo_json->get_string( |{ lv_table }/id| ).
+
+          READ TABLE lt_short ASSIGNING <short> WITH KEY id = lv_short_id. "#EC CI_SORTSEQ
           IF sy-subrc <> 0.
-            APPEND VALUE #( id = lv_short_id ) TO lt_short ASSIGNING <short>.
+
+            CLEAR temp67.
+            temp67-id = lv_short_id.
+            APPEND temp67 TO lt_short ASSIGNING <short>.
           ENDIF.
           <short>-rows = lv_keep_rows.
         ENDWHILE.
         " max_rows has no offset - the later rows are reached by their path,
         " as the reference says
-        LOOP AT lt_short INTO DATA(ls_short).
-          INSERT |table { ls_short-id } shows its first { ls_short-rows } row(s) to fit the answer - rowCount counts | &&
-                 |them all, and app_act still reaches a cell of a later row as <table path or id>/<row>/<COLUMN>|
+
+        LOOP AT lt_short INTO ls_short.
+
+          temp68 = |table { ls_short-id } shows its first { ls_short-rows } row(s) to fit the answer - rowCount counts | && |them all, and app_act still reaches a cell of a later row as <table path or id>/<row>/<COLUMN>|.
+          INSERT temp68
                  INTO TABLE lt_note.
         ENDLOOP.
         result = lo_json->stringify( ).
@@ -849,9 +1119,22 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
   METHOD tool_result.
 
+    DATA temp69 TYPE string.
+    DATA temp27 TYPE string.
+    IF note IS NOT INITIAL.
+      temp69 = |,\{"type":"text","text":{ z2ui5_cl_agent_viewxml=>json_string( note ) }\}|.
+    ELSE.
+      CLEAR temp69.
+    ENDIF.
+
+    IF is_error = abap_true.
+      temp27 = `true`.
+    ELSE.
+      temp27 = `false`.
+    ENDIF.
     result = |\{"content":[\{"type":"text","text":{ z2ui5_cl_agent_viewxml=>json_string( text ) }\}| &&
-             |{ COND #( WHEN note IS NOT INITIAL THEN |,\{"type":"text","text":{ z2ui5_cl_agent_viewxml=>json_string( note ) }\}| ) }]| &&
-             |,"isError":{ COND #( WHEN is_error = abap_true THEN `true` ELSE `false` ) }\}|.
+             |{ temp69 }]| &&
+             |,"isError":{ temp27 }\}|.
 
   ENDMETHOD.
 
@@ -869,11 +1152,16 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
   METHOD get_tools.
 
-    DATA(lv_max_rows) = `"max_rows":{"type":"number","description":"table rows per table in the snapshot (default 20, max 200)"}`.
-    DATA(lv_max_rows_kept) = `"max_rows":{"type":"number","description":"table rows per table, kept for the session's next ` &&
+    DATA lv_max_rows TYPE string.
+    DATA lv_max_rows_kept TYPE string.
+    DATA lv_max_rows_once TYPE string.
+    lv_max_rows = `"max_rows":{"type":"number","description":"table rows per table in the snapshot (default 20, max 200)"}`.
+
+    lv_max_rows_kept = `"max_rows":{"type":"number","description":"table rows per table, kept for the session's next ` &&
                              `answers (default: the last max_rows given)"}`.
     " app_describe reads, it changes no session: its max_rows is for its answer
-    DATA(lv_max_rows_once) = `"max_rows":{"type":"number","description":"table rows per table in this answer only ` &&
+
+    lv_max_rows_once = `"max_rows":{"type":"number","description":"table rows per table in this answer only ` &&
                              `(default: the last max_rows of app_start or app_act)"}`.
 
     result = `{"tools":[` &&

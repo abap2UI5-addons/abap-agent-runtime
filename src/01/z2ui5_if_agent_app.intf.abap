@@ -49,7 +49,7 @@ INTERFACE z2ui5_if_agent_app PUBLIC.
       event  TYPE string,
       policy TYPE string,
     END OF ty_s_event.
-  TYPES ty_t_event TYPE STANDARD TABLE OF ty_s_event WITH EMPTY KEY.
+  TYPES ty_t_event TYPE STANDARD TABLE OF ty_s_event WITH DEFAULT KEY.
 
   TYPES:
     "! description: one sentence for app_list. t_event: event rules (see

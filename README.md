@@ -525,8 +525,9 @@ and enter `ZCL_LLM_AI_CORE` as the provider class. Unit tests use
   duration in ms, outcome, the error text. **No prompt and no answer** -
   unless an administrator switches *Audit keeps prompts and answers* on
   (then both are kept - the answer first, it and every prompt cut to 400
-  characters, so the entry's 2000 never lose the answer; cache tokens are
-  kept too).
+  characters, so the entry's 2000 never lose the answer; of a long
+  conversation the last messages that fit, the others counted in
+  `messages_omitted`; cache tokens are kept too).
 - **Generative UI** sends the names, types and labels of the fields the app
   hands over - **no data**; a few sample rows (3) only with *sample rows* on.
 - **The copilot** sends the agent snapshot of the screen - the values the

@@ -837,7 +837,11 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
   METHOD get_tools.
 
     DATA(lv_max_rows) = `"max_rows":{"type":"number","description":"table rows per table in the snapshot (default 20, max 200)"}`.
-    DATA(lv_max_rows_kept) = `"max_rows":{"type":"number","description":"table rows per table (default: the last max_rows given)"}`.
+    DATA(lv_max_rows_kept) = `"max_rows":{"type":"number","description":"table rows per table, kept for the session's next ` &&
+                             `answers (default: the last max_rows given)"}`.
+    " app_describe reads, it changes no session: its max_rows is for its answer
+    DATA(lv_max_rows_once) = `"max_rows":{"type":"number","description":"table rows per table in this answer only ` &&
+                             `(default: the last max_rows of app_start or app_act)"}`.
 
     result = `{"tools":[` &&
       `{"name":"app_list","description":"The abap2UI5 apps of this SAP system an agent may start with app_start: the classes ` &&
@@ -858,7 +862,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       `endpoint kept, no roundtrip. Pending edits (values sent without an event) show as the fields' values and are listed ` &&
       `under pending.",` &&
       `"inputSchema":{"type":"object","properties":{"session":{"type":"string","description":"the session of the last ` &&
-      `snapshot"},` && lv_max_rows_kept && `},"required":["session"]}},` &&
+      `snapshot"},` && lv_max_rows_once && `},"required":["session"]}},` &&
       `{"name":"app_act","description":"Operate a running app session: fill fields and fire one event, then get the next ` &&
       `agent snapshot. values { \"<field id | model path | name>\": value } (table cells as \"<table path or id>/<row>/<COLUMN>\", ` &&
       `e.g. \"/T_TAB/2/SELKZ\" to select a row) go out as the model delta of the roundtrip; event is an action's event name ` &&

@@ -20,6 +20,7 @@ CLASS ltcl_genui DEFINITION FINAL FOR TESTING DURATION SHORT RISK LEVEL DANGEROU
     METHODS unknown_control FOR TESTING RAISING cx_static_check.
     METHODS excluded_control FOR TESTING RAISING cx_static_check.
     METHODS unknown_property FOR TESTING RAISING cx_static_check.
+    METHODS no_formatted_text FOR TESTING RAISING cx_static_check.
     METHODS bad_literal FOR TESTING RAISING cx_static_check.
     METHODS unknown_field FOR TESTING RAISING cx_static_check.
     METHODS event_not_allowed FOR TESTING RAISING cx_static_check.
@@ -269,6 +270,21 @@ CLASS ltcl_genui IMPLEMENTATION.
     cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
     cl_abap_unit_assert=>assert_char_cp( act = sim->get_value( `REPORT` )
                                          exp = `*node "x" (sap.m.Button): unknown property "onclick"*` ).
+
+  ENDMETHOD.
+
+  METHOD no_formatted_text.
+
+    " a MessageStrip with formatted text renders its text as HTML - a link
+    " from the prompt or the data; refused, as a literal and as a binding
+    mo_double->add_answer( valid_tree( VALUE #( ( node( id = `x` parent = `root` control = `sap.m.MessageStrip`
+                                                        props = |{ prop( name = `text` value = `<a href="https://example.com">here</a>` ) },| &&
+                                                                |{ prop( name = `enableFormattedText` value = `true` ) }| ) ) ) ) ).
+    DATA(sim) = run( ).
+
+    cl_abap_unit_assert=>assert_initial( sim->get_popup( ) ).
+    cl_abap_unit_assert=>assert_char_cp( act = sim->get_value( `REPORT` )
+                                         exp = `*node "x" (sap.m.MessageStrip): enableFormattedText is not part of a generated view*` ).
 
   ENDMETHOD.
 

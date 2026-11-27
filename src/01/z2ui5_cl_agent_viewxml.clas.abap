@@ -317,6 +317,19 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RETURNING
         VALUE(result) TYPE string.
 
+    "! The whitespace of JavaScript's \s in the ASCII range: blank, tab,
+    "! CR, LF, form feed, vertical tab.
+    CLASS-METHODS ws
+      RETURNING
+        VALUE(result) TYPE string.
+
+    "! The value without leading and trailing ws( ) - JavaScript's trim( ).
+    CLASS-METHODS trim
+      IMPORTING
+        val           TYPE clike
+      RETURNING
+        VALUE(result) TYPE string.
+
     "! A single- or double-quoted JavaScript string literal -&gt; its value.
     CLASS-METHODS js_string
       IMPORTING
@@ -381,21 +394,11 @@ CLASS z2ui5_cl_agent_viewxml DEFINITION PUBLIC FINAL CREATE PUBLIC.
     DATA mv_pos   TYPE i.
     DATA mt_ref   TYPE ty_t_ref_val.
 
-    CLASS-METHODS ws
-      RETURNING
-        VALUE(result) TYPE string.
-
     CLASS-METHODS is_ws
       IMPORTING
         val           TYPE string
       RETURNING
         VALUE(result) TYPE abap_bool.
-
-    CLASS-METHODS trim
-      IMPORTING
-        val           TYPE clike
-      RETURNING
-        VALUE(result) TYPE string.
 
     CLASS-METHODS char_of_code
       IMPORTING
@@ -587,9 +590,11 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       lv_index = lv_index + 1.
     ENDWHILE.
     result = condense( result ).
+    " cut( ): never half a surrogate pair - an emoji at the cut is dropped
+    " whole, a lone high surrogate is no character the JSON can carry
     IF strlen( result ) > len.
-      result = substring( val = result
-                          len = len - 3 ) && `...`.
+      result = cut( val = result
+                    len = len - 3 ) && `...`.
     ENDIF.
 
   ENDMETHOD.

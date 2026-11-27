@@ -63,6 +63,8 @@ and by its lint targets, not yet on a system in production use, and its API -
 - The one extension: an action the app or the settings classify `confirm` or
   `forbidden` carries `"policy"`; the snapshot otherwise validates against
   abap2UI5/protocol `schema/snapshot.schema.json`.
+- A text clipped in the middle of an emoji loses the whole emoji, not
+  half of it (README, "What an agent sees").
 - The act: values by field id or model path, events with their wire
   arguments (`$row`, `$source`, `$parameters`, expressions), row actions, the
   pick of a selection dialog, the browser's `@CLOSE_POPUP` / `@CLOSE_POPOVER`;
@@ -80,8 +82,15 @@ and by its lint targets, not yet on a system in production use, and its API -
 - Agents never fire `confirm` or `forbidden` events: a `confirm` event is
   refused with the handover URL of the prepared draft, so the user presses
   the button in the browser.
+- An app an agent may not start is not operable either: every event of an
+  app without opt-in that an operable app calls (`nav_app_call`), or whose
+  allow rule is removed while a session runs, is `forbidden` - the opt-in was
+  checked at `app_start` / `app_attach` only, and such an app's events were
+  `allowed` by default.
 - Every call is logged (`z2ui5_cl_agent_audit`, `Z2UI5_T_14`, the audit
-  app `z2ui5_cl_agent_app_audit`), sensitive values masked; sessions in
+  app `z2ui5_cl_agent_app_audit`), sensitive values masked - event arguments
+  that read a password or sensitive field, or come from a password input,
+  too (they were logged as the agent sent them); sessions in
   `Z2UI5_T_16`, MCP sessions in `Z2UI5_T_15`, always filtered by the
   request's user.
 - `z2ui5_cl_agent_demo`: an opted-in example app with the copilot, driven by
@@ -102,11 +111,19 @@ and by its lint targets, not yet on a system in production use, and its API -
   the generated vocabulary `z2ui5_cl_agent_gen_vocab` (abap2UI5/protocol
   `profiles/portable-v1.json`, UI5 1.71 floor) and built with the view
   builder - the model never writes XML.
+- A generated view never sets `enableFormattedText`: a `MessageStrip` with
+  formatted text rendered the model's or the data's text as HTML, links
+  included.
 - The in-app copilot (`z2ui5_cl_agent_copilot`, `z2ui5_cl_agent_assist`): a
   popup grounded in the agent snapshot of the user's screen; its proposals
   go through `app_check` / `app_act` of the session - the same policy as an
   MCP agent, nothing runs without the user's click. Off by default, like the
   prompt in the audit and the sample rows.
+- A copilot proposal names the action an agent's `app_act` without a row
+  fires - a screen action before a row action of the same event; the copilot
+  took the first enabled one in the view, a row's. The action and the
+  protected fields are resolved by the snapshot for both
+  (`find_action( )`, `resolve_target( )`, `is_protected( )`).
 
 ### Tooling
 

@@ -42,6 +42,9 @@ CLASS z2ui5_cl_agent_llm_cloud IMPLEMENTATION.
             previous = lx_destination.
     ENDTRY.
 
+    " a client that cannot be created or a request that cannot be set up
+    " fails the same way on the next try: only a failed execute (no answer)
+    " is retryable
     TRY.
         DATA(lo_client) = cl_web_http_client_manager=>create_by_http_destination( lo_destination ).
         DATA(lo_request) = lo_client->get_http_request( ).
@@ -53,6 +56,15 @@ CLASS z2ui5_cl_agent_llm_cloud IMPLEMENTATION.
                                         i_value = ls_header-value ).
         ENDLOOP.
         lo_request->set_text( is_request-body ).
+      CATCH cx_root INTO DATA(lx_client).
+        RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
+          EXPORTING
+            kind     = z2ui5_cx_agent_llm=>cs_kind-config
+            text     = |no HTTP client for the language model - { lx_client->get_text( ) }|
+            previous = lx_client.
+    ENDTRY.
+
+    TRY.
         DATA(lo_response) = lo_client->execute( i_method  = if_web_http_client=>post
                                                 i_timeout = is_request-timeout ).
         DATA(ls_status) = lo_response->get_status( ).

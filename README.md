@@ -349,7 +349,7 @@ extension: an action the app or the settings classify `confirm` or
 `forbidden` carries `"policy"` - without such a classification the output is
 the reference's, key for key.
 
-## Security model
+## Security
 
 - **Disabled by default**; an administrator switches the endpoint on.
 - **Opt-in per app**: only classes implementing `z2ui5_if_agent_app`, or
@@ -397,7 +397,7 @@ values still pending are listed in the refusal, so the agent can send them
 first with an allowed event or tell the user what to enter. A dialog that was
 open is not part of the draft; the app shows its main view.
 
-## Limits
+## Limitations
 
 What the snapshot cannot see is listed in the specification
 ([What the snapshot cannot see](https://github.com/abap2UI5/mcp-server/blob/main/docs/agent-snapshot.md#what-the-snapshot-cannot-see-yet)):

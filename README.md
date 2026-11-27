@@ -143,7 +143,8 @@ is refused until an administrator enables it.
 2. **Open the settings app** `?app_start=z2ui5_cl_agent_app_admin` (through
    your usual abap2UI5 ICF node or launchpad tile) and switch *Agents may
    operate apps* on. Here you also allow or deny app classes, classify events,
-   mark sensitive fields, set the handover page and clean up the audit log.
+   mark sensitive fields, set the handover page and clean up the audit log
+   and the expired agent sessions.
    A rule longer than the settings table holds (60 characters for the app
    and the event or field, 255 for a value) is refused, not cut short.
 3. **Make the HTTP endpoint reachable:**
@@ -375,13 +376,18 @@ no character.
   draft service binds drafts to their creator, and a session expires with its
   draft. Only the current draft id of a session is accepted - as it was
   answered: an id with anything appended is unknown, never its prefix.
+  A session's row in `Z2UI5_T_16` keeps the last snapshot and the
+  simulator state - the app's data, password values included. Expired rows
+  go with every agent call and with the audit log housekeeping of the
+  settings app (`z2ui5_cl_agent_session=>cleanup( )`): run it, or schedule
+  it, when agents stop calling.
 - **Audit log** (`Z2UI5_T_14`, app `z2ui5_cl_agent_app_audit`): timestamp,
   user, session, app, operation, event, arguments (truncated; values masked for
   password inputs - and any field on the model path of one - and for fields
   the app or the settings mark sensitive; so are event arguments that read
   such a field or come from such an input, and every argument of an act whose
   action is not known),
-  outcome, error text, MCP client name and version. Users see their own
+  outcome, error text (it never repeats a masked value), MCP client name and version. Users see their own
   entries, administrators everybody's. Settings changes are logged too.
 - **AI at runtime** is off by default (no key, no destination, copilot
   off); its model calls are audited without prompt contents, its views are

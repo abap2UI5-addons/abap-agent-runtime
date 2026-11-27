@@ -45,6 +45,16 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
         copilot TYPE string VALUE `copilot`,
       END OF cs_mode.
 
+    "! Delete the agent sessions whose drafts have expired (Z2UI5_T_16 -
+    "! their simulator state and last snapshot hold the app's data) and the
+    "! MCP sessions without a request for z2ui5_cl_agent_mcp=&gt;c_session_seconds
+    "! (Z2UI5_T_15); returns how many rows went. Every agent call does so on
+    "! its way - this is for when the agents stop calling: the settings app's
+    "! housekeeping runs it. The caller commits.
+    CLASS-METHODS cleanup
+      RETURNING
+        VALUE(result) TYPE i.
+
     "! client: the MCP client's name and version (for the audit log).
     "! mode: mcp (the endpoint, its switch) or copilot (the in-app copilot,
     "! the copilot switch of the language model settings).
@@ -287,12 +297,15 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
       RAISING
         z2ui5_cx_ui5_util_error.
 
+    "! masked: the value is masked in the audit log (is_protected( )) -
+    "! a refusal does not repeat it, its text lands in the audit log too.
     METHODS coerce
       IMPORTING
         val           TYPE ty_s_val
         current       TYPE ty_s_val
         kind          TYPE string
         label         TYPE string
+        masked        TYPE abap_bool DEFAULT abap_false
       RETURNING
         VALUE(result) TYPE ty_s_val
       RAISING
@@ -509,6 +522,15 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
     CLASS-METHODS val_json_quoted
       IMPORTING
         val           TYPE ty_s_val
+      RETURNING
+        VALUE(result) TYPE string.
+
+    "! A refused value as a refusal names it - the mask instead when the
+    "! value is masked in the audit log.
+    CLASS-METHODS echo_value
+      IMPORTING
+        text          TYPE string
+        masked        TYPE abap_bool
       RETURNING
         VALUE(result) TYPE string.
 
@@ -1181,6 +1203,21 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD cleanup.
+
+    DATA(lv_now) = z2ui5_cl_ui5_util_context=>time_get_timestampl( ).
+    DATA(lv_limit) = z2ui5_cl_ui5_util_context=>time_subtract_seconds(
+                         time    = lv_now
+                         seconds = 3600 * z2ui5_cl_agent_settings=>get_expiry_hours( ) ).
+    DELETE FROM z2ui5_t_16 WHERE changed_at < @lv_limit.
+    result = sy-dbcnt.
+    lv_limit = z2ui5_cl_ui5_util_context=>time_subtract_seconds( time    = lv_now
+                                                                 seconds = z2ui5_cl_agent_mcp=>c_session_seconds ).
+    DELETE FROM z2ui5_t_15 WHERE changed_at < @lv_limit.
+    result = result + sy-dbcnt.
+
+  ENDMETHOD.
+
   METHOD custom_of_sim.
 
     " the client work of the last response; the VIEW_SLOTS destroys in it
@@ -1441,7 +1478,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ELSEIF val-kind = z2ui5_cl_agent_viewxml=>cs_kind-string AND ( val-str = `true` OR val-str = `false` ).
         result = z2ui5_cl_agent_viewxml=>val_boolean( xsdbool( val-str = `true` ) ).
       ELSE.
-        fail( |{ label } is a boolean - pass true or false, not { z2ui5_cl_agent_viewxml=>echo( val_json_quoted( val ) ) }| ).
+        fail( |{ label } is a boolean - pass true or false, not { echo_value( text      = val_json_quoted( val )
+                                                                              masked    = masked ) }| ).
       ENDIF.
       RETURN.
     ENDIF.
@@ -1469,8 +1507,9 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       RETURN.
     ENDIF.
     IF val-kind = z2ui5_cl_agent_viewxml=>cs_kind-object OR val-kind = z2ui5_cl_agent_viewxml=>cs_kind-array.
-      fail( |{ label } takes a single value, not { z2ui5_cl_agent_viewxml=>cut( val = val-json
-                                                                                len = 80 ) }| ).
+      fail( |{ label } takes a single value, not { echo_value( text      = z2ui5_cl_agent_viewxml=>cut( val = val-json
+                                                                                                    len = 80 )
+                                                               masked    = masked ) }| ).
     ENDIF.
     IF current-kind = z2ui5_cl_agent_viewxml=>cs_kind-number.
       DATA(ls_num) = z2ui5_cl_agent_viewxml=>describe_arg( z2ui5_cl_agent_viewxml=>val_to_string( val ) ).
@@ -1480,7 +1519,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           AND ls_num-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-number.
         result = ls_num-val.
       ELSE.
-        fail( |{ label } holds a number - { z2ui5_cl_agent_viewxml=>echo( val_json_quoted( val ) ) } is none| ).
+        fail( |{ label } holds a number - { echo_value( text      = val_json_quoted( val )
+                                                        masked    = masked ) } is none| ).
       ENDIF.
       RETURN.
     ENDIF.
@@ -1488,7 +1528,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       result = coerce( val     = val
                        current = VALUE #( )
                        kind    = `boolean`
-                       label   = label ).
+                       label   = label
+                       masked  = masked ).
       RETURN.
     ENDIF.
     IF val-kind = z2ui5_cl_agent_viewxml=>cs_kind-null OR val-kind = z2ui5_cl_agent_viewxml=>cs_kind-undefined OR val-kind IS INITIAL.
@@ -1505,6 +1546,14 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD echo_value.
+
+    result = COND #( WHEN masked = abap_true
+                     THEN z2ui5_cl_agent_audit=>c_mask
+                     ELSE z2ui5_cl_agent_viewxml=>echo( text ) ).
+
+  ENDMETHOD.
+
   METHOD apply_values.
 
     DATA lv_found TYPE abap_bool.
@@ -1516,6 +1565,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       IF lv_found = abap_false.
         fail( |no field '{ z2ui5_cl_agent_viewxml=>echo( ls_value-key ) }' on this screen - { field_help( ) }| ).
       ENDIF.
+      " a refusal's text is audited unmasked - it never repeats such a value
+      DATA(lv_protected) = mo_snap->is_protected( ls_value-key ).
 
       IF ls_target-is_cell = abap_false.
         DATA(ls_field) = mo_snap->mt_field[ ls_target-field ].
@@ -1523,11 +1574,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
         IF ls_field-editable = abap_false.
           fail( |field { ls_field-id } ({ ls_field-label }) is not editable - { field_help( ) }| ).
         ENDIF.
-        DATA(ls_val) = coerce( val     = ls_value-val
-                               current = mo_snap->model_value( model_key = ls_field-model_key
-                                                               path      = ls_field-path )
-                               kind    = ls_field-kind
-                               label   = lv_label ).
+        DATA(ls_val) = coerce( val       = ls_value-val
+                               current   = mo_snap->model_value( model_key = ls_field-model_key
+                                                                 path      = ls_field-path )
+                               kind      = ls_field-kind
+                               label     = lv_label
+                               masked    = lv_protected ).
         IF ( ls_field-kind = `choice` OR ls_field-kind = `multichoice` ) AND ls_field-has_values = abap_true.
           DATA(lt_keys) = VALUE string_table( ).
           DATA(lt_quoted) = VALUE string_table( ).
@@ -1551,7 +1603,8 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           ENDIF.
           LOOP AT lt_given INTO DATA(lv_one).
             IF NOT line_exists( lt_keys[ table_line = lv_one ] ). "#EC CI_SORTSEQ
-              fail( |{ lv_label }: '{ z2ui5_cl_agent_viewxml=>echo( lv_one ) }' is not one of its values - allowed keys: { list_of( lt_quoted ) }| ).
+              fail( |{ lv_label }: '{ echo_value( text      = lv_one
+                                                  masked    = lv_protected ) }' is not one of its values - allowed keys: { list_of( lt_quoted ) }| ).
             ENDIF.
           ENDLOOP.
           " a choice keyed by index (RadioButtonGroup) keeps its number
@@ -1591,11 +1644,12 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                                    ELSE `text` ).
       INSERT VALUE #( model_key = ls_table-model_key
                       path      = lv_path
-                      val       = coerce( val     = ls_value-val
-                                          current = mo_snap->model_value( model_key = ls_table-model_key
-                                                                          path      = lv_path )
-                                          kind    = lv_kind
-                                          label   = |cell { lv_path }| ) ) INTO TABLE lt_plan.
+                      val       = coerce( val       = ls_value-val
+                                          current   = mo_snap->model_value( model_key = ls_table-model_key
+                                                                            path      = lv_path )
+                                          kind      = lv_kind
+                                          label     = |cell { lv_path }|
+                                          masked    = lv_protected ) ) INTO TABLE lt_plan.
     ENDLOOP.
 
     LOOP AT lt_plan INTO DATA(ls_plan).

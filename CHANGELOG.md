@@ -93,6 +93,13 @@ and by its lint targets, not yet on a system in production use, and its API -
   too (they were logged as the agent sent them); sessions in
   `Z2UI5_T_16`, MCP sessions in `Z2UI5_T_15`, always filtered by the
   request's user.
+- A refusal no longer repeats the value of a password or sensitive field
+  (`... holds a number - *** is none`): its text lands in the audit log as it
+  is, and only the arguments were masked.
+- The audit log housekeeping of the settings app also deletes the expired
+  agent sessions (`z2ui5_cl_agent_session=>cleanup( )`): their snapshots and
+  simulator state - the app's data, password values included - stayed in
+  `Z2UI5_T_16` until the next agent call.
 - `z2ui5_cl_agent_demo`: an opted-in example app with the copilot, driven by
   the unit tests.
 

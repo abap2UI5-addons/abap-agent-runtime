@@ -15,30 +15,36 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Two jobs: npm ci and abaplint run third-party code, and anything run in a
+# job can tamper with its later steps ($GITHUB_ENV, $GITHUB_PATH, the files
+# they run) - --ignore-scripts would stop the install scripts, not abaplint
+# itself. So `lint` has a read-only token and nothing to push with, and
+# `publish`, the only job with contents: write, runs no npm and nothing of
+# the repository: a fresh checkout of the same commit, `git rm`, the push.
+# Neither branch moves unless both lint.
+
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: publish-branches
   cancel-in-progress: false
 
 jobs:
-  publish:
+  # the branch must activate on its target - lint it there first
+  lint:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     strategy:
-      max-parallel: 1
       matrix:
         include:
           - branch: standard
-            remove: src/04
             config: ./abaplint.jsonc
           - branch: cloud
-            remove: src/03
             config: .github/abaplint/abap_cloud.jsonc
     steps:
-    # npm ci and abaplint run third-party code - no write token in
-    # .git/config for them; the push step takes it in its own env
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
@@ -47,9 +53,29 @@ jobs:
         node-version: '22'
         cache: 'npm'
     - run: npm ci
-    # the branch must activate on its target - lint it there first
-    - name: Lint the target
+    - name: Lint the target (${{ matrix.branch }})
       run: npx abaplint ${{ matrix.config }}
+
+  publish:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - branch: standard
+            remove: src/04
+          - branch: cloud
+            remove: src/03
+    steps:
+    # no credential in .git/config - the push step takes the token in its
+    # own env
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: Remove the other entry package
       run: git rm -r -q ${{ matrix.remove }}
     - name: Commit and push

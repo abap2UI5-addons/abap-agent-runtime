@@ -590,9 +590,11 @@ CLASS z2ui5_cl_agent_viewxml IMPLEMENTATION.
       lv_index = lv_index + 1.
     ENDWHILE.
     result = condense( result ).
+    " cut( ): never half a surrogate pair - an emoji at the cut is dropped
+    " whole, a lone high surrogate is no character the JSON can carry
     IF strlen( result ) > len.
-      result = substring( val = result
-                          len = len - 3 ) && `...`.
+      result = cut( val = result
+                    len = len - 3 ) && `...`.
     ENDIF.
 
   ENDMETHOD.

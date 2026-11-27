@@ -63,6 +63,8 @@ and by its lint targets, not yet on a system in production use, and its API -
 - The one extension: an action the app or the settings classify `confirm` or
   `forbidden` carries `"policy"`; the snapshot otherwise validates against
   abap2UI5/protocol `schema/snapshot.schema.json`.
+- A text clipped in the middle of an emoji loses the whole emoji, not
+  half of it (README, "What an agent sees").
 - The act: values by field id or model path, events with their wire
   arguments (`$row`, `$source`, `$parameters`, expressions), row actions, the
   pick of a selection dialog, the browser's `@CLOSE_POPUP` / `@CLOSE_POPOVER`;

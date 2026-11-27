@@ -347,7 +347,10 @@ normative schema, abap2UI5/protocol
 (the unit tests' expected snapshots were checked against it). One deliberate
 extension: an action the app or the settings classify `confirm` or
 `forbidden` carries `"policy"` - without such a classification the output is
-the reference's, key for key.
+the reference's, key for key. One deliberate deviation: a text clipped in
+the middle of a surrogate pair (an emoji at the 3 characters before the
+`...`) loses the whole pair - the reference keeps its first half, which is
+no character.
 
 ## Security
 

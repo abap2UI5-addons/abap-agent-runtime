@@ -596,6 +596,26 @@ CLASS ltcl_fit IMPLEMENTATION.
                                         act = lo_json->get_string( `/messages/1/text` ) ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*f1 are cut*table t1: cells of NOTE*table t1 shows its first*`
                                          act = lv_note ).
+    " the later rows are reached by their path - max_rows has no offset
+    cl_abap_unit_assert=>assert_char_cp( exp = `*rowCount counts them all, and app_act still reaches a cell of a later row*`
+                                         act = lv_note ).
+    cl_abap_unit_assert=>assert_false( xsdbool( lv_note CS `pages` ) ).
+    cl_abap_unit_assert=>assert_false( xsdbool( lv_note CS `still larger` ) ).
+
+    " nothing to cut: no long value, no table of two rows - it stays too
+    " large, and the note says that instead of listing nothing
+    CLEAR lt_row.
+    DO 40 TIMES.
+      INSERT |\{"id":"f{ sy-index }","value":"{ repeat( val = `v`
+                                                          occ = 1900 ) }","editable":true\}| INTO TABLE lt_row.
+    ENDDO.
+    z2ui5_cl_agent_mcp=>fit_snapshot( EXPORTING json   = |\{"snapshotVersion":1,"fields":[{ concat_lines_of( table = lt_row
+                                                                                                       sep   = `,` ) }]\}|
+                                      IMPORTING result = lv_fitted
+                                                note   = lv_note ).
+    cl_abap_unit_assert=>assert_true( xsdbool( strlen( lv_fitted ) > z2ui5_cl_agent_mcp=>c_answer_budget ) ).
+    cl_abap_unit_assert=>assert_equals( exp = `cut to fit one answer: the snapshot is still larger than one answer should be`
+                                        act = lv_note ).
 
     " a snapshot that fits is the same
     z2ui5_cl_agent_mcp=>fit_snapshot( EXPORTING json   = `{"fields":[]}`

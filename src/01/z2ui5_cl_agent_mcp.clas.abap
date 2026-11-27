@@ -710,10 +710,16 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
   METHOD fit_snapshot.
 
+    TYPES:
+      BEGIN OF ty_s_short,
+        id   TYPE string,
+        rows TYPE i,
+      END OF ty_s_short.
     DATA lt_note TYPE string_table.
     DATA lt_cut TYPE string_table.
     DATA lt_cols TYPE string_table.
     DATA lt_keep TYPE string_table.
+    DATA lt_short TYPE STANDARD TABLE OF ty_s_short WITH EMPTY KEY.
 
     result = json.
     CLEAR note.
@@ -809,13 +815,30 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
           ENDWHILE.
           lo_json->set_boolean( iv_path = |{ lv_table }/truncated|
                                 iv_val  = abap_true ).
-          DATA(lv_note_rows) = |table { lo_json->get_string( |{ lv_table }/id| ) } shows its first |.
-          DELETE lt_note WHERE table_line CP |{ lv_note_rows }*|.
-          INSERT |{ lv_note_rows }{ lv_keep_rows } row(s) to fit the answer - app_describe \{ max_rows \} pages it| INTO TABLE lt_note.
+          " one note per table, where it was first shortened, with the rows
+          " it keeps in the end
+          DATA(lv_short_id) = lo_json->get_string( |{ lv_table }/id| ).
+          READ TABLE lt_short ASSIGNING FIELD-SYMBOL(<short>) WITH KEY id = lv_short_id. "#EC CI_SORTSEQ
+          IF sy-subrc <> 0.
+            APPEND VALUE #( id = lv_short_id ) TO lt_short ASSIGNING <short>.
+          ENDIF.
+          <short>-rows = lv_keep_rows.
         ENDWHILE.
+        " max_rows has no offset - the later rows are reached by their path,
+        " as the reference says
+        LOOP AT lt_short INTO DATA(ls_short).
+          INSERT |table { ls_short-id } shows its first { ls_short-rows } row(s) to fit the answer - rowCount counts | &&
+                 |them all, and app_act still reaches a cell of a later row as <table path or id>/<row>/<COLUMN>|
+                 INTO TABLE lt_note.
+        ENDLOOP.
         result = lo_json->stringify( ).
-        note = |cut to fit one answer: { concat_lines_of( table = lt_note
-                                                         sep   = `; ` ) }|.
+        IF strlen( result ) > c_answer_budget.
+          INSERT `the snapshot is still larger than one answer should be` INTO TABLE lt_note.
+        ENDIF.
+        IF lt_note IS NOT INITIAL.
+          note = |cut to fit one answer: { concat_lines_of( table = lt_note
+                                                           sep   = `; ` ) }|.
+        ENDIF.
       CATCH cx_root.
         " not a snapshot: as it is
         result = json.

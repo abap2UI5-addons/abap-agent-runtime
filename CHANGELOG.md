@@ -160,3 +160,8 @@ and by its lint targets, not yet on a system in production use, and its API -
   `.git/config` while `npm ci` and the checks run: the release creates the
   branch tags through the API, `publish-branches` passes the push its token
   for that one command.
+- `publish-branches.yaml` runs `npm ci` and abaplint in a job with a
+  read-only token, and pushes `standard` / `cloud` from a second job that
+  runs no npm: in one job, the installed packages could tamper with the push
+  step through `$GITHUB_ENV`, `$GITHUB_PATH` or the files it runs. Neither
+  branch moves unless both lint.

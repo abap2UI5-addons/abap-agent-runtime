@@ -148,3 +148,7 @@ and by its lint targets, not yet on a system in production use, and its API -
 - `z2ui5_if_agent_app=>version` (`.abapgit.xml` `VERSION_CONSTANT`), this
   changelog, `RELEASING.md`, `npm run check:version` / `check:release` and the
   tag-only `release.yaml`.
+- `release.yaml` and `publish-branches.yaml` keep no write token in
+  `.git/config` while `npm ci` and the checks run: the release creates the
+  branch tags through the API, `publish-branches` passes the push its token
+  for that one command.

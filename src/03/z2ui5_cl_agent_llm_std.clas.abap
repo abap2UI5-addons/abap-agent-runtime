@@ -13,9 +13,13 @@ CLASS z2ui5_cl_agent_llm_std DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
   PRIVATE SECTION.
 
+    "! No answer came. retryable: a failed send or receive
+    "! (http_communication_failure) - an invalid state, a failed processing
+    "! or a bad timeout fail the same way on the next try.
     METHODS fail
       IMPORTING
-        text TYPE string
+        text      TYPE string
+        retryable TYPE abap_bool
       RAISING
         z2ui5_cx_agent_llm.
 
@@ -30,7 +34,7 @@ CLASS z2ui5_cl_agent_llm_std IMPLEMENTATION.
       EXPORTING
         kind      = z2ui5_cx_agent_llm=>cs_kind-http
         text      = text
-        retryable = abap_true.
+        retryable = retryable.
 
   ENDMETHOD.
 
@@ -111,9 +115,11 @@ CLASS z2ui5_cl_agent_llm_std IMPLEMENTATION.
                             OTHERS                     = 4 ).
     ENDIF.
     IF sy-subrc <> 0.
+      DATA(lv_retryable) = xsdbool( sy-subrc = 1 ).
       lo_client->get_last_error( IMPORTING message = lv_message ).
       lo_client->close( ).
-      fail( |no answer from the language model service - { lv_message }| ).
+      fail( text      = |no answer from the language model service - { lv_message }|
+            retryable = lv_retryable ).
     ENDIF.
 
     lo_client->response->get_status( IMPORTING code   = result-status

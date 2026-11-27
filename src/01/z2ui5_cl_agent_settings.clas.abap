@@ -188,7 +188,8 @@ CLASS z2ui5_cl_agent_settings DEFINITION PUBLIC FINAL CREATE PUBLIC.
     "! The policy of an event on the screen of app, in a session started
     "! with app_start: the stricter of the app's own rules (describe( ))
     "! and the EVENT settings matching either class; every event of the
-    "! addon's own apps is forbidden.
+    "! addon's own apps, and of an app an agent may not start
+    "! (check_app( )), is forbidden.
     CLASS-METHODS get_policy
       IMPORTING
         app_start     TYPE clike
@@ -607,17 +608,18 @@ CLASS z2ui5_cl_agent_settings IMPLEMENTATION.
                         source = |{ lv_app } belongs to the agent addon itself and is never operable by an agent| ).
       RETURN.
     ENDIF.
-    " an app an administrator denied, also when an operable app navigated
-    " there or the rule came after the session started: check_app( ) only
-    " guards app_start and app_attach, and "deny wins"
-    load( ).
-    LOOP AT gt_setting INTO DATA(ls_deny) WHERE kind = cs_kind-app. "#EC CI_SORTSEQ
-      IF lv_app CP ls_deny-app AND ls_deny-value = cs_app_rule-deny.
-        result = VALUE #( policy = z2ui5_if_agent_app=>cs_policy-forbidden
-                          source = |{ lv_app } is denied for agents by the setting APP { ls_deny-app }| ).
-        RETURN.
-      ENDIF.
-    ENDLOOP.
+    " an app an agent may not start is not operable either - reached by
+    " navigation from an operable app (nav_app_call), or its opt-in (the
+    " interface, an allow rule) gone or a deny rule added after the session
+    " started: check_app( ) at app_start and app_attach alone left every
+    " event of such an app allowed
+    DATA(lv_reason) = ``.
+    IF check_app( EXPORTING app    = lv_app
+                  IMPORTING reason = lv_reason ) = abap_false.
+      result = VALUE #( policy = z2ui5_if_agent_app=>cs_policy-forbidden
+                        source = lv_reason ).
+      RETURN.
+    ENDIF.
 
     " the app's own word
     DATA(ls_info) = get_app_info( lv_app ).

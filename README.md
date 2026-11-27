@@ -356,6 +356,10 @@ the reference's, key for key.
   allowed by an administrator, can be listed or started. The addon's own apps
   (`z2ui5_cl_agent_app_*`) are never agent-operable, whatever the settings say -
   every event of theirs is `forbidden`, also when an operable app navigates there.
+  The same holds for every app an agent could not start: an app without opt-in
+  that an operable app calls (`nav_app_call`), or one whose allow rule an
+  administrator removes (or denies) while a session runs - its events are
+  `forbidden`.
 - **The real SAP user, always.** Authentication is the logon of the HTTP
   request (Basic, OAuth, certificates, principal propagation) - nothing custom,
   no technical user, no user switch. The app runs as that user, with its

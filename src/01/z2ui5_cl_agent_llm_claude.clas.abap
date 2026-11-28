@@ -161,7 +161,7 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
       " the schema is embedded as JSON - checked first, so a broken schema
       " is a readable error here and not a 400 from the service
       TRY.
-          z2ui5_cl_ajson=>parse( is_request-schema ).
+          z2ui5_cl_ui5_ajson=>parse( is_request-schema ).
         CATCH cx_root INTO DATA(lx).
           RAISE EXCEPTION TYPE z2ui5_cx_agent_llm
             EXPORTING
@@ -233,11 +233,11 @@ CLASS z2ui5_cl_agent_llm_claude IMPLEMENTATION.
 
   METHOD parse_response.
 
-    DATA lo_json TYPE REF TO z2ui5_if_ajson.
+    DATA lo_json TYPE REF TO z2ui5_if_ui5_ajson.
     DATA lv_message TYPE string.
 
     TRY.
-        lo_json = z2ui5_cl_ajson=>parse( is_response-body ).
+        lo_json = z2ui5_cl_ui5_ajson=>parse( is_response-body ).
       CATCH cx_root.
         CLEAR lo_json.
     ENDTRY.

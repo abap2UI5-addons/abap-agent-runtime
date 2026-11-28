@@ -110,21 +110,21 @@ CLASS z2ui5_cl_agent_mcp DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     METHODS message
       IMPORTING
-        io_json       TYPE REF TO z2ui5_if_ajson
+        io_json       TYPE REF TO z2ui5_if_ui5_ajson
         path          TYPE string
       RETURNING
         VALUE(result) TYPE string.
 
     METHODS initialize
       IMPORTING
-        io_json       TYPE REF TO z2ui5_if_ajson
+        io_json       TYPE REF TO z2ui5_if_ui5_ajson
         path          TYPE string
       RETURNING
         VALUE(result) TYPE string.
 
     METHODS tools_call
       IMPORTING
-        io_json       TYPE REF TO z2ui5_if_ajson
+        io_json       TYPE REF TO z2ui5_if_ui5_ajson
         path          TYPE string
       EXPORTING
         error_code    TYPE i
@@ -315,7 +315,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     ENDIF.
 
     TRY.
-        DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = is_request-body
+        DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( iv_json            = is_request-body
                                                                     iv_keep_item_order = abap_true ) ).
       CATCH cx_root.
         result = http_error( status = 400
@@ -331,7 +331,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     " log without its name. An initialize carries no session to check.
     IF client_of_session( ) = abap_false.
       DATA(lv_initialize) = abap_false.
-      IF lo_json->get_node_type( `/` ) = z2ui5_if_ajson_types=>node_type-array.
+      IF lo_json->get_node_type( `/` ) = z2ui5_if_ui5_ajson_types=>node_type-array.
         DATA(lv_messages) = lines( lo_json->members( `/` ) ).
         DO lv_messages TIMES.
           IF lo_json->get_string( |/{ sy-index }/method| ) = `initialize`.
@@ -350,7 +350,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       ENDIF.
     ENDIF.
 
-    IF lo_json->get_node_type( `/` ) = z2ui5_if_ajson_types=>node_type-array.
+    IF lo_json->get_node_type( `/` ) = z2ui5_if_ui5_ajson_types=>node_type-array.
       " a batch (2025-03-26): every message answered, notifications not
       DATA(lv_count) = lines( lo_json->members( `/` ) ).
       IF lv_count = 0.
@@ -439,7 +439,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     DATA lv_code TYPE i.
     DATA lv_text TYPE string.
 
-    IF io_json->get_node_type( COND #( WHEN path IS INITIAL THEN `/` ELSE path ) ) <> z2ui5_if_ajson_types=>node_type-object.
+    IF io_json->get_node_type( COND #( WHEN path IS INITIAL THEN `/` ELSE path ) ) <> z2ui5_if_ui5_ajson_types=>node_type-object.
       result = rpc_error( id   = lv_id
                           code = cs_error-invalid_request
                           text = `invalid request - a JSON-RPC message is an object` ).
@@ -448,10 +448,10 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
 
     DATA(lv_has_id) = abap_false.
     CASE io_json->get_node_type( |{ path }/id| ).
-      WHEN z2ui5_if_ajson_types=>node_type-string.
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-string.
         lv_id = z2ui5_cl_agent_viewxml=>json_string( io_json->get( |{ path }/id| ) ).
         lv_has_id = abap_true.
-      WHEN z2ui5_if_ajson_types=>node_type-number.
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-number.
         lv_id = io_json->get( |{ path }/id| ).
         lv_has_id = abap_true.
     ENDCASE.
@@ -462,7 +462,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
                           text = `invalid request - jsonrpc must be "2.0"` ).
       RETURN.
     ENDIF.
-    IF io_json->get_node_type( |{ path }/method| ) <> z2ui5_if_ajson_types=>node_type-string.
+    IF io_json->get_node_type( |{ path }/method| ) <> z2ui5_if_ui5_ajson_types=>node_type-string.
       IF io_json->exists( |{ path }/result| ) = abap_true OR io_json->exists( |{ path }/error| ) = abap_true.
         " a response of the client - nothing was asked, nothing to answer
         RETURN.
@@ -586,8 +586,8 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     DATA(lv_name) = io_json->get_string( |{ path }/params/name| ).
     DATA(lv_base) = |{ path }/params/arguments|.
     DATA(lv_args_type) = io_json->get_node_type( lv_base ).
-    IF lv_args_type IS NOT INITIAL AND lv_args_type <> z2ui5_if_ajson_types=>node_type-object
-        AND lv_args_type <> z2ui5_if_ajson_types=>node_type-null.
+    IF lv_args_type IS NOT INITIAL AND lv_args_type <> z2ui5_if_ui5_ajson_types=>node_type-object
+        AND lv_args_type <> z2ui5_if_ui5_ajson_types=>node_type-null.
       error_code = cs_error-invalid_params.
       error_text = `invalid params - arguments is an object`.
       RETURN.
@@ -600,7 +600,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
                                     WHEN `app_start` THEN `,app,values,max_rows,`
                                     WHEN `app_describe` THEN `,session,max_rows,`
                                     WHEN `app_act` THEN `,session,values,event,args,row,max_rows,` ).
-    IF lv_known IS NOT INITIAL AND lv_args_type = z2ui5_if_ajson_types=>node_type-object.
+    IF lv_known IS NOT INITIAL AND lv_args_type = z2ui5_if_ui5_ajson_types=>node_type-object.
       LOOP AT io_json->members( lv_base ) INTO DATA(lv_member).
         IF find( val = lv_known
                  sub = |,{ lv_member },| ) < 0.
@@ -619,7 +619,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     DATA(lt_string) = VALUE string_table( ( `filter` ) ( `app` ) ( `session` ) ( `event` ) ).
     LOOP AT lt_string INTO DATA(lv_key).
       DATA(lv_type) = io_json->get_node_type( |{ lv_base }/{ lv_key }| ).
-      IF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ajson_types=>node_type-string AND lv_type <> z2ui5_if_ajson_types=>node_type-null.
+      IF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ui5_ajson_types=>node_type-string AND lv_type <> z2ui5_if_ui5_ajson_types=>node_type-null.
         result = tool_result( text     = |{ lv_key } must be a string|
                               is_error = abap_true ).
         RETURN.
@@ -628,44 +628,44 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
     DATA(lt_number) = VALUE string_table( ( `max_rows` ) ( `row` ) ).
     LOOP AT lt_number INTO lv_key.
       lv_type = io_json->get_node_type( |{ lv_base }/{ lv_key }| ).
-      IF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ajson_types=>node_type-number AND lv_type <> z2ui5_if_ajson_types=>node_type-null.
+      IF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ui5_ajson_types=>node_type-number AND lv_type <> z2ui5_if_ui5_ajson_types=>node_type-null.
         result = tool_result( text     = |{ lv_key } must be a number|
                               is_error = abap_true ).
         RETURN.
       ENDIF.
     ENDLOOP.
     lv_type = io_json->get_node_type( |{ lv_base }/values| ).
-    IF lv_type = z2ui5_if_ajson_types=>node_type-object.
+    IF lv_type = z2ui5_if_ui5_ajson_types=>node_type-object.
       TRY.
           lv_values = io_json->slice( |{ lv_base }/values| )->stringify( ).
-        CATCH z2ui5_cx_ajson_error INTO DATA(lx_values).
+        CATCH z2ui5_cx_ui5_ajson_error INTO DATA(lx_values).
           result = tool_result( text     = |values: { lx_values->get_text( ) }|
                                 is_error = abap_true ).
           RETURN.
       ENDTRY.
-    ELSEIF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ajson_types=>node_type-null.
+    ELSEIF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ui5_ajson_types=>node_type-null.
       result = tool_result( text     = `values is an object: { "<field id, path or name>": value }`
                             is_error = abap_true ).
       RETURN.
     ENDIF.
     lv_type = io_json->get_node_type( |{ lv_base }/args| ).
-    IF lv_type = z2ui5_if_ajson_types=>node_type-array.
+    IF lv_type = z2ui5_if_ui5_ajson_types=>node_type-array.
       TRY.
           lv_args = io_json->slice( |{ lv_base }/args| )->stringify( ).
-        CATCH z2ui5_cx_ajson_error INTO DATA(lx_args).
+        CATCH z2ui5_cx_ui5_ajson_error INTO DATA(lx_args).
           result = tool_result( text     = |args: { lx_args->get_text( ) }|
                                 is_error = abap_true ).
           RETURN.
       ENDTRY.
-    ELSEIF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ajson_types=>node_type-null.
+    ELSEIF lv_type IS NOT INITIAL AND lv_type <> z2ui5_if_ui5_ajson_types=>node_type-null.
       result = tool_result( text     = `args is an array, positional to the action's args (null where the client should fill in the value)`
                             is_error = abap_true ).
       RETURN.
     ENDIF.
 
-    DATA(lv_row) = COND string( WHEN io_json->get_node_type( |{ lv_base }/row| ) = z2ui5_if_ajson_types=>node_type-number
+    DATA(lv_row) = COND string( WHEN io_json->get_node_type( |{ lv_base }/row| ) = z2ui5_if_ui5_ajson_types=>node_type-number
                                 THEN io_json->get( |{ lv_base }/row| ) ).
-    DATA(lv_max_rows) = COND string( WHEN io_json->get_node_type( |{ lv_base }/max_rows| ) = z2ui5_if_ajson_types=>node_type-number
+    DATA(lv_max_rows) = COND string( WHEN io_json->get_node_type( |{ lv_base }/max_rows| ) = z2ui5_if_ui5_ajson_types=>node_type-number
                                      THEN io_json->get( |{ lv_base }/max_rows| ) ).
     DATA(lo_session) = NEW z2ui5_cl_agent_session( mv_client ).
 
@@ -727,11 +727,11 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
       RETURN.
     ENDIF.
     TRY.
-        DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = json
+        DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( iv_json            = json
                                                                     iv_keep_item_order = abap_true ) ).
         DO lines( lo_json->members( `/fields` ) ) TIMES.
           DATA(lv_field) = |/fields/{ sy-index }|.
-          IF lo_json->get_node_type( |{ lv_field }/value| ) = z2ui5_if_ajson_types=>node_type-string.
+          IF lo_json->get_node_type( |{ lv_field }/value| ) = z2ui5_if_ui5_ajson_types=>node_type-string.
             DATA(lv_value) = lo_json->get_string( |{ lv_field }/value| ).
             IF strlen( lv_value ) > c_value_cap.
               lo_json->set_string( iv_path = |{ lv_field }/value|
@@ -757,7 +757,7 @@ CLASS z2ui5_cl_agent_mcp IMPLEMENTATION.
           DO lv_rows TIMES.
             DATA(lv_row) = |{ lv_table }/rows/{ sy-index }|.
             LOOP AT lo_json->members( lv_row ) INTO DATA(lv_col).
-              IF lo_json->get_node_type( |{ lv_row }/{ lv_col }| ) <> z2ui5_if_ajson_types=>node_type-string.
+              IF lo_json->get_node_type( |{ lv_row }/{ lv_col }| ) <> z2ui5_if_ui5_ajson_types=>node_type-string.
                 CONTINUE.
               ENDIF.
               lv_value = lo_json->get_string( |{ lv_row }/{ lv_col }| ).

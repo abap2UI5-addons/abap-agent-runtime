@@ -84,7 +84,7 @@ in step with every change.
   `standard` (main without 04) or `cloud` (main without 03) -
   `publish-branches.yaml` writes them; never commit to them.
 - **Engine vs. apps.** Package 01 may use abap2UI5 internals
-  (`z2ui5_cl_ajson`, `z2ui5_cl_ui5_util_context`, `z2ui5_cl_ui5_util_http`,
+  (`z2ui5_cl_ui5_ajson`, `z2ui5_cl_ui5_util_context`, `z2ui5_cl_ui5_util_http`,
   `z2ui5_cl_ui5_user_exit`, the draft seam) - it is an engine, like the
   simulator. The apps in 02 name only the released abap2UI5 objects (`src/02`
   of the core) plus this addon's classes; the abap2UI5 linter's

@@ -421,7 +421,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
     TYPES:
       BEGIN OF ty_s_model,
         key  TYPE string,
-        json TYPE REF TO z2ui5_if_ajson,
+        json TYPE REF TO z2ui5_if_ui5_ajson,
       END OF ty_s_model.
     TYPES ty_t_model TYPE STANDARD TABLE OF ty_s_model WITH EMPTY KEY.
 
@@ -511,7 +511,7 @@ CLASS z2ui5_cl_agent_snapshot DEFINITION PUBLIC FINAL CREATE PUBLIC.
       IMPORTING
         model_key     TYPE string
       RETURNING
-        VALUE(result) TYPE REF TO z2ui5_if_ajson.
+        VALUE(result) TYPE REF TO z2ui5_if_ui5_ajson.
 
     METHODS custom_work.
 
@@ -888,10 +888,10 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
         lv_model = `{}`.
       ENDIF.
       TRY.
-          DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = lv_model
+          DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( iv_json            = lv_model
                                                                       iv_keep_item_order = abap_true ) ).
         CATCH cx_root.
-          lo_json = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>create_empty( iv_keep_item_order = abap_true ) ).
+          lo_json = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>create_empty( iv_keep_item_order = abap_true ) ).
       ENDTRY.
       INSERT VALUE #( key  = lv_key
                       json = lo_json ) INTO TABLE mt_model.
@@ -914,18 +914,18 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
               lo_model->set( iv_path         = lv_tree
                              iv_val          = ls_pending-val-str
                              iv_ignore_empty = abap_false
-                             iv_node_type    = z2ui5_if_ajson_types=>node_type-string ).
+                             iv_node_type    = z2ui5_if_ui5_ajson_types=>node_type-string ).
             WHEN z2ui5_cl_agent_viewxml=>cs_kind-number.
               lo_model->set( iv_path      = lv_tree
                              iv_val       = ls_pending-val-str
-                             iv_node_type = z2ui5_if_ajson_types=>node_type-number ).
+                             iv_node_type = z2ui5_if_ui5_ajson_types=>node_type-number ).
             WHEN z2ui5_cl_agent_viewxml=>cs_kind-boolean.
               lo_model->set( iv_path      = lv_tree
                              iv_val       = ls_pending-val-str
-                             iv_node_type = z2ui5_if_ajson_types=>node_type-boolean ).
+                             iv_node_type = z2ui5_if_ui5_ajson_types=>node_type-boolean ).
             WHEN z2ui5_cl_agent_viewxml=>cs_kind-object OR z2ui5_cl_agent_viewxml=>cs_kind-array.
               lo_model->set( iv_path = lv_tree
-                             iv_val  = z2ui5_cl_ajson=>parse( ls_pending-val-json ) ).
+                             iv_val  = z2ui5_cl_ui5_ajson=>parse( ls_pending-val-json ) ).
             WHEN OTHERS.
               lo_model->set_null( lv_tree ).
           ENDCASE.
@@ -962,12 +962,12 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     DATA(lv_cur) = CONV string( base ).
     LOOP AT lt_seg INTO DATA(lv_seg).
       DATA(lv_type) = lo_json->get_node_type( COND #( WHEN lv_cur IS INITIAL THEN `/` ELSE lv_cur ) ).
-      IF lv_type = z2ui5_if_ajson_types=>node_type-array.
+      IF lv_type = z2ui5_if_ui5_ajson_types=>node_type-array.
         IF lv_seg CN `0123456789`.
           RETURN.
         ENDIF.
         lv_seg = |{ CONV i( lv_seg ) + 1 }|.
-      ELSEIF lv_type <> z2ui5_if_ajson_types=>node_type-object.
+      ELSEIF lv_type <> z2ui5_if_ui5_ajson_types=>node_type-object.
         RETURN.
       ENDIF.
       lv_cur = |{ lv_cur }/{ lv_seg }|.
@@ -990,16 +990,16 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       RETURN.
     ENDIF.
     CASE lo_json->get_node_type( lv_tree ).
-      WHEN z2ui5_if_ajson_types=>node_type-string.
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-string.
         result = z2ui5_cl_agent_viewxml=>val_string( lo_json->get( lv_tree ) ).
-      WHEN z2ui5_if_ajson_types=>node_type-number.
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-number.
         result = z2ui5_cl_agent_viewxml=>val_number( lo_json->get( lv_tree ) ).
-      WHEN z2ui5_if_ajson_types=>node_type-boolean.
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-boolean.
         result = z2ui5_cl_agent_viewxml=>val_boolean( lo_json->get_boolean( lv_tree ) ).
-      WHEN z2ui5_if_ajson_types=>node_type-null.
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-null.
         result-kind = z2ui5_cl_agent_viewxml=>cs_kind-null.
-      WHEN z2ui5_if_ajson_types=>node_type-object OR z2ui5_if_ajson_types=>node_type-array.
-        result-kind = COND #( WHEN lo_json->get_node_type( lv_tree ) = z2ui5_if_ajson_types=>node_type-array
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-object OR z2ui5_if_ui5_ajson_types=>node_type-array.
+        result-kind = COND #( WHEN lo_json->get_node_type( lv_tree ) = z2ui5_if_ui5_ajson_types=>node_type-array
                               THEN z2ui5_cl_agent_viewxml=>cs_kind-array
                               ELSE z2ui5_cl_agent_viewxml=>cs_kind-object ).
         IF check_json = abap_true.
@@ -1371,12 +1371,12 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
     " what the last response asked the client to do besides the views
     LOOP AT ms_input-t_custom INTO DATA(lv_raw).
       TRY.
-          DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = lv_raw
+          DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( iv_json            = lv_raw
                                                                       iv_keep_item_order = abap_true ) ).
         CATCH cx_root.
           CONTINUE.
       ENDTRY.
-      IF lo_json->get_node_type( `/` ) <> z2ui5_if_ajson_types=>node_type-array.
+      IF lo_json->get_node_type( `/` ) <> z2ui5_if_ui5_ajson_types=>node_type-array.
         CONTINUE.
       ENDIF.
       DATA(lv_base) = 0.
@@ -1391,21 +1391,21 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       DATA(lv_text_type) = lo_json->get_node_type( lv_text_path ).
       DATA(lv_text) = ``.
       TRY.
-          lv_text = COND string( WHEN lv_text_type = z2ui5_if_ajson_types=>node_type-object
-                                   OR lv_text_type = z2ui5_if_ajson_types=>node_type-array
+          lv_text = COND string( WHEN lv_text_type = z2ui5_if_ui5_ajson_types=>node_type-object
+                                   OR lv_text_type = z2ui5_if_ui5_ajson_types=>node_type-array
                                  THEN lo_json->slice( lv_text_path )->stringify( )
-                                 WHEN lv_text_type = z2ui5_if_ajson_types=>node_type-null
+                                 WHEN lv_text_type = z2ui5_if_ui5_ajson_types=>node_type-null
                                    OR lv_text_type IS INITIAL
                                  THEN ``
                                  ELSE lo_json->get( lv_text_path ) ).
-        CATCH z2ui5_cx_ajson_error.
+        CATCH z2ui5_cx_ui5_ajson_error.
           CLEAR lv_text.
       ENDTRY.
       DATA(lv_opt) = |/{ lv_base + 4 }|.
-      DATA(lv_has_opt) = xsdbool( lo_json->get_node_type( lv_opt ) = z2ui5_if_ajson_types=>node_type-object ).
+      DATA(lv_has_opt) = xsdbool( lo_json->get_node_type( lv_opt ) = z2ui5_if_ui5_ajson_types=>node_type-object ).
       CLEAR lv_onclose.
       lv_benign = abap_false.
-      IF lv_has_opt = abap_true AND lo_json->get_node_type( |{ lv_opt }/onClose| ) = z2ui5_if_ajson_types=>node_type-string.
+      IF lv_has_opt = abap_true AND lo_json->get_node_type( |{ lv_opt }/onClose| ) = z2ui5_if_ui5_ajson_types=>node_type-string.
         lv_onclose = lo_json->get( |{ lv_opt }/onClose| ).
       ENDIF.
 
@@ -1437,7 +1437,7 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
                           source = `box` ) INTO TABLE mt_message.
           IF lv_onclose IS NOT INITIAL.
             DATA(lt_choice) = VALUE string_table( ).
-            IF lo_json->get_node_type( |{ lv_opt }/actions| ) = z2ui5_if_ajson_types=>node_type-array.
+            IF lo_json->get_node_type( |{ lv_opt }/actions| ) = z2ui5_if_ui5_ajson_types=>node_type-array.
               DATA(lv_n) = lines( lo_json->members( |{ lv_opt }/actions| ) ).
               DO lv_n TIMES.
                 INSERT lo_json->get( |{ lv_opt }/actions/{ sy-index }| ) INTO TABLE lt_choice.
@@ -1463,7 +1463,7 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
           ENDIF.
 
         WHEN `START_TIMER`.
-          IF lv_method_type = z2ui5_if_ajson_types=>node_type-string AND lv_method IS NOT INITIAL.
+          IF lv_method_type = z2ui5_if_ui5_ajson_types=>node_type-string AND lv_method IS NOT INITIAL.
             DATA(ls_ms) = z2ui5_cl_agent_viewxml=>describe_arg( lv_text ).
             DATA(lv_ms) = COND string( WHEN ls_ms-static = abap_true AND ls_ms-val-kind = z2ui5_cl_agent_viewxml=>cs_kind-number
                                          AND ls_ms-val-num <> 0
@@ -1495,13 +1495,13 @@ CLASS z2ui5_cl_agent_snapshot IMPLEMENTATION.
       WHILE lv_index <= lv_count.
         DATA(lv_type) = lo_json->get_node_type( |/{ lv_index }| ).
         CASE lv_type.
-          WHEN z2ui5_if_ajson_types=>node_type-object OR z2ui5_if_ajson_types=>node_type-array.
+          WHEN z2ui5_if_ui5_ajson_types=>node_type-object OR z2ui5_if_ui5_ajson_types=>node_type-array.
             TRY.
                 INSERT lo_json->slice( |/{ lv_index }| )->stringify( ) INTO TABLE lt_part.
-              CATCH z2ui5_cx_ajson_error.
-                INSERT COND #( WHEN lv_type = z2ui5_if_ajson_types=>node_type-array THEN `[]` ELSE `{}` ) INTO TABLE lt_part.
+              CATCH z2ui5_cx_ui5_ajson_error.
+                INSERT COND #( WHEN lv_type = z2ui5_if_ui5_ajson_types=>node_type-array THEN `[]` ELSE `{}` ) INTO TABLE lt_part.
             ENDTRY.
-          WHEN z2ui5_if_ajson_types=>node_type-null.
+          WHEN z2ui5_if_ui5_ajson_types=>node_type-null.
             INSERT `null` INTO TABLE lt_part.
           WHEN OTHERS.
             INSERT lo_json->get( |/{ lv_index }| ) INTO TABLE lt_part.

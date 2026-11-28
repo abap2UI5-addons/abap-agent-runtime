@@ -95,7 +95,7 @@ INTERFACE z2ui5_if_agent_llm PUBLIC.
       id          TYPE string,
       model       TYPE string,
       text        TYPE string,
-      json        TYPE REF TO z2ui5_if_ajson,
+      json        TYPE REF TO z2ui5_if_ui5_ajson,
       stop_reason TYPE string,
       usage       TYPE ty_s_usage,
     END OF ty_s_response.

@@ -133,7 +133,7 @@ CLASS ltcl_session DEFINITION FINAL
       IMPORTING
         is_result     TYPE z2ui5_cl_agent_session=>ty_s_result
       RETURNING
-        VALUE(result) TYPE REF TO z2ui5_if_ajson.
+        VALUE(result) TYPE REF TO z2ui5_if_ui5_ajson.
 
     METHODS refused
       IMPORTING
@@ -142,7 +142,7 @@ CLASS ltcl_session DEFINITION FINAL
 
     METHODS action_id
       IMPORTING
-        io_snap       TYPE REF TO z2ui5_if_ajson
+        io_snap       TYPE REF TO z2ui5_if_ui5_ajson
         event         TYPE string
       RETURNING
         VALUE(result) TYPE string.
@@ -190,7 +190,7 @@ CLASS ltcl_session IMPLEMENTATION.
     cl_abap_unit_assert=>assert_false( act = is_result-is_error
                                        msg = is_result-text ).
     TRY.
-        result = z2ui5_cl_ajson=>parse( is_result-text ).
+        result = z2ui5_cl_ui5_ajson=>parse( is_result-text ).
       CATCH cx_root.
         cl_abap_unit_assert=>fail( |no JSON: { is_result-text }| ).
     ENDTRY.

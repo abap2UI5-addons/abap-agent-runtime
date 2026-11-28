@@ -284,7 +284,7 @@ CLASS z2ui5_cl_agent_session DEFINITION PUBLIC FINAL CREATE PUBLIC.
 
     METHODS val_of_node
       IMPORTING
-        io_json       TYPE REF TO z2ui5_if_ajson
+        io_json       TYPE REF TO z2ui5_if_ui5_ajson
         path          TYPE string
       RETURNING
         VALUE(result) TYPE ty_s_val.
@@ -1091,10 +1091,10 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
 
     TRY.
         IF ms_row-custom IS NOT INITIAL.
-          z2ui5_cl_ajson=>parse( ms_row-custom )->to_abap( IMPORTING ev_container = mt_custom ).
+          z2ui5_cl_ui5_ajson=>parse( ms_row-custom )->to_abap( IMPORTING ev_container = mt_custom ).
         ENDIF.
         IF ms_row-pending IS NOT INITIAL.
-          z2ui5_cl_ajson=>parse( ms_row-pending )->to_abap( IMPORTING ev_container = lt_pending_db ).
+          z2ui5_cl_ui5_ajson=>parse( ms_row-pending )->to_abap( IMPORTING ev_container = lt_pending_db ).
         ENDIF.
       CATCH cx_root INTO DATA(lx).
         fail( |session '{ lv_id }' is damaged ({ lx->get_text( ) }) - app_start { ms_row-app_start } again| ).
@@ -1164,11 +1164,11 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
                       json      = ls_pending-val-json ) INTO TABLE lt_pending_db.
     ENDLOOP.
     TRY.
-        DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>create_empty( ) ).
+        DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>create_empty( ) ).
         lo_json->set( iv_path = `/`
                       iv_val  = mt_custom ).
         ms_row-custom = lo_json->stringify( ).
-        lo_json = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>create_empty( ) ).
+        lo_json = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>create_empty( ) ).
         lo_json->set( iv_path = `/`
                       iv_val  = lt_pending_db ).
         ms_row-pending = lo_json->stringify( ).
@@ -1258,7 +1258,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       RETURN.
     ENDIF.
     TRY.
-        DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = CONV string( json )
+        DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( iv_json            = CONV string( json )
                                                                     iv_keep_item_order = abap_true ) ).
       CATCH cx_root.
         IF array = abap_true.
@@ -1268,7 +1268,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     ENDTRY.
     DATA(lv_type) = lo_json->get_node_type( `/` ).
     IF array = abap_true.
-      IF lv_type <> z2ui5_if_ajson_types=>node_type-array.
+      IF lv_type <> z2ui5_if_ui5_ajson_types=>node_type-array.
         fail( `args is an array, positional to the action's args (null where the client should fill in the value)` ).
       ENDIF.
       DATA(lv_count) = lines( lo_json->members( `/` ) ).
@@ -1279,7 +1279,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       ENDDO.
       RETURN.
     ENDIF.
-    IF lv_type <> z2ui5_if_ajson_types=>node_type-object.
+    IF lv_type <> z2ui5_if_ui5_ajson_types=>node_type-object.
       fail( `values is an object: { "<field id, path or name>": value }` ).
     ENDIF.
 
@@ -1287,7 +1287,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
     " cannot address them, so the object is split by hand, in its own order
     LOOP AT object_members( CONV string( json ) ) INTO DATA(ls_member).
       TRY.
-          DATA(lo_value) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( iv_json            = |\{"v":{ ls_member-raw }\}|
+          DATA(lo_value) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( iv_json            = |\{"v":{ ls_member-raw }\}|
                                                                        iv_keep_item_order = abap_true ) ).
         CATCH cx_root.
           fail( `values is an object: { "<field id, path or name>": value }` ).
@@ -1393,14 +1393,14 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
   METHOD val_of_node.
 
     CASE io_json->get_node_type( path ).
-      WHEN z2ui5_if_ajson_types=>node_type-string.
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-string.
         result = z2ui5_cl_agent_viewxml=>val_string( io_json->get( path ) ).
-      WHEN z2ui5_if_ajson_types=>node_type-number.
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-number.
         result = z2ui5_cl_agent_viewxml=>val_number( io_json->get( path ) ).
-      WHEN z2ui5_if_ajson_types=>node_type-boolean.
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-boolean.
         result = z2ui5_cl_agent_viewxml=>val_boolean( io_json->get_boolean( path ) ).
-      WHEN z2ui5_if_ajson_types=>node_type-object OR z2ui5_if_ajson_types=>node_type-array.
-        result-kind = COND #( WHEN io_json->get_node_type( path ) = z2ui5_if_ajson_types=>node_type-array
+      WHEN z2ui5_if_ui5_ajson_types=>node_type-object OR z2ui5_if_ui5_ajson_types=>node_type-array.
+        result-kind = COND #( WHEN io_json->get_node_type( path ) = z2ui5_if_ui5_ajson_types=>node_type-array
                               THEN z2ui5_cl_agent_viewxml=>cs_kind-array
                               ELSE z2ui5_cl_agent_viewxml=>cs_kind-object ).
         TRY.
@@ -1490,7 +1490,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
       " every element as a string
       DATA(lt_key) = VALUE string_table( ).
       TRY.
-          DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( val-json ) ).
+          DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( val-json ) ).
           DATA(lv_count) = lines( lo_json->members( `/` ) ).
           DO lv_count TIMES.
             DATA(ls_element) = val_of_node( io_json = lo_json
@@ -1590,7 +1590,7 @@ CLASS z2ui5_cl_agent_session IMPLEMENTATION.
           DATA(lt_given) = VALUE string_table( ).
           IF ls_val-kind = z2ui5_cl_agent_viewxml=>cs_kind-array.
             TRY.
-                DATA(lo_keys) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( ls_val-json ) ).
+                DATA(lo_keys) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( ls_val-json ) ).
                 DATA(lv_key_count) = lines( lo_keys->members( `/` ) ).
                 DO lv_key_count TIMES.
                   INSERT lo_keys->get( |/{ sy-index }| ) INTO TABLE lt_given.

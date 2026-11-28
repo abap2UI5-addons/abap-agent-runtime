@@ -467,11 +467,11 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
               ENDIF.
               INSERT <row> INTO TABLE <sample>.
             ENDLOOP.
-            DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>create_empty( ) ).
+            DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>create_empty( ) ).
             lo_json->set( iv_path = `/`
                           iv_val  = <sample> ).
           ELSE.
-            lo_json = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>create_empty( ) ).
+            lo_json = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>create_empty( ) ).
             lo_json->set( iv_path = `/`
                           iv_val  = val ).
           ENDIF.
@@ -856,10 +856,10 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
   METHOD parse.
 
-    DATA lo_json TYPE REF TO z2ui5_if_ajson.
+    DATA lo_json TYPE REF TO z2ui5_if_ui5_ajson.
 
     TRY.
-        lo_json = z2ui5_cl_ajson=>parse( iv_json            = json
+        lo_json = z2ui5_cl_ui5_ajson=>parse( iv_json            = json
                                          iv_keep_item_order = abap_true ).
       CATCH cx_root.
         issue( `the answer is no JSON` ).
@@ -868,7 +868,7 @@ CLASS z2ui5_cl_agent_genui IMPLEMENTATION.
 
     TRY.
         mv_title = lo_json->get_string( `/title` ).
-        IF lo_json->get_node_type( `/nodes` ) <> z2ui5_if_ajson_types=>node_type-array.
+        IF lo_json->get_node_type( `/nodes` ) <> z2ui5_if_ui5_ajson_types=>node_type-array.
           issue( `the answer has no nodes array` ).
           RETURN.
         ENDIF.

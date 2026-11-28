@@ -119,7 +119,7 @@ CLASS ltcl_mcp DEFINITION FINAL
       IMPORTING
         body          TYPE string
       RETURNING
-        VALUE(result) TYPE REF TO z2ui5_if_ajson.
+        VALUE(result) TYPE REF TO z2ui5_if_ui5_ajson.
 
 ENDCLASS.
 
@@ -166,7 +166,7 @@ CLASS ltcl_mcp IMPLEMENTATION.
     cl_abap_unit_assert=>assert_equals( exp = 200
                                         act = ls_response-status ).
     TRY.
-        result = z2ui5_cl_ajson=>parse( ls_response-body ).
+        result = z2ui5_cl_ui5_ajson=>parse( ls_response-body ).
       CATCH cx_root.
         cl_abap_unit_assert=>fail( |no JSON: { ls_response-body }| ).
     ENDTRY.
@@ -300,7 +300,7 @@ CLASS ltcl_mcp IMPLEMENTATION.
       cl_abap_unit_assert=>assert_equals( exp = -32600
                                           act = lo_json->get_integer( `/error/code` )
                                           msg = |id { lv_id }| ).
-      cl_abap_unit_assert=>assert_equals( exp = z2ui5_if_ajson_types=>node_type-null
+      cl_abap_unit_assert=>assert_equals( exp = z2ui5_if_ui5_ajson_types=>node_type-null
                                           act = lo_json->get_node_type( `/id` ) ).
       cl_abap_unit_assert=>assert_false( lo_json->exists( `/result` ) ).
     ENDLOOP.
@@ -330,12 +330,12 @@ CLASS ltcl_mcp IMPLEMENTATION.
 
     DATA(ls_response) = post( `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",` &&
                               `"capabilities":{},"clientInfo":{"name":"unit-test","version":"1.0"}}}` ).
-    DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( ls_response-body ) ).
+    DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( ls_response-body ) ).
     cl_abap_unit_assert=>assert_equals( exp = `2025-06-18`
                                         act = lo_json->get_string( `/result/protocolVersion` ) ).
     cl_abap_unit_assert=>assert_equals( exp = z2ui5_cl_agent_mcp=>c_server_name
                                         act = lo_json->get_string( `/result/serverInfo/name` ) ).
-    cl_abap_unit_assert=>assert_equals( exp = z2ui5_if_ajson_types=>node_type-object
+    cl_abap_unit_assert=>assert_equals( exp = z2ui5_if_ui5_ajson_types=>node_type-object
                                         act = lo_json->get_node_type( `/result/capabilities/tools` ) ).
     cl_abap_unit_assert=>assert_char_cp( exp = `*The endpoint is enabled.*`
                                          act = lo_json->get_string( `/result/instructions` ) ).
@@ -482,10 +482,10 @@ CLASS ltcl_mcp IMPLEMENTATION.
                                                                     body         = `{"jsonrpc":"2.0","id":6,"method":"tools/call","params":` &&
                                                                                    `{"name":"app_start","arguments":{"app":"z2ui5_cl_agent_demo","max_rows":1}}}` ) ).
     COMMIT WORK.
-    DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( ls_response-body ) ).
+    DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( ls_response-body ) ).
     cl_abap_unit_assert=>assert_equals( exp = abap_false
                                         act = lo_json->get_boolean( `/result/isError` ) ).
-    DATA(lo_snap) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( lo_json->get_string( `/result/content/1/text` ) ) ).
+    DATA(lo_snap) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( lo_json->get_string( `/result/content/1/text` ) ) ).
     cl_abap_unit_assert=>assert_equals( exp = `Z2UI5_CL_AGENT_DEMO`
                                         act = lo_snap->get_string( `/app` ) ).
     cl_abap_unit_assert=>assert_equals( exp = 1
@@ -575,7 +575,7 @@ CLASS ltcl_fit IMPLEMENTATION.
                                                 note   = DATA(lv_note) ).
     cl_abap_unit_assert=>assert_true( xsdbool( strlen( lv_fitted ) <= z2ui5_cl_agent_mcp=>c_answer_budget ) ).
     TRY.
-        DATA(lo_json) = CAST z2ui5_if_ajson( z2ui5_cl_ajson=>parse( lv_fitted ) ).
+        DATA(lo_json) = CAST z2ui5_if_ui5_ajson( z2ui5_cl_ui5_ajson=>parse( lv_fitted ) ).
       CATCH cx_root.
         cl_abap_unit_assert=>fail( `the fitted snapshot is no JSON` ).
     ENDTRY.

@@ -279,7 +279,7 @@ CLASS z2ui5_cl_agent_llm IMPLEMENTATION.
         ENDIF.
         IF ls_request-schema IS NOT INITIAL AND result-json IS NOT BOUND.
           TRY.
-              result-json = z2ui5_cl_ajson=>parse( iv_json            = result-text
+              result-json = z2ui5_cl_ui5_ajson=>parse( iv_json            = result-text
                                                    iv_keep_item_order = abap_true ).
             CATCH cx_root INTO DATA(lx_parse).
               RAISE EXCEPTION TYPE z2ui5_cx_agent_llm

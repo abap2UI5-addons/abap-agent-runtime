@@ -239,7 +239,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     result-ok = abap_true.
     result-session = ls_result-session.
     TRY.
-        DATA(lo_json) = z2ui5_cl_ajson=>parse( ls_result-text ).
+        DATA(lo_json) = z2ui5_cl_ui5_ajson=>parse( ls_result-text ).
         result-app = lo_json->get_string( `/app` ).
         result-title = lo_json->get_string( `/title` ).
       CATCH cx_root ##NO_HANDLER.
@@ -303,7 +303,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
     DATA lt_drop TYPE string_table.
 
     TRY.
-        DATA(lo_json) = z2ui5_cl_ajson=>parse( iv_json            = io_snap->get_json( )
+        DATA(lo_json) = z2ui5_cl_ui5_ajson=>parse( iv_json            = io_snap->get_json( )
                                                iv_keep_item_order = abap_true ).
 
         " password inputs and sensitive fields: the model never sees them
@@ -664,7 +664,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
       RETURN.
     ENDIF.
     TRY.
-        DATA(lo_json) = z2ui5_cl_ajson=>parse( ls_result-text ).
+        DATA(lo_json) = z2ui5_cl_ui5_ajson=>parse( ls_result-text ).
         DATA(lv_count) = lines( lo_json->members( `/messages` ) ).
         DO lv_count TIMES.
           INSERT lo_json->get_string( |/messages/{ sy-index }/text| ) INTO TABLE lt_text.
@@ -775,7 +775,7 @@ CLASS z2ui5_cl_agent_assist IMPLEMENTATION.
           RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path } holds no list - the keys { lv_text } do not fit|.
         ENDIF.
         TRY.
-            z2ui5_cl_ajson=>parse( val-json )->to_abap( IMPORTING ev_container = <current> ).
+            z2ui5_cl_ui5_ajson=>parse( val-json )->to_abap( IMPORTING ev_container = <current> ).
           CATCH cx_root INTO DATA(lx).
             RAISE EXCEPTION TYPE z2ui5_cx_ui5_util_error EXPORTING val = |{ path }: the keys { lv_text } do not fit - { lx->get_text( ) }|.
         ENDTRY.

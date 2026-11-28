@@ -246,7 +246,7 @@ CLASS ltcl_llm IMPLEMENTATION.
     DATA(lv_args) = last_log( )-args.
     cl_abap_unit_assert=>assert_char_cp( act = lv_args
                                          exp = `*the secret answer*the secret question*` ).
-    z2ui5_cl_ajson=>parse( lv_args ).
+    z2ui5_cl_ui5_ajson=>parse( lv_args ).
 
   ENDMETHOD.
 
@@ -266,7 +266,7 @@ CLASS ltcl_llm IMPLEMENTATION.
 
     " still JSON, the last turn kept, the dropped ones counted
     DATA(lv_args) = last_log( )-args.
-    DATA(lo_args) = z2ui5_cl_ajson=>parse( lv_args ).
+    DATA(lo_args) = z2ui5_cl_ui5_ajson=>parse( lv_args ).
     cl_abap_unit_assert=>assert_char_cp( act = lv_args
                                          exp = `*the secret answer*turn 10 *` ).
     cl_abap_unit_assert=>assert_true( xsdbool( lo_args->get_integer( `/messages_omitted` ) > 0 ) ).
